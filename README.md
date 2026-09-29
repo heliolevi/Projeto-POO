@@ -36,6 +36,18 @@ reservas e ocorrências.
 Atende exclusivamente a cidade de São Luís (MA) e locadoras sediadas nela. Ficam fora do
 escopo inicial a operação em outras cidades e a devolução em ponto diferente do de retirada.
 
+## Público-alvo
+
+O projeto tem dois tipos de cliente, dos dois lados da plataforma:
+
+- **Locadoras (quem disponibiliza as bikes):** empresas que já alugam bicicletas em São Luís
+  e passam a oferecer o aluguel também pelo aplicativo. Cadastram seus pontos de retirada,
+  operadores e catálogo de bicicletas (tipos, unidades, preços, regras de caução e
+  documentos exigidos), e gerenciam frota, reservas e financeiro pelo painel administrativo.
+- **Clientes (quem aluga):** pessoas que querem alugar uma bicicleta em São Luís. Fazem
+  cadastro com documento e aceite dos termos, buscam a locadora mais próxima, filtram as
+  bicicletas por altura e atividade, reservam, pagam e retiram/devolvem no ponto escolhido.
+
 ## Arquitetura proposta
 
 **Estilo:** monólito modular — uma única aplicação Next.js (front-end e back-end no mesmo
