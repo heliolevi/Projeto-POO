@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verifica se já existe o app
+        id: app
+        run: |
+          if [ -f package.json ]; then echo "existe=true" >> "$GITHUB_OUTPUT"; else echo "existe=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@v4
+        if: steps.app.outputs.existe == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.app.outputs.existe == 'true'
+        run: npm ci
+      - if: steps.app.outputs.existe == 'true'
+        run: npm run lint
+      - if: steps.app.outputs.existe == 'true'
+        run: npm run typecheck
+      - if: steps.app.outputs.existe == 'true'
+        run: npm test
+      - if: steps.app.outputs.existe == 'true'
+        run: npm run build
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
