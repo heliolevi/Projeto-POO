@@ -114,14 +114,22 @@ SELECT set_config('app.perfil', 'GERENTE_LOCADORA', true),
 
 | Quem | locadora | ponto |
 |---|---|---|
-| Visitante ou cliente | vê as locadoras `ATIVA` | vê os pontos ativos de locadoras `ATIVA` |
+| Visitante ou cliente | não lê a tabela; consulta a view `locadora_catalogo` (locadoras `ATIVA`, só campos públicos) | vê os pontos ativos de locadoras `ATIVA` |
 | Operador | vê a própria locadora | vê os pontos da própria locadora |
 | Gerente | vê e edita a própria locadora (menos CNPJ, status, comissão e conta de recebimento) | vê e edita os pontos da própria locadora |
 | Admin da plataforma | tudo | tudo |
 
-Dois cuidados:
+A RLS filtra linhas, não colunas. Por isso o que o público pode ver da locadora é a view
+`locadora_catalogo`, sem CNPJ, e-mail, comissão nem conta de recebimento. A consulta pública nunca
+deve ler a tabela `locadora`.
+
+Cuidados:
 
 1. As políticas só valem para um papel **sem** `BYPASSRLS`. O dono do banco (`neondb_owner`) ignora
    a RLS, então o backend precisa conectar com um papel próprio, que ainda será criado.
 2. A tabela `usuario` ainda não tem política: o login consulta a tabela antes de existir uma sessão.
    Isso será resolvido no módulo de contas.
+3. Quem diz o perfil da sessão é o próprio backend (`set_config`). A RLS protege contra um filtro
+   esquecido no código, mas não contra uma injeção de SQL ou um backend comprometido: quem executa
+   SQL com o papel do aplicativo consegue declarar qualquer perfil. Por isso toda consulta precisa
+   usar parâmetros, nunca SQL montado com texto vindo do usuário.
