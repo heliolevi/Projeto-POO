@@ -11,7 +11,7 @@ e registro de retiradas e devoluções.
 
 ## Status do projeto
 
-Fase de proposta/documentação. Este repositório ainda não contém código.
+Fase de proposta/documentação, com o esqueleto do projeto Next.js (TypeScript, ESLint e módulos do back-end em `src/modules`) já configurado.
 
 ## Objetivo geral
 
@@ -107,3 +107,19 @@ row-level security.
 - Definir o modelo de comissão e repasse às locadoras.
 - Definir planos e cauções.
 - Planejar a integração com o Mercado Pago.
+
+## Desenvolvimento
+
+```bash
+npm install
+npm run dev        # http://localhost:3000 — health check em /api/health
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Estrutura do back-end: um diretório por módulo em `src/modules/<modulo>` (`contas`,
+`locadoras`, `catalogo`, `busca`, `reservas`, `pagamentos`, `operacao`, `administracao`,
+`notificacoes`), cada um com as camadas `domain`, `application`, `infrastructure` e `http` e
+uma API pública em `index.ts`. Os Route Handlers ficam em `src/app/api` e só importam os
+módulos pelo `index.ts` (regra imposta pelo ESLint). Código comum fica em `src/shared`.
