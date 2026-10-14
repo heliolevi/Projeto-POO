@@ -1,0 +1,19 @@
+{
+  "name": "bike-ilha-club-db",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Migrations do banco de dados do Bike Ilha Club",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "migrar": "node migrar.mjs up",
+    "migrar:simular": "node migrar.mjs up --simular",
+    "migrar:reverter": "node migrar.mjs down",
+    "migrar:status": "node migrar.mjs status"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}
