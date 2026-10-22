@@ -3,6 +3,7 @@ export class AppError extends Error {
     readonly code: string,
     message: string,
     readonly status: number,
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = "AppError";
@@ -10,8 +11,8 @@ export class AppError extends Error {
 }
 
 export class ValidationError extends AppError {
-  constructor(message: string) {
-    super("VALIDATION_ERROR", message, 400);
+  constructor(message: string, details?: Record<string, string>) {
+    super("VALIDATION_ERROR", message, 400, details);
   }
 }
 

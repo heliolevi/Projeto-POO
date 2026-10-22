@@ -15,7 +15,13 @@ export function noContent() {
 export function errorResponse(error: unknown) {
   if (error instanceof AppError) {
     return Response.json(
-      { error: { code: error.code, message: error.message } },
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.details ? { details: error.details } : {}),
+        },
+      },
       { status: error.status },
     );
   }
