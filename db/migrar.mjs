@@ -5,7 +5,7 @@
 //   node migrar.mjs status           lista aplicadas e pendentes
 //
 // A conexão vem de DATABASE_URL_UNPOOLED (ou DATABASE_URL), lidas do ambiente
-// ou do arquivo .env.local na raiz do projeto. Precisa ser a conexão direta, sem pool:
+// ou dos arquivos .env.local e .env na raiz do projeto (nessa ordem de prioridade). Precisa ser a conexão direta, sem pool:
 // o lock que impede duas execuções ao mesmo tempo não funciona atrás do pooler.
 
 import { createHash } from 'node:crypto';
@@ -61,9 +61,10 @@ async function main() {
   }
 
   carregarEnv(join(aqui, '..', '.env.local'));
+  carregarEnv(join(aqui, '..', '.env'));
   const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
   if (!url) {
-    console.error('Defina DATABASE_URL_UNPOOLED no .env.local.');
+    console.error('Defina DATABASE_URL_UNPOOLED no .env.local ou no .env.');
     process.exit(1);
   }
 
