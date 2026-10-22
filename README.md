@@ -123,3 +123,11 @@ Estrutura do back-end: um diretório por módulo em `src/modules/<modulo>` (`con
 `notificacoes`), cada um com as camadas `domain`, `application`, `infrastructure` e `http` e
 uma API pública em `index.ts`. Os Route Handlers ficam em `src/app/api` e só importam os
 módulos pelo `index.ts` (regra imposta pelo ESLint). Código comum fica em `src/shared`.
+
+### Banco de dados
+
+O app lê `DATABASE_URL` (conexão com pooler) do `.env`; veja `.env.example`. A conexão fica em
+`src/shared/db` (`getPool()` e `query()`, pool criado no primeiro uso). Com o banco configurado,
+`GET /api/health/db` mostra o banco, a versão do PostGIS e quantas migrations foram aplicadas.
+As migrations usam a conexão direta (`DATABASE_URL_UNPOOLED`) e rodam com `npm run migrar`
+dentro de `db/` (veja `db/README.md`).

@@ -5,7 +5,7 @@ aplicados em ordem pelo `migrar.mjs`.
 
 ## Como usar
 
-A conexão é lida do `.env.local` na raiz do projeto (veja `.env.example`). Para migrations, use a
+A conexão é lida do `.env.local` ou do `.env` na raiz do projeto (veja `.env.example`). Para migrations, use a
 conexão direta, sem pool: `DATABASE_URL_UNPOOLED`.
 
 ```bash
