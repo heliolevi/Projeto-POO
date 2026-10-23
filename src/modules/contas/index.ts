@@ -5,4 +5,6 @@
  * outros módulos ou pelos Route Handlers em src/app/api.
  * Camadas internas: domain → application → infrastructure / http.
  */
-export {};
+export { postCadastro, postLogin } from "./http/handlers";
+export { verificarToken, type SessaoToken } from "./infrastructure/token";
+export type { PerfilUsuario, UsuarioPublico } from "./domain/usuario";
