@@ -29,6 +29,28 @@ O runner mostra o host do banco antes de agir. Confira se é o branch certo.
 - Não edite uma migration que já foi aplicada. Crie outra (`0002_...`) com a alteração. O runner
   avisa se detectar que um arquivo mudou depois de aplicado.
 
+## Papel do aplicativo (RLS)
+
+A migration `0003` cria o papel `app_backend`, sem login e sem `BYPASSRLS`, com as permissões que o
+app precisa. O dono do banco (`neondb_owner`) ignora a segurança por linha, então o app **não deve**
+conectar com ele. O papel com login e senha não fica no repositório; crie um por banco (dev e
+production), no Editor SQL do Neon, com uma senha forte gerada por você:
+
+```sql
+CREATE ROLE app_login LOGIN PASSWORD '<senha-forte>' IN ROLE app_backend;
+
+-- confira: rolbypassrls precisa ser false
+SELECT rolname, rolbypassrls FROM pg_roles WHERE rolname = 'app_login';
+```
+
+Crie o papel por SQL, e não pelo botão de roles do console, que costuma dar `BYPASSRLS`. Depois:
+
+- **`DATABASE_URL`** (app e Vercel): usuário `app_login`, host com `-pooler`.
+- **`DATABASE_URL_UNPOOLED`** (migrations): continua com o dono do banco.
+
+As consultas de locadoras e pontos devem passar por `comSessao` (`src/shared/db/sessao.ts`), que
+declara perfil e locadora dentro de uma transação para as políticas valerem.
+
 ## Esquema atual
 
 Veja `docs/modelo-de-dados.md`.

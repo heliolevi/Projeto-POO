@@ -1,17 +1,25 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { requireEnv } from "@/shared/config/env";
+import { requireEnv } from "../../../shared/config/env.ts";
 import type { PerfilUsuario } from "../domain/usuario";
 
-// Token de sessão: JWT HS256 assinado com SESSION_SECRET. Sem estado no banco,
-// então não dá para revogar antes de expirar (por isso a duração é curta).
+// Token de sessão: JWT HS256 assinado com SESSION_SECRET. Sem estado no banco, então o
+// token em si não pode ser revogado antes de expirar. Por isso as rotas protegidas usam
+// exigirSessao, que confere no banco se a conta continua ativa.
 export const DURACAO_SESSAO_SEGUNDOS = 60 * 60 * 24;
 
 export type SessaoToken = { sub: string; perfil: PerfilUsuario; iat: number; exp: number };
+
+// Valor de exemplo do .env.example: tem mais de 32 caracteres e passaria na checagem de
+// tamanho, mas qualquer pessoa o conhece e poderia forjar tokens.
+const SEGREDO_DE_EXEMPLO = "troque-por-um-valor-aleatorio";
 
 function segredo(): string {
   const valor = requireEnv("SESSION_SECRET");
   if (valor.length < 32) {
     throw new Error("SESSION_SECRET precisa ter ao menos 32 caracteres.");
+  }
+  if (valor.startsWith(SEGREDO_DE_EXEMPLO)) {
+    throw new Error("SESSION_SECRET ainda está com o valor de exemplo. Gere um valor aleatório.");
   }
   return valor;
 }

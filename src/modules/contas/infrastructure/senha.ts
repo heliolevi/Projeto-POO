@@ -6,6 +6,8 @@ const N = 2 ** 15;
 const R = 8;
 const P = 1;
 const TAMANHO = 64;
+// Os parâmetros em uso. Os testes conferem que HASH_FALSO foi gerado com os mesmos.
+export const PARAMETROS_SCRYPT = { N, R, P } as const;
 const MAXMEM = 128 * N * R * 2;
 
 function derivar(
@@ -48,9 +50,14 @@ export async function verificarSenha(senha: string, armazenado: string): Promise
   return timingSafeEqual(esperado, obtido);
 }
 
-// Hash de uma senha qualquer, usado para gastar o mesmo tempo quando o e-mail não existe.
-let hashFalso: Promise<string> | undefined;
+// Hash de uma senha aleatória que foi descartada. Serve para gastar o mesmo tempo quando o
+// e-mail não existe: verificarSenha roda o scrypt inteiro contra ele e sempre falha.
+// Fica fixo no código (e não gerado na primeira chamada) para que nenhuma requisição pague
+// o custo extra de gerá-lo, o que deixaria o primeiro login com e-mail inexistente mais lento
+// e revelaria quais e-mails têm conta. Se N, R ou P mudarem, gere outro (o teste avisa).
+export const HASH_FALSO =
+  "scrypt$32768$8$1$o7uvnFd/h97dWvQlAmmKJw==$JXF7DvliBDUCLmHTsiMB7wQQv/WnK67TUx+pDTTpKKEpY3pTEOAMpPtjQiQy5LnAZJld9AAt4q2Q6NuuScrUbg==";
+
 export function hashParaTempoConstante(): Promise<string> {
-  hashFalso ??= gerarHashSenha(randomBytes(16).toString("hex"));
-  return hashFalso;
+  return Promise.resolve(HASH_FALSO);
 }
