@@ -44,6 +44,16 @@ export async function criarCliente(
   }
 }
 
+export async function buscarSituacaoPorId(
+  id: string,
+): Promise<{ perfil: PerfilUsuario; ativo: boolean } | null> {
+  const { rows } = await query<{ perfil: PerfilUsuario; ativo: boolean }>(
+    `SELECT perfil, ativo FROM usuario WHERE id = $1`,
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
 export async function buscarPorEmail(email: string): Promise<UsuarioComSenha | null> {
   const { rows } = await query<Linha>(
     `SELECT id, perfil, nome, email, senha_hash, ativo FROM usuario WHERE email = $1`,

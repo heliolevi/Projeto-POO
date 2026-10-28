@@ -22,7 +22,7 @@ export function errorResponse(error: unknown) {
           ...(error.details ? { details: error.details } : {}),
         },
       },
-      { status: error.status },
+      { status: error.status, headers: error.headers },
     );
   }
   console.error(error);

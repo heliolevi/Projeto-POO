@@ -115,21 +115,32 @@ SELECT set_config('app.perfil', 'GERENTE_LOCADORA', true),
 | Quem | locadora | ponto |
 |---|---|---|
 | Visitante ou cliente | não lê a tabela; consulta a view `locadora_catalogo` (locadoras `ATIVA`, só campos públicos) | vê os pontos ativos de locadoras `ATIVA` |
-| Operador | vê a própria locadora | vê os pontos da própria locadora |
-| Gerente | vê e edita a própria locadora (menos CNPJ, status, comissão e conta de recebimento) | vê e edita os pontos da própria locadora |
+| Operador | não lê a tabela; consulta a view `locadora_equipe` (a própria locadora, sem CNPJ, comissão nem conta de recebimento) | vê os pontos da própria locadora |
+| Gerente | lê a própria linha completa e edita a própria locadora (menos CNPJ, status, comissão e conta de recebimento) | vê e edita os pontos da própria locadora |
 | Admin da plataforma | tudo | tudo |
 
 A RLS filtra linhas, não colunas. Por isso o que o público pode ver da locadora é a view
-`locadora_catalogo`, sem CNPJ, e-mail, comissão nem conta de recebimento. A consulta pública nunca
-deve ler a tabela `locadora`.
+`locadora_catalogo` (sem CNPJ, e-mail, comissão nem conta de recebimento), e o que o operador vê é a
+view `locadora_equipe`. Só o gerente e o admin leem a tabela `locadora`. As consultas de público e de
+operador nunca devem ler a tabela.
 
 Cuidados:
 
 1. As políticas só valem para um papel **sem** `BYPASSRLS`. O dono do banco (`neondb_owner`) ignora
-   a RLS, então o backend precisa conectar com um papel próprio, que ainda será criado.
+   a RLS. A migration `0003` cria o grupo `app_backend` (sem login e sem `BYPASSRLS`); falta criar o
+   papel de login e trocar a `DATABASE_URL` do app e da Vercel (passo a passo em `db/README.md`). As
+   consultas devem passar por `comSessao` (`src/shared/db/sessao.ts`), que declara o perfil dentro
+   de uma transação.
 2. A tabela `usuario` ainda não tem política: o login consulta a tabela antes de existir uma sessão.
    Isso será resolvido no módulo de contas.
 3. Quem diz o perfil da sessão é o próprio backend (`set_config`). A RLS protege contra um filtro
    esquecido no código, mas não contra uma injeção de SQL ou um backend comprometido: quem executa
    SQL com o papel do aplicativo consegue declarar qualquer perfil. Por isso toda consulta precisa
    usar parâmetros, nunca SQL montado com texto vindo do usuário.
+
+## Tabelas de apoio
+
+- **`limite_tentativas`:** contagem de tentativas por chave e janela de tempo, usada para limitar login
+  (por IP, por e-mail e IP, e por e-mail) e cadastro (por IP). Guarda hash do e-mail, nunca o endereço.
+  As linhas com mais de um dia são apagadas pelo próprio app.
+- **`schema_migrations`:** criada pelo runner de migrations, guarda o que já foi aplicado.

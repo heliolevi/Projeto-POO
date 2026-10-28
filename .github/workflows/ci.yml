@@ -13,6 +13,18 @@ jobs:
   verificar:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Banco descartável só para validar as migrations, com a mesma extensão PostGIS do Neon.
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - name: Verifica se já existe o app
@@ -32,6 +44,17 @@ jobs:
         run: npm run typecheck
       - if: steps.app.outputs.existe == 'true'
         run: npm test
+      - name: Migrations (simula, aplica, reverte tudo e aplica de novo)
+        if: steps.app.outputs.existe == 'true'
+        working-directory: db
+        env:
+          DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/postgres
+        run: |
+          npm ci
+          npm run migrar:simular
+          npm run migrar
+          while node migrar.mjs status | grep '^aplicada' > /dev/null; do npm run migrar:reverter; done
+          npm run migrar
       - if: steps.app.outputs.existe == 'true'
         run: npm run build
         env:

@@ -1,3 +1,5 @@
+import { exigirDentroDoLimite } from "@/shared/db/limite-tentativas";
+import { query } from "@/shared/db/pool";
 import { ConflictError, ValidationError } from "@/shared/http/errors";
 import { validarCadastro } from "../domain/validacao";
 import { VERSAO_TERMOS_ATUAL, type UsuarioPublico } from "../domain/usuario";
@@ -17,7 +19,15 @@ export function montarSessao(usuario: UsuarioPublico): ResultadoSessao {
   return { token, tipo: "Bearer", expiraEm: expiraEm.toISOString(), usuario };
 }
 
-export async function cadastrarCliente(entrada: unknown): Promise<ResultadoSessao> {
+// Cada cadastro gasta CPU e memória no hash da senha, então o limite por IP também protege
+// o servidor, além de dificultar a criação de contas em massa.
+const LIMITE_POR_IP = { max: 10, janelaSegundos: 60 * 60 };
+
+export async function cadastrarCliente(
+  entrada: unknown,
+  contexto: { ip: string },
+): Promise<ResultadoSessao> {
+  await exigirDentroDoLimite(query, `cadastro:ip:${contexto.ip.slice(0, 64)}`, LIMITE_POR_IP);
   const validado = validarCadastro(entrada);
   if ("erros" in validado) {
     throw new ValidationError("Dados inválidos.", validado.erros);
