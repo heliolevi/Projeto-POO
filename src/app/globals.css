@@ -1,0 +1,85 @@
+:root {
+  /* Principais */
+  --color-logo: #0d7a5f;
+  --color-primary: #005f49;
+  --color-text: #13182e;
+  --color-surface: #ffffff;
+  --color-bg-lavender: #faf8ff;
+
+  /* Superfícies */
+  --color-surface-soft: #f2f3ff;
+  --color-surface-sand: #fff4a6;
+  --color-surface-lavender: #e2e7ff;
+  --color-surface-border: #eaedff;
+  --color-surface-border-strong: #dae2fd;
+
+  /* Ações e destaque */
+  --color-mint-highlight: #98f4d3;
+  --color-mint-secondary: #7cd8bb;
+  --color-mint-badge: #a8ffdf;
+  --color-link-blue: #005886;
+
+  /* Acentos */
+  --color-orange-dark: #9d4300;
+  --color-orange-vivid: #fd761a;
+
+  /* Neutros */
+  --color-text-secondary: #3e4944;
+  --color-text-support: #667a74;
+  --color-border: #bdc9c2;
+  --color-bg-dark: #283044;
+  --color-text-light: #e6f0ff;
+  --color-text-on-mint: #002117;
+
+  /* Feedback */
+  --color-danger: #c0392b;
+
+  --font-heading: var(--font-space-grotesk), "Space Grotesk", sans-serif;
+  --font-body: var(--font-plus-jakarta-sans), "Plus Jakarta Sans", sans-serif;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --shadow-card: 0 12px 32px -16px rgba(19, 24, 46, 0.25);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg-lavender);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading);
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+input {
+  font-family: inherit;
+}

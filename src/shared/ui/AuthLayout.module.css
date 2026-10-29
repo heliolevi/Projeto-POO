@@ -1,0 +1,136 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  background: var(--color-bg-lavender);
+  padding: 0 0 48px;
+}
+
+.screen {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100dvh;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px 8px;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.backButton:hover {
+  background: var(--color-surface-soft);
+}
+
+.content {
+  flex: 1;
+  padding: 8px 24px 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.banner {
+  margin: 4px 0 24px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+  height: 160px;
+  background:
+    radial-gradient(120% 140% at 15% 20%, rgba(152, 244, 211, 0.55), transparent 60%),
+    linear-gradient(135deg, var(--color-surface-sand) 0%, var(--color-surface-lavender) 55%, var(--color-mint-highlight) 100%);
+  display: flex;
+  align-items: flex-end;
+}
+
+.bannerTag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-orange-dark);
+  background: #ffe9d6;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  width: fit-content;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--color-text-support);
+  margin-bottom: 24px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: 24px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-text-support);
+}
+
+.footerLink {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.footerLink:hover {
+  text-decoration: underline;
+}
+
+.formError {
+  background: #fdecea;
+  color: var(--color-danger);
+  border: 1px solid #f5c6cb;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+}
