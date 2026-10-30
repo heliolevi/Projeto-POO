@@ -25,6 +25,17 @@ export function UserIcon() {
   );
 }
 
+export function IdCardIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="8.5" cy="11" r="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M5.5 16c.6-1.6 1.8-2.4 3-2.4s2.4.8 3 2.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M14 10h4M14 13h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function EyeIcon({ open }: { open: boolean }) {
   if (open) {
     return (

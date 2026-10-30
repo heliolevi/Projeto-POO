@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { cpfValido, validarCadastro, validarLogin } from "./validacao.ts";
+import {
+  cpfValido,
+  validarAceiteTermos,
+  validarAlterarSenha,
+  validarAltura,
+  validarCadastro,
+  validarLogin,
+} from "./validacao.ts";
 
 const valido = {
   nome: "  Maria   da Silva ",
@@ -66,4 +73,26 @@ test("validarLogin exige e-mail e senha", () => {
   const r = validarLogin({ email: " A@B.com ", senha: "x" });
   assert.ok("dados" in r);
   assert.equal(r.dados.email, "a@b.com");
+});
+
+test("validarAlterarSenha exige senha atual e nova senha forte", () => {
+  assert.ok("erros" in validarAlterarSenha({}));
+  assert.ok("erros" in validarAlterarSenha({ senhaAtual: "x", novaSenha: "semnumero" }));
+  const r = validarAlterarSenha({ senhaAtual: "antiga1", novaSenha: "nova1234" });
+  assert.ok("dados" in r);
+});
+
+test("validarAltura aceita de 100 a 250 cm", () => {
+  assert.ok("erros" in validarAltura({ alturaCm: 50 }));
+  assert.ok("erros" in validarAltura({ alturaCm: "170" }));
+  const r = validarAltura({ alturaCm: 170 });
+  assert.ok("dados" in r);
+  assert.equal(r.dados, 170);
+});
+
+test("validarAceiteTermos exige a versão", () => {
+  assert.ok("erros" in validarAceiteTermos({}));
+  const r = validarAceiteTermos({ versao: "2026-10" });
+  assert.ok("dados" in r);
+  assert.equal(r.dados, "2026-10");
 });

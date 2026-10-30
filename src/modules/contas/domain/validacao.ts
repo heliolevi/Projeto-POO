@@ -116,3 +116,42 @@ export function validarLogin(
   if (Object.keys(erros).length > 0) return { erros };
   return { dados: { email, senha: senha as string } };
 }
+
+export type DadosAlterarSenha = { senhaAtual: string; novaSenha: string };
+
+export function validarAlterarSenha(
+  entrada: unknown,
+): { dados: DadosAlterarSenha } | { erros: ErrosPorCampo } {
+  const corpo = comoObjeto(entrada);
+  const erros: ErrosPorCampo = {};
+  const senhaAtual = texto(corpo.senhaAtual);
+  if (!senhaAtual) erros.senhaAtual = "Informe a senha atual.";
+
+  const novaSenha = texto(corpo.novaSenha);
+  if (novaSenha === null || novaSenha.length < SENHA_MIN || novaSenha.length > SENHA_MAX) {
+    erros.novaSenha = `A senha deve ter de ${SENHA_MIN} a ${SENHA_MAX} caracteres.`;
+  } else if (!/[A-Za-z]/.test(novaSenha) || !/\d/.test(novaSenha)) {
+    erros.novaSenha = "A senha deve ter ao menos uma letra e um número.";
+  }
+
+  if (Object.keys(erros).length > 0) return { erros };
+  return { dados: { senhaAtual: senhaAtual as string, novaSenha: novaSenha as string } };
+}
+
+export function validarAltura(entrada: unknown): { dados: number } | { erros: ErrosPorCampo } {
+  const corpo = comoObjeto(entrada);
+  const valor = corpo.alturaCm;
+  if (typeof valor === "number" && Number.isInteger(valor) && valor >= 100 && valor <= 250) {
+    return { dados: valor };
+  }
+  return { erros: { alturaCm: "Altura deve ser um inteiro entre 100 e 250 (cm)." } };
+}
+
+export function validarAceiteTermos(
+  entrada: unknown,
+): { dados: string } | { erros: ErrosPorCampo } {
+  const corpo = comoObjeto(entrada);
+  const versao = texto(corpo.versao);
+  if (!versao) return { erros: { versao: "Informe a versão dos termos aceita." } };
+  return { dados: versao };
+}

@@ -7,15 +7,17 @@ import { Button } from "@/shared/ui/Button";
 import { PasswordField } from "@/shared/ui/PasswordField";
 import { TextField } from "@/shared/ui/TextField";
 import { AuthLayout } from "@/shared/ui/AuthLayout";
-import { MailIcon, UserIcon } from "@/shared/ui/icons";
+import { IdCardIcon, MailIcon, UserIcon } from "@/shared/ui/icons";
 import styles from "@/shared/ui/form.module.css";
 import authStyles from "@/shared/ui/AuthLayout.module.css";
 import { ApiError, postJson, type ResultadoSessao } from "@/shared/http/api-cliente";
+import { cpfValido, maskCpf, somenteDigitos } from "@/shared/format/cpf";
 
 export default function CadastroPage() {
   const router = useRouter();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [senhaVisivel, setSenhaVisivel] = useState(false);
@@ -27,6 +29,9 @@ export default function CadastroPage() {
 
   function validarLocalmente(): boolean {
     const proximosErros: Record<string, string> = {};
+    if (!cpfValido(somenteDigitos(cpf))) {
+      proximosErros.cpf = "CPF inválido.";
+    }
     if (confirmarSenha !== senha) {
       proximosErros.confirmarSenha = "As senhas não coincidem.";
     }
@@ -48,6 +53,7 @@ export default function CadastroPage() {
       const sessao = await postJson<ResultadoSessao>("/api/auth/cadastro", {
         nome,
         email,
+        cpf: somenteDigitos(cpf),
         senha,
         aceiteTermos,
       });
@@ -56,6 +62,7 @@ export default function CadastroPage() {
     } catch (erro) {
       if (erro instanceof ApiError) {
         if (erro.details) setErros((atual) => ({ ...atual, ...erro.details }));
+        else if (erro.code === "CONFLICT") setErros((atual) => ({ ...atual, cpf: erro.message }));
         else setErroGeral(erro.message);
       } else {
         setErroGeral("Não foi possível criar sua conta agora. Tente novamente.");
@@ -103,6 +110,19 @@ export default function CadastroPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           error={erros.email}
+          required
+        />
+
+        <TextField
+          label="CPF"
+          icon={<IdCardIcon />}
+          inputMode="numeric"
+          placeholder="000.000.000-00"
+          autoComplete="off"
+          value={cpf}
+          onChange={(e) => setCpf(maskCpf(e.target.value))}
+          error={erros.cpf}
+          maxLength={14}
           required
         />
 

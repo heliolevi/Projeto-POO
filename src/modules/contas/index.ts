@@ -8,7 +8,14 @@
 import { criarExigirSessao } from "./application/exigir-sessao";
 import { buscarSituacaoPorId } from "./infrastructure/repositorio-usuarios";
 
-export { postCadastro, postLogin } from "./http/handlers";
+export {
+  postAceitarTermos,
+  postAlterarSenha,
+  postAtualizarAltura,
+  postCadastro,
+  postDesativar,
+  postLogin,
+} from "./http/handlers";
 export { verificarToken, type SessaoToken } from "./infrastructure/token";
 export type { SessaoAtiva } from "./application/exigir-sessao";
 export type { PerfilUsuario, UsuarioPublico } from "./domain/usuario";
