@@ -51,6 +51,10 @@ Crie o papel por SQL, e não pelo botão de roles do console, que costuma dar `B
 As consultas de locadoras e pontos devem passar por `comSessao` (`src/shared/db/sessao.ts`), que
 declara perfil e locadora dentro de uma transação para as políticas valerem.
 
+> **Novo escopo (uma única locadora).** A migration `0003` ainda segue o modelo anterior, com
+> segurança por locadora. Na fase 1 do plano (`docs/mudanca-de-escopo.md`) a migration `0004` passa o
+> critério para o cliente: `comSessao` declarará o perfil e o usuário, e não mais a locadora.
+
 ## Esquema atual
 
 Veja `docs/modelo-de-dados.md`.

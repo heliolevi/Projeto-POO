@@ -1,7 +1,14 @@
 # Andamento do projeto
 
 Registro do que a equipe entregou entre 28/09/2026 e 28/10/2026, com base no histórico do Git, nos
-pull requests e no relatório de validação do backend. Escrito em 28/10/2026.
+pull requests e no relatório de validação do backend. Escrito em 28/10/2026 e atualizado em
+novembro de 2026 com a mudança de escopo.
+
+> **Mudança de escopo (novembro de 2026).** O projeto deixou de ser uma plataforma com várias
+> locadoras e passou a atender uma única locadora. Este documento registra o que foi entregue sobre o
+> modelo anterior; os trechos que mencionam locadoras, comissão, `ADMIN_PLATAFORMA` ou isolamento
+> entre locadoras descrevem o estado antigo e serão ajustados na fase 1 do plano. O novo escopo e o
+> plano estão em [mudanca-de-escopo.md](mudanca-de-escopo.md).
 
 ## Equipe
 
@@ -26,6 +33,7 @@ pull requests e no relatório de validação do backend. Escrito em 28/10/2026.
 | 23/10 | Hélio | Cadastro e login do cliente | PR #7 |
 | 28/10 | William | Relatório de validação do backend (9 achados) | relatório em PDF |
 | 28/10 | Luis | Correções dos achados do relatório | PR de validação (este documento acompanha ele) |
+| Nov | Luis | Mudança de escopo para uma única locadora: README, modelo de dados e plano de trabalho | branch `docs/escopo-locadora-unica` |
 
 ## O que cada pessoa fez
 
@@ -105,16 +113,19 @@ limitador agora é aguardada, em vez de rodar solta.
 |---|---|---|
 | Cadastrar `SESSION_SECRET` na Vercel, com valores diferentes em Preview e Production | A definir (DevOps ou tech lead) | Sem ela, login e cadastro respondem 500 no primeiro deploy |
 | Cadastrar `HEALTH_DB_SECRET` na Vercel, se a rota `/api/health/db` for usada | A definir | Opcional |
-| Criar o papel `app_login` no branch `production` do Neon, aplicar a migration `0003` e trocar a `DATABASE_URL` da Vercel | Tech lead | Passo a passo em `db/README.md` |
+| Criar o papel `app_login` no branch `production` do Neon, aplicar a migration `0003` e trocar a `DATABASE_URL` da Vercel | Tech lead | Passo a passo em `db/README.md`. A migration `0004` do novo escopo manterá o papel `app_backend` |
 | Decidir idade mínima para alugar, confirmação de e-mail e a mensagem de e-mail ou CPF já cadastrado | Equipe | Achado 8 do relatório |
-| Combinar o que o operador pode ver das finanças da locadora | Equipe | A visão atual não inclui comissão, CNPJ nem conta de recebimento |
+| ~~Combinar o que o operador pode ver das finanças da locadora~~ | Cancelada | Deixa de existir com uma única locadora (sem comissão nem repasse) |
 | Usar `exigirSessao` e `comSessao` nas rotas dos próximos módulos | Hélio e demais desenvolvedores | Já estão prontos, mas ainda nenhuma rota os usa |
-| Nova validação quando reservas, pagamentos e catálogo existirem | William | A regra de reservas sobrepostas, o isolamento por locadora e o Mercado Pago ainda não foram validados |
+| Nova validação quando reservas, pagamentos e catálogo existirem | William | A regra de reservas sobrepostas, o isolamento entre clientes (RLS por cliente) e o Mercado Pago ainda não foram validados |
+| Executar o plano do novo escopo (fases 1 a 6) | Equipe | Veja `docs/mudanca-de-escopo.md`; a fase 1 simplifica o banco e o código |
+| Confirmar com a locadora o número de pontos, os dados da empresa e os critérios da recomendação | Equipe | Decisões em aberto em `docs/mudanca-de-escopo.md` |
 
 ## Referências
 
-- `docs/modelo-de-dados.md`: tabelas, relacionamentos e regras de segurança por linha.
-- `docs/diagrama-de-classes.pdf`: planejamento das classes do projeto.
+- `docs/mudanca-de-escopo.md`: o que mudou ao passar para uma única locadora e o plano de trabalho.
+- `docs/modelo-de-dados.md`: modelo de dados novo (uma locadora), recomendação e segurança por linha.
+- `docs/diagrama-de-classes.pdf`: planejamento das classes do modelo anterior (várias locadoras), a ser refeito.
 - `db/README.md`: como aplicar migrations e criar o papel do aplicativo.
 - Relatório de validação do backend (PDF entregue pelo William em 28/10, ainda não versionado).
 
