@@ -159,6 +159,11 @@ comum fica em `src/shared`. A lista de módulos do modelo anterior (`contas`, `l
 `busca`, `reservas`, `pagamentos`, `operacao`, `administracao`, `notificacoes`) será ajustada: o módulo
 `locadoras` sai e `busca` passa a se chamar `recomendacao`.
 
+### Como trabalhar em equipe
+
+Branches, mensagens de commit, pull requests e revisão seguem o combinado em
+[docs/estrategia-de-commits.md](docs/estrategia-de-commits.md).
+
 ### Banco de dados
 
 O app lê `DATABASE_URL` (conexão com pooler) do `.env`; veja `.env.example`. A conexão fica em
