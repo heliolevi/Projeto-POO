@@ -1,16 +1,20 @@
 import type { PoolClient } from "pg";
 
 // Quem está fazendo a consulta, no formato que as políticas de row-level security leem
-// (ver docs/modelo-de-dados.md). As políticas só valem se o app conectar com um papel sem
-// BYPASSRLS (app_backend, criado na migration 0003).
-const PERFIS = ["CLIENTE", "OPERADOR", "GERENTE_LOCADORA", "ADMIN_PLATAFORMA"] as const;
-export type PerfilSessao = (typeof PERFIS)[number];
+// (sessao_perfil() e sessao_usuario_id(), migration 0004; ver docs/modelo-de-dados.md).
+// As políticas só valem se o app conectar com um papel sem BYPASSRLS (app_login, do grupo
+// app_backend criado na migration 0003).
+export const PERFIS_SESSAO = ["CLIENTE", "OPERADOR", "ADMIN"] as const;
+export type PerfilSessao = (typeof PERFIS_SESSAO)[number];
 
-export type SessaoBanco = {
-  perfil: PerfilSessao;
-  // obrigatório para OPERADOR e GERENTE_LOCADORA; os demais perfis não têm locadora
-  locadoraId?: string | null;
-};
+// Usuário logado: tem o mesmo formato da sessão que o exigirSessao do módulo contas devolve,
+// então a rota repassa a sessão direto. Visitante (sem login): perfil e usuário nulos, e só as
+// políticas públicas (catálogo, pontos ativos) deixam ver alguma coisa.
+export type SessaoBanco =
+  | { perfil: PerfilSessao; usuarioId: string }
+  | { perfil: null; usuarioId: null };
+
+export const VISITANTE: SessaoBanco = { perfil: null, usuarioId: null };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -20,18 +24,15 @@ type ClienteTransacao = {
 };
 
 function validar(sessao: SessaoBanco): void {
-  if (!PERFIS.includes(sessao.perfil)) {
+  if (sessao.perfil === null) {
+    if (sessao.usuarioId !== null) throw new Error("Visitante não tem usuarioId.");
+    return;
+  }
+  if (!PERFIS_SESSAO.includes(sessao.perfil)) {
     throw new Error(`Perfil de sessão desconhecido: ${String(sessao.perfil)}`);
   }
-  if (sessao.locadoraId != null && !UUID.test(sessao.locadoraId)) {
-    throw new Error("locadoraId da sessão precisa ser um UUID.");
-  }
-  const equipe = sessao.perfil === "OPERADOR" || sessao.perfil === "GERENTE_LOCADORA";
-  if (equipe && sessao.locadoraId == null) {
-    throw new Error(`O perfil ${sessao.perfil} precisa de locadoraId.`);
-  }
-  if (!equipe && sessao.locadoraId != null) {
-    throw new Error(`O perfil ${sessao.perfil} não tem locadora.`);
+  if (typeof sessao.usuarioId !== "string" || !UUID.test(sessao.usuarioId)) {
+    throw new Error("usuarioId da sessão precisa ser um UUID.");
   }
 }
 
@@ -47,8 +48,8 @@ export async function comSessaoEm<T, C extends ClienteTransacao>(
   try {
     await client.query("BEGIN");
     await client.query(
-      "SELECT set_config('app.perfil', $1, true), set_config('app.locadora_id', $2, true)",
-      [sessao.perfil, sessao.locadoraId ?? ""],
+      "SELECT set_config('app.perfil', $1, true), set_config('app.usuario_id', $2, true)",
+      [sessao.perfil ?? "", sessao.usuarioId ?? ""],
     );
     const resultado = await fn(client);
     await client.query("COMMIT");
@@ -61,8 +62,8 @@ export async function comSessaoEm<T, C extends ClienteTransacao>(
   }
 }
 
-// Uso: const pontos = await comSessao({ perfil: "GERENTE_LOCADORA", locadoraId }, (c) =>
-//        c.query("SELECT * FROM ponto"));
+// Uso numa rota: const sessao = await exigirSessao(request);
+//                const reservas = await comSessao(sessao, (c) => c.query("SELECT ..."));
 export async function comSessao<T>(
   sessao: SessaoBanco,
   fn: (client: PoolClient) => Promise<T>,

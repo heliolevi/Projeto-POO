@@ -48,14 +48,16 @@ Crie o papel por SQL, e não pelo botão de roles do console, que costuma dar `B
 - **`DATABASE_URL`** (app e Vercel): usuário `app_login`, host com `-pooler`.
 - **`DATABASE_URL_UNPOOLED`** (migrations): continua com o dono do banco.
 
-As consultas de locadoras e pontos devem passar por `comSessao` (`src/shared/db/sessao.ts`), que
-declara perfil e locadora dentro de uma transação para as políticas valerem.
+As consultas às tabelas com segurança por linha devem passar por `comSessao`
+(`src/shared/db/sessao.ts`), que declara `app.perfil` e `app.usuario_id` dentro de uma transação para
+as políticas valerem. A rota repassa a sessão do `exigirSessao` direto
+(`comSessao(sessao, (c) => c.query(...))`); visitante usa `VISITANTE`.
 
 > **Uma única locadora.** A migration `0004` leva o banco do modelo anterior (várias locadoras) para o
 > modelo atual: tabela `empresa` com uma linha só, perfis `CLIENTE`, `OPERADOR` e `ADMIN`, sem
 > `locadora_id`. A segurança por linha passa a olhar o perfil e o usuário da sessão
-> (`sessao_perfil()` e `sessao_usuario_id()`), e o `comSessao` do app deve declarar
-> `app.perfil` e `app.usuario_id`. A `0005` cria o catálogo (`tipo_bicicleta` e `bicicleta`).
+> (`sessao_perfil()` e `sessao_usuario_id()`), que o `comSessao` do app declara
+> (`app.perfil` e `app.usuario_id`). A `0005` cria o catálogo (`tipo_bicicleta` e `bicicleta`).
 
 ## Dados de exemplo (seed)
 

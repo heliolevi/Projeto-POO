@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { comSessaoEm } from "./sessao.ts";
+import { comSessaoEm, VISITANTE } from "./sessao.ts";
 
-const LOCADORA = "aaaaaaaa-0000-0000-0000-000000000001";
+const USUARIO = "aaaaaaaa-0000-4000-8000-000000000001";
 
 // Conexão de mentira que anota tudo o que recebe.
 function conexaoFalsa(falharEm?: string) {
@@ -34,9 +34,9 @@ function conexaoFalsa(falharEm?: string) {
   };
 }
 
-test("abre a transação, declara perfil e locadora, executa e confirma", async () => {
+test("abre a transação, declara perfil e usuário, executa e confirma", async () => {
   const c = conexaoFalsa();
-  const resultado = await comSessaoEm(c.conectar, { perfil: "GERENTE_LOCADORA", locadoraId: LOCADORA }, async (cli) => {
+  const resultado = await comSessaoEm(c.conectar, { perfil: "CLIENTE", usuarioId: USUARIO }, async (cli) => {
     await cli.query("SELECT 1");
     return "feito";
   });
@@ -44,24 +44,32 @@ test("abre a transação, declara perfil e locadora, executa e confirma", async 
   const sqls = c.registro.map((r) => r.sql);
   assert.equal(sqls[0], "BEGIN");
   assert.match(sqls[1], /set_config\('app\.perfil', \$1, true\)/);
-  assert.match(sqls[1], /set_config\('app\.locadora_id', \$2, true\)/);
-  assert.deepEqual(c.registro[1].valores, ["GERENTE_LOCADORA", LOCADORA]);
+  assert.match(sqls[1], /set_config\('app\.usuario_id', \$2, true\)/);
+  assert.deepEqual(c.registro[1].valores, ["CLIENTE", USUARIO]);
   assert.equal(sqls[2], "SELECT 1");
   assert.equal(sqls[3], "COMMIT");
   assert.equal(c.liberada, 1);
 });
 
-test("o perfil vai como parâmetro, nunca concatenado no SQL", async () => {
+test("o perfil e o usuário vão como parâmetros, nunca concatenados no SQL", async () => {
   const c = conexaoFalsa();
-  await comSessaoEm(c.conectar, { perfil: "ADMIN_PLATAFORMA" }, async () => 1);
-  assert.ok(!c.registro[1].sql.includes("ADMIN_PLATAFORMA"));
-  assert.deepEqual(c.registro[1].valores, ["ADMIN_PLATAFORMA", ""]);
+  await comSessaoEm(c.conectar, { perfil: "ADMIN", usuarioId: USUARIO }, async () => 1);
+  assert.ok(!c.registro[1].sql.includes("ADMIN"));
+  assert.ok(!c.registro[1].sql.includes(USUARIO));
+  assert.deepEqual(c.registro[1].valores, ["ADMIN", USUARIO]);
+});
+
+test("visitante declara perfil e usuário vazios (as funções do banco leem como nulo)", async () => {
+  const c = conexaoFalsa();
+  await comSessaoEm(c.conectar, VISITANTE, async () => 1);
+  assert.deepEqual(c.registro[1].valores, ["", ""]);
+  assert.equal(c.liberada, 1);
 });
 
 test("se a função falha: ROLLBACK, a conexão é devolvida e o erro sobe", async () => {
   const c = conexaoFalsa();
   await assert.rejects(
-    comSessaoEm(c.conectar, { perfil: "CLIENTE" }, async () => {
+    comSessaoEm(c.conectar, { perfil: "CLIENTE", usuarioId: USUARIO }, async () => {
       throw new Error("deu ruim");
     }),
     /deu ruim/,
@@ -75,7 +83,7 @@ test("se a função falha: ROLLBACK, a conexão é devolvida e o erro sobe", asy
 test("se o ROLLBACK também falha, o erro original é o que sobe", async () => {
   const c = conexaoFalsa("ROLLBACK");
   await assert.rejects(
-    comSessaoEm(c.conectar, { perfil: "CLIENTE" }, async () => {
+    comSessaoEm(c.conectar, { perfil: "CLIENTE", usuarioId: USUARIO }, async () => {
       throw new Error("erro original");
     }),
     /erro original/,
@@ -85,13 +93,15 @@ test("se o ROLLBACK também falha, o erro original é o que sobe", async () => {
 
 test("sessão inválida é recusada antes de pegar uma conexão", async () => {
   const invalidas = [
-    { perfil: "ROOT" },
-    { perfil: "OPERADOR" },
-    { perfil: "GERENTE_LOCADORA", locadoraId: null },
-    { perfil: "CLIENTE", locadoraId: LOCADORA },
-    { perfil: "ADMIN_PLATAFORMA", locadoraId: LOCADORA },
-    { perfil: "OPERADOR", locadoraId: "não-é-uuid" },
-    { perfil: "OPERADOR", locadoraId: "x'; DROP TABLE usuario;--" },
+    { perfil: "ROOT", usuarioId: USUARIO },
+    // perfis do modelo anterior deixaram de existir (migration 0004)
+    { perfil: "GERENTE_LOCADORA", usuarioId: USUARIO },
+    { perfil: "ADMIN_PLATAFORMA", usuarioId: USUARIO },
+    { perfil: "CLIENTE" },
+    { perfil: "CLIENTE", usuarioId: null },
+    { perfil: "OPERADOR", usuarioId: "não-é-uuid" },
+    { perfil: "ADMIN", usuarioId: "x'; DROP TABLE usuario;--" },
+    { perfil: null, usuarioId: USUARIO },
   ];
   for (const sessao of invalidas) {
     const c = conexaoFalsa();
@@ -105,15 +115,11 @@ test("sessão inválida é recusada antes de pegar uma conexão", async () => {
   }
 });
 
-test("operador e gerente exigem locadora; cliente e admin não têm", async () => {
-  for (const sessao of [
-    { perfil: "OPERADOR", locadoraId: LOCADORA },
-    { perfil: "GERENTE_LOCADORA", locadoraId: LOCADORA },
-    { perfil: "CLIENTE" },
-    { perfil: "ADMIN_PLATAFORMA", locadoraId: null },
-  ] as const) {
+test("os três perfis do modelo novo são aceitos", async () => {
+  for (const perfil of ["CLIENTE", "OPERADOR", "ADMIN"] as const) {
     const c = conexaoFalsa();
-    await comSessaoEm(c.conectar, sessao, async () => 1);
+    await comSessaoEm(c.conectar, { perfil, usuarioId: USUARIO }, async () => 1);
+    assert.deepEqual(c.registro[1].valores, [perfil, USUARIO]);
     assert.equal(c.liberada, 1);
   }
 });
