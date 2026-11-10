@@ -1,16 +1,30 @@
+import { query } from "@/shared/db/pool";
 import { ipDoCliente, lerTextoLimitado } from "@/shared/http/corpo";
 import { ValidationError } from "@/shared/http/errors";
 import { created, errorResponse, noContent, ok } from "@/shared/http/response";
 import { aceitarTermos } from "../application/aceitar-termos";
-import { alterarSenha } from "../application/alterar-senha";
+import { criarAlterarSenha } from "../application/alterar-senha";
 import { atualizarAltura } from "../application/atualizar-altura";
 import { autenticar } from "../application/autenticar";
 import { cadastrarCliente } from "../application/cadastrar-cliente";
 import { desativarConta } from "../application/desativar-conta";
 import { criarExigirSessao } from "../application/exigir-sessao";
-import { buscarSituacaoPorId } from "../infrastructure/repositorio-usuarios";
+import {
+  atualizarSenha,
+  buscarSenhaHashPorId,
+  buscarSituacaoPorId,
+} from "../infrastructure/repositorio-usuarios";
+import { gerarHashSenha, verificarSenha } from "../infrastructure/senha";
 
 const exigirSessao = criarExigirSessao(buscarSituacaoPorId);
+
+const alterarSenha = criarAlterarSenha({
+  executar: query,
+  buscarSenhaHash: buscarSenhaHashPorId,
+  salvarSenhaHash: atualizarSenha,
+  verificarSenha,
+  gerarHashSenha,
+});
 
 const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
 
