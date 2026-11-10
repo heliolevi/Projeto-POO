@@ -55,6 +55,12 @@ jobs:
           npm run migrar
           while node migrar.mjs status | grep '^aplicada' > /dev/null; do npm run migrar:reverter; done
           npm run migrar
+      - name: Testes de banco (constraints, políticas de RLS e cenários de uso)
+        if: steps.app.outputs.existe == 'true'
+        working-directory: db
+        env:
+          DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/postgres
+        run: npm run teste:reserva-e-pagamento
       - if: steps.app.outputs.existe == 'true'
         run: npm run build
         env:
