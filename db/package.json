@@ -12,7 +12,11 @@
     "migrar:simular": "node migrar.mjs up --simular",
     "migrar:reverter": "node migrar.mjs down",
     "migrar:status": "node migrar.mjs status",
-    "seed:dev": "node seeds/aplicar-seed.mjs"
+    "seed:dev": "node seeds/aplicar-seed.mjs",
+    "teste:unit": "node tests/unit/constraints.test.mjs",
+    "teste:whitebox": "node tests/whitebox/schema.test.mjs",
+    "teste:blackbox": "node tests/blackbox/reserva_e_pagamento.test.mjs",
+    "teste:reserva-e-pagamento": "npm run teste:unit && npm run teste:whitebox && npm run teste:blackbox"
   },
   "dependencies": {
     "pg": "^8.13.1"
