@@ -1,7 +1,8 @@
 # Dados da locadora
 
-Fonte única dos dados da locadora usados no seed (`db/seeds/dev.sql`), na tela de resumo da reserva, na home
-e nos Termos de uso (T42). Este documento **descreve o que o seed já tem**; se os dois divergirem, vale o seed.
+A **fonte dos dados é o seed** (`db/seeds/dev.sql`). Este documento só **descreve** o que o seed já tem, para
+as telas, a home e os Termos de uso (T42) usarem os mesmos valores. Se os dois divergirem, vale o seed e este
+documento é ajustado.
 
 - **Origem dos dados:** todos `ASSUMIDO`. Não há locadora parceira no momento; o tech lead decidiu usar dados
   fictícios para entregar o MVP (decisão de 2026-11-10).
@@ -96,16 +97,16 @@ As senhas **não ficam no Git**: vêm de `SEED_ADMIN_SENHA` e `SEED_OPERADOR_SEN
 |---|---|---|
 | Cancelamento | O cliente cancela pelo app enquanto a bicicleta não foi retirada (`POST /api/reservas/{id}/cancelar`) | Contrato |
 | Estorno de reserva paga | Fora do MVP: o cancelamento de reserva já paga é tratado no balcão | Contrato |
-| Prazo para cancelar sem custo | Até 24 horas antes do início (combinado no balcão; o app ainda não aplica esse prazo) | ASSUMIDO |
+| Prazo para cancelar sem custo | Até 24 horas antes do início (combinado no balcão; o app ainda não aplica esse prazo). Depois do prazo, a taxa ainda **não está definida**: fica para os Termos de uso (T42) | ASSUMIDO |
 | Pagamento | Pix cobra só o aluguel; a reserva sem pagamento expira em 15 minutos | Contrato |
 | Retirada | A partir de 30 minutos antes do início da reserva | Contrato |
-| Atraso na devolução | Tolerância de 15 minutos; depois, cada hora extra pelo preço por hora do tipo | ASSUMIDO |
+| Atraso na devolução | Tolerância de 15 minutos; depois, cada hora extra pelo preço por hora do tipo. Hora iniciada conta como hora cheia e não há teto por enquanto (a confirmar na T42) | ASSUMIDO |
 | Dano ou perda da bicicleta | O custo do conserto ou da reposição é descontado da caução e, se passar dela, cobrado do cliente | ASSUMIDO |
 | Caução | Combinada e paga no balcão na retirada; devolvida na devolução sem problemas | ASSUMIDO |
 
 ## 7. Conferências com a recomendação
 
-Exemplo do contrato e do plano de testes (CT-REC-06): cliente de 172 cm, iniciante, atividade passeio, 4 h.
+Exemplo do plano de testes (CT-REC-06): cliente de 172 cm, iniciante, atividade passeio, 4 h.
 
 | Tipo | Pontos | Aluguel de 4 h |
 |---|---|---|
@@ -116,7 +117,7 @@ Exemplo do contrato e do plano de testes (CT-REC-06): cliente de 172 cm, inician
 | Speed | 20,0 | R$ 100,00 |
 | Infantil | fora (altura) | n/a |
 
-O tipo Passeio fecha **90 pontos e R$ 48,00**, como o exemplo. Com esses dados, porém, a **Urbana** ganha do
+O tipo Passeio fecha **90 pontos e R$ 48,00**, como o exemplo do plano de testes (CT-REC-06). Com esses dados, porém, a **Urbana** ganha do
 Passeio para esse cliente, porque também indica `PASSEIO` e sua faixa é mais centrada em 172 cm. Quem
 demonstrar o app deve esperar a Urbana em primeiro lugar.
 
