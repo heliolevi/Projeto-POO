@@ -43,7 +43,7 @@ test("o token expira em 24 horas", () => {
 test("token com o corpo adulterado é rejeitado", () => {
   const { token } = emitirToken({ id: ID, perfil: "CLIENTE" });
   const [cab, , assinatura] = token.split(".");
-  const falso = b64(JSON.stringify({ sub: ID, perfil: "ADMIN_PLATAFORMA", iat: agora(), exp: agora() + 999 }));
+  const falso = b64(JSON.stringify({ sub: ID, perfil: "ADMIN", iat: agora(), exp: agora() + 999 }));
   assert.equal(verificarToken(`${cab}.${falso}.${assinatura}`), null);
 });
 
@@ -58,7 +58,7 @@ test("token expirado é rejeitado", () => {
 });
 
 test('alg "none" sem assinatura é rejeitado', () => {
-  const conteudo = `${b64(JSON.stringify({ alg: "none", typ: "JWT" }))}.${b64(JSON.stringify({ sub: ID, perfil: "ADMIN_PLATAFORMA", exp: agora() + 60 }))}`;
+  const conteudo = `${b64(JSON.stringify({ alg: "none", typ: "JWT" }))}.${b64(JSON.stringify({ sub: ID, perfil: "ADMIN", exp: agora() + 60 }))}`;
   assert.equal(verificarToken(`${conteudo}.`), null);
 });
 

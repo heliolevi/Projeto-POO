@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { after, before, test } from "node:test";
-import { UnauthorizedError } from "../../../shared/http/errors.ts";
+import { ForbiddenError, UnauthorizedError } from "../../../shared/http/errors.ts";
 import { emitirToken } from "../infrastructure/token.ts";
-import { criarExigirSessao, extrairBearer } from "./exigir-sessao.ts";
+import { criarExigirSessao, exigirPerfil, extrairBearer } from "./exigir-sessao.ts";
 
 const SEGREDO = "segredo-de-teste-com-mais-de-32-caracteres-ok";
 const ID = "3f2b8c1e-5d4a-4b6f-9c7e-1a2b3c4d5e6f";
@@ -24,7 +24,7 @@ const requisicao = (authorization?: string) =>
   });
 
 // O banco "de mentira": devolve o que o teste combinar e conta quantas vezes foi consultado.
-function banco(situacao: { perfil: "CLIENTE" | "OPERADOR"; ativo: boolean } | null) {
+function banco(situacao: { perfil: "CLIENTE" | "OPERADOR" | "ADMIN"; ativo: boolean } | null) {
   const consultas: string[] = [];
   return {
     consultas,
@@ -94,4 +94,53 @@ test("token assinado com sub que não é UUID não chega ao banco", async () => 
   const db = banco({ perfil: "CLIENTE", ativo: true });
   await assert.rejects(criarExigirSessao(db.buscar)(requisicao(`Bearer ${token}`)), UnauthorizedError);
   assert.equal(db.consultas.length, 0);
+});
+
+test("perfil que não existe mais no modelo (vindo do banco) não ganha acesso", async () => {
+  const situacao = { perfil: "GERENTE_LOCADORA", ativo: true };
+  // @ts-expect-error: simula o banco devolvendo um perfil fora da lista
+  const exigir = criarExigirSessao(async () => situacao);
+  const { token } = emitirToken({ id: ID, perfil: "CLIENTE" });
+  await assert.rejects(exigir(requisicao(`Bearer ${token}`)), UnauthorizedError);
+});
+
+test("exigirPerfil deixa passar os perfis permitidos e devolve a mesma sessão", () => {
+  const sessao = { usuarioId: ID, perfil: "OPERADOR" as const };
+  assert.equal(exigirPerfil(sessao, "OPERADOR", "ADMIN"), sessao);
+  assert.equal(exigirPerfil({ usuarioId: ID, perfil: "ADMIN" }, "OPERADOR", "ADMIN").perfil, "ADMIN");
+  assert.equal(exigirPerfil({ usuarioId: ID, perfil: "CLIENTE" }, "CLIENTE").perfil, "CLIENTE");
+});
+
+test("exigirPerfil responde 403 para perfil sem acesso", () => {
+  const casos = [
+    [{ usuarioId: ID, perfil: "CLIENTE" }, ["OPERADOR", "ADMIN"]],
+    [{ usuarioId: ID, perfil: "OPERADOR" }, ["ADMIN"]],
+    [{ usuarioId: ID, perfil: "ADMIN" }, ["CLIENTE"]],
+  ] as const;
+  for (const [sessao, permitidos] of casos) {
+    assert.throws(
+      () => exigirPerfil(sessao, ...(permitidos as unknown as ["CLIENTE"])),
+      (erro: unknown) => {
+        assert.ok(erro instanceof ForbiddenError);
+        assert.equal(erro.status, 403);
+        assert.equal(erro.code, "FORBIDDEN");
+        return true;
+      },
+      `${sessao.perfil} em ${permitidos.join(",")}`,
+    );
+  }
+});
+
+test("sem sessão válida é 401 antes de olhar o perfil (ordem do contrato)", async () => {
+  const db = banco({ perfil: "OPERADOR", ativo: true });
+  const exigir = criarExigirSessao(db.buscar);
+  await assert.rejects(
+    (async () => exigirPerfil(await exigir(requisicao()), "CLIENTE"))(),
+    UnauthorizedError,
+  );
+  const { token } = emitirToken({ id: ID, perfil: "OPERADOR" });
+  await assert.rejects(
+    (async () => exigirPerfil(await exigir(requisicao(`Bearer ${token}`)), "CLIENTE"))(),
+    ForbiddenError,
+  );
 });
