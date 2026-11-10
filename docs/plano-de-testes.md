@@ -34,7 +34,8 @@ testes que já existem no repositório. Mantido por William (DevOps e QA).
 passo a passo) ou `Integração` (precisa do banco e, quando for o caso, do sandbox do Mercado Pago).
 
 **Status:** `Automatizado`, `Em revisão (PR #n)`, `Pendente`, `Aguarda rota`, `Aguarda fase N`, `Passou`,
-`Falhou` ou `Bloqueado`. Ao executar um caso manual, troque para `Passou` ou `Falhou` e registre a data e o
+`Falhou` ou `Bloqueado`. `Automatizado` quer dizer que a regra tem teste no repositório (em geral de uma
+função ou do banco); o caminho completo pela rota só é provado nos casos do tipo `Integração`. Ao executar um caso manual, troque para `Passou` ou `Falhou` e registre a data e o
 PR ou issue do defeito.
 
 **Erros esperados** seguem o formato do contrato: `{ "error": { "code", "message", "details" } }`, com
@@ -82,10 +83,10 @@ PR ou issue do defeito.
 |---|---|---|---|---|---|
 | CT-LOG-01 | P0 | Login com e-mail e senha corretos | 200 no mesmo formato do cadastro | Integração | Pendente |
 | CT-LOG-02 | P0 | Senha errada, e-mail inexistente e conta inativa | 401 com a **mesma** mensagem nos três casos | Integração | Pendente |
-| CT-LOG-03 | P0 | Tempo de resposta com e-mail inexistente | Parecido com o de senha errada (o hash falso gasta o scrypt inteiro) | Auto | Automatizado |
+| CT-LOG-03 | P0 | Tempo de resposta com e-mail inexistente | Parecido com o de senha errada: o login também executa o scrypt completo com um hash falso | Auto | Automatizado (o hash falso tem teste; que a rota o use ainda precisa de conferência) |
 | CT-LOG-04 | P0 | Login sem e-mail ou sem senha | 400 | Auto | Automatizado |
 | CT-LOG-05 | P0 | Lógica do limite de tentativas (máximo e tentativa seguinte, chaves separadas) | 429 com `Retry-After`; cada chave tem a própria contagem | Auto | Automatizado |
-| CT-LOG-06 | P1 | Limites da rota: 10 por e-mail e IP, 30 por IP e 100 por e-mail em 15 minutos | A 11ª tentativa do mesmo e-mail e IP recebe 429 | Integração | Pendente |
+| CT-LOG-06 | P1 | Limites da rota: 10 por e-mail e IP, 30 por IP e 100 por e-mail em 15 minutos | A 11ª tentativa do mesmo e-mail e IP recebe 429 (conferir se o limite conta todas as tentativas ou só as erradas) | Integração | Pendente |
 | CT-LOG-07 | P1 | Um estranho erra a senha de outra pessoa várias vezes | O dono ainda consegue entrar (o limite por e-mail sozinho não tranca a conta) | Integração | Pendente |
 | CT-LOG-08 | P1 | Corpo maior que 16 KiB | 413 | Auto | Automatizado |
 
@@ -114,7 +115,7 @@ PR ou issue do defeito.
 | CT-CTA-04 | P1 | `PUT` com campo `null` ou ausente, e com `id` no corpo | O campo é apagado; o `id` é ignorado e vale a conta do token | Integração | Aguarda rota |
 | CT-CTA-05 | P1 | `PUT` com altura fora de 100 a 250 ou valores fora das enumerações | 400 com `details` do campo | Auto | Aguarda rota |
 | CT-CTA-06 | P0 | `PUT perfil-ciclista` por `OPERADOR` ou `ADMIN` | 403 | Integração | Aguarda rota |
-| CT-CTA-07 | P0 | `POST /api/conta/senha` com senha atual correta e nova válida | 204 e o login passa a aceitar a nova senha | Auto | Automatizado (`alterar-senha.test.ts`) |
+| CT-CTA-07 | P0 | `POST /api/conta/senha` com senha atual correta e nova válida | 204 e a senha é trocada | Auto | Automatizado (`alterar-senha.test.ts`) |
 | CT-CTA-08 | P0 | `POST /api/conta/senha` com senha atual incorreta | 401 e nada é trocado | Auto | Automatizado (`alterar-senha.test.ts`) |
 | CT-CTA-09 | P1 | Várias tentativas de senha com a senha atual errada | 429 até a janela passar; acertar zera a contagem; o limite é por usuário | Auto | Automatizado (`alterar-senha.test.ts`) |
 | CT-CTA-10 | P1 | Nova senha fraca, fora de 8 a 128 ou igual à atual | 400 (a regra "igual à atual" não está no contrato) | Auto | Automatizado (`validacao.test.ts`) |
@@ -142,8 +143,8 @@ PR ou issue do defeito.
 
 ### 4.6 Banco de dados, migrations e RLS
 
-Os casos CT-BD-06 a CT-BD-17 correspondem aos testes de `db/tests` (unit, whitebox e blackbox), que a CI
-roda com `npm run teste:reserva-e-pagamento`.
+Os casos CT-BD-06 a CT-BD-17 e CT-BD-22 a CT-BD-24 correspondem aos testes de `db/tests` (unit, whitebox e
+blackbox), que a CI roda com `npm run teste:reserva-e-pagamento`.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
@@ -190,7 +191,7 @@ roda com `npm run teste:reserva-e-pagamento`.
 
 ### 4.8 Recomendação (rota 11)
 
-As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead, aguardando merge): testes em
+As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; conferir se já foi mesclado antes de atualizar os status): testes em
 `recomendacao.test.ts`, `preco.test.ts` e `periodo.test.ts`.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
@@ -255,7 +256,7 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead, aguar
 | CT-PAG-11 | P0 | Webhook sem assinatura ou com assinatura inválida (`x-signature`, `x-request-id`) | 401 e nada é alterado | Integração | Aguarda rota |
 | CT-PAG-12 | P0 | Webhook cujo corpo diz "aprovado", mas o Mercado Pago não confirma o `data.id` | Nada muda: o servidor não confia no corpo | Integração | Aguarda rota |
 | CT-PAG-13 | P1 | Webhook de outro tipo ou de pagamento desconhecido | 200, ignorado | Integração | Aguarda rota |
-| CT-PAG-14 | P1 | Pix não pago em 15 minutos | Pagamento `EXPIRADO` e reserva `EXPIRADA` | Integração | Aguarda rota |
+| CT-PAG-14 | P1 | Pix não pago em 15 minutos | Pagamento `EXPIRADO` e reserva `EXPIRADA` (o contrato só diz que a reserva expira; confirmar se o pagamento também muda) | Integração | Aguarda rota |
 | CT-PAG-15 | P1 | `PAGAMENTO_MODO=simulado` | Aprova sem o Mercado Pago só em desenvolvimento e na demo; desligado em produção | Manual | Aguarda rota |
 | CT-PAG-16 | P1 | Valores monetários | Sempre inteiros em centavos, sem arredondamento errado | Auto | Aguarda rota |
 | CT-PAG-17 | P0 | Pix aprovado depois que a reserva expirou (e a bicicleta já foi reservada por outra pessoa) | O webhook não confirma a reserva expirada: ela continua `EXPIRADA`, não há duas reservas ativas na mesma bicicleta e o pagamento fica registrado para tratamento manual | Integração | Aguarda rota |
@@ -399,7 +400,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 
 | # | Achado | Impacto |
 |---|---|---|
-| 1 | O contrato lista 6 status de reserva e 5 de pagamento, mas o banco tem 7 (inclui `NAO_RETIRADA`) e 5 de pagamento com `ESTORNADO`; o teste de banco exige exatamente esses valores | A API ou a tela podem receber um status que o contrato não prevê. Atualizar o contrato ou declarar que não serão usados |
+| 1 | O contrato lista 6 status de reserva e 4 de pagamento, mas o banco tem 7 de reserva (inclui `NAO_RETIRADA`) e 5 de pagamento (inclui `ESTORNADO`); o teste de banco exige exatamente esses valores | A API ou a tela podem receber um status que o contrato não prevê. Atualizar o contrato ou declarar que não serão usados |
 | 2 | As rotas 6 (altura) e 7 (termos) listam só `CLIENTE` e os erros 400, 401 e 413. O PR #15 faz a equipe receber 403 | Acrescentar o 403 ao contrato |
 | 3 | O contrato diz que `inicio` "não pode estar no passado"; o PR #14 aceita 5 minutos de folga | Alinhar o texto do contrato com o código |
 | 4 | O cadastro responde 409 para e-mail ou CPF já cadastrado, enquanto o login é cuidadoso para não revelar se a conta existe | Risco de descobrir quem tem conta. Decidir se é aceito no MVP |
@@ -409,6 +410,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 | 8 | `src/shared/http/api-cliente.ts` ainda declara `GERENTE_LOCADORA` e `ADMIN_PLATAFORMA` no tipo do perfil, e `lerSessao` aceita token sem `exp` (sugestões do tech lead no PR #19, para outro PR) | Alinhar os tipos com o modelo novo; caso CT-UI-10 |
 | 9 | O PR #15 está com base em `feat/contas-gestao-conta-cliente`, que já foi mesclada pelo #9, e não em `dev` | Trocar a base para `dev` antes do merge. Dependem dele CT-SES-07 a CT-SES-09, CT-CTA-12 e CT-BD-05 |
 | 10 | Riscos de reserva e pagamento apontados na revisão do tech lead: pendente vencida que ninguém listou, Pix aprovado depois da expiração, valor pago diferente do cobrado, dois pagamentos aprovados na mesma reserva e webhook sem perfil sob RLS | CT-RES-17, CT-REC-20 e CT-PAG-17 a CT-PAG-20 |
+| 11 | Na revisão do PR #19, o `/app` do `ADMIN` aparece como "Painel da plataforma", nome do modelo antigo; com uma só locadora o nome esperado é o da locadora | Confirmar o texto com o Renan e o Luis; conferir em CT-UI-04 |
 
 ### Decisões ainda em aberto
 
