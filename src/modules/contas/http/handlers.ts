@@ -8,15 +8,10 @@ import { atualizarAltura } from "../application/atualizar-altura";
 import { autenticar } from "../application/autenticar";
 import { cadastrarCliente } from "../application/cadastrar-cliente";
 import { desativarConta } from "../application/desativar-conta";
-import { criarExigirSessao } from "../application/exigir-sessao";
-import {
-  atualizarSenha,
-  buscarSenhaHashPorId,
-  buscarSituacaoPorId,
-} from "../infrastructure/repositorio-usuarios";
+import { exigirPerfil } from "../application/exigir-sessao";
+import { atualizarSenha, buscarSenhaHashPorId } from "../infrastructure/repositorio-usuarios";
 import { gerarHashSenha, verificarSenha } from "../infrastructure/senha";
-
-const exigirSessao = criarExigirSessao(buscarSituacaoPorId);
+import { exigirSessao } from "./sessao";
 
 const alterarSenha = criarAlterarSenha({
   executar: query,
@@ -80,7 +75,7 @@ export async function postDesativar(request: Request) {
 
 export async function postAtualizarAltura(request: Request) {
   try {
-    const sessao = await exigirSessao(request);
+    const sessao = exigirPerfil(await exigirSessao(request), "CLIENTE");
     await atualizarAltura(sessao.usuarioId, await lerJson(request));
     return noContent();
   } catch (erro) {
@@ -90,7 +85,7 @@ export async function postAtualizarAltura(request: Request) {
 
 export async function postAceitarTermos(request: Request) {
   try {
-    const sessao = await exigirSessao(request);
+    const sessao = exigirPerfil(await exigirSessao(request), "CLIENTE");
     await aceitarTermos(sessao.usuarioId, await lerJson(request));
     return noContent();
   } catch (erro) {

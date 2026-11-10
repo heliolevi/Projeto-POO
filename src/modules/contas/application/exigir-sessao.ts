@@ -1,5 +1,5 @@
-import { UnauthorizedError } from "../../../shared/http/errors.ts";
-import type { PerfilUsuario } from "../domain/usuario.ts";
+import { ForbiddenError, UnauthorizedError } from "../../../shared/http/errors.ts";
+import { PERFIS, type PerfilUsuario } from "../domain/usuario.ts";
 import { verificarToken } from "../infrastructure/token.ts";
 
 export type SessaoAtiva = { usuarioId: string; perfil: PerfilUsuario };
@@ -28,7 +28,24 @@ export function criarExigirSessao(buscarSituacao: BuscarSituacao) {
     if (!sessao || !UUID.test(sessao.sub)) throw new UnauthorizedError(MENSAGEM);
 
     const usuario = await buscarSituacao(sessao.sub);
-    if (!usuario || !usuario.ativo) throw new UnauthorizedError(MENSAGEM);
+    // um perfil fora da lista (banco num estado inesperado) não ganha acesso a nada
+    if (!usuario || !usuario.ativo || !PERFIS.includes(usuario.perfil)) {
+      throw new UnauthorizedError(MENSAGEM);
+    }
     return { usuarioId: sessao.sub, perfil: usuario.perfil };
   };
+}
+
+// Confere o perfil depois do login, nesta ordem para seguir o contrato da API: sem sessão
+// válida é 401 (exigirSessao) e, logado com o perfil errado, 403. Devolve a mesma sessão com
+// o perfil já estreitado, para a rota usar sem novas checagens:
+//   const sessao = exigirPerfil(await exigirSessao(request), "OPERADOR", "ADMIN");
+export function exigirPerfil<P extends PerfilUsuario>(
+  sessao: SessaoAtiva,
+  ...permitidos: [P, ...P[]]
+): SessaoAtiva & { perfil: P } {
+  if (!(permitidos as readonly PerfilUsuario[]).includes(sessao.perfil)) {
+    throw new ForbiddenError("Seu perfil não tem acesso a esta ação.");
+  }
+  return sessao as SessaoAtiva & { perfil: P };
 }

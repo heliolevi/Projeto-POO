@@ -5,9 +5,6 @@
  * outros módulos ou pelos Route Handlers em src/app/api.
  * Camadas internas: domain → application → infrastructure / http.
  */
-import { criarExigirSessao } from "./application/exigir-sessao";
-import { buscarSituacaoPorId } from "./infrastructure/repositorio-usuarios";
-
 export {
   postAceitarTermos,
   postAlterarSenha,
@@ -17,9 +14,9 @@ export {
   postLogin,
 } from "./http/handlers";
 export { verificarToken, type SessaoToken } from "./infrastructure/token";
-export type { SessaoAtiva } from "./application/exigir-sessao";
-export type { PerfilUsuario, UsuarioPublico } from "./domain/usuario";
+export { exigirPerfil, type SessaoAtiva } from "./application/exigir-sessao";
+export { PERFIS, type PerfilUsuario, type UsuarioPublico } from "./domain/usuario";
 
-// Para rotas que exigem login (header Authorization: Bearer <token>). Lança 401 se o token
-// for inválido ou expirado, ou se a conta tiver sido desativada.
-export const exigirSessao = criarExigirSessao(buscarSituacaoPorId);
+// Rotas que exigem login: `const sessao = await exigirSessao(request)` (401 se não houver
+// sessão válida). Para restringir o perfil: `exigirPerfil(sessao, "OPERADOR", "ADMIN")` (403).
+export { exigirSessao } from "./http/sessao";

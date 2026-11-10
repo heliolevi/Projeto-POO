@@ -1,8 +1,7 @@
-export type PerfilUsuario =
-  | "CLIENTE"
-  | "OPERADOR"
-  | "GERENTE_LOCADORA"
-  | "ADMIN_PLATAFORMA";
+// Perfis do modelo de uma única locadora (migration 0004): o cliente, quem atende no balcão
+// (OPERADOR) e quem administra a loja (ADMIN).
+export const PERFIS = ["CLIENTE", "OPERADOR", "ADMIN"] as const;
+export type PerfilUsuario = (typeof PERFIS)[number];
 
 export type UsuarioPublico = {
   id: string;
