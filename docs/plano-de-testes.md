@@ -422,7 +422,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 | Menu do perfil `ADMIN` (por enquanto pode ser igual ao do `OPERADOR`) | CT-UI-03, CT-UI-04 e o checklist de navegação |
 | O que fazer com um pagamento aprovado de uma reserva já expirada (devolver no balcão?) | Resultado esperado do CT-PAG-17 |
 | Perfil ou papel de serviço para o webhook atualizar `pagamento` e `reserva` sob a RLS | CT-PAG-20 |
-| Regras de preço (horas arredondadas para cima, 24 h = uma diária, horas que sobram limitadas a uma diária) e a folga de 5 minutos no início a confirmar com a locadora | CT-REC-10 e CT-REC-13 |
+| Regras de preço (horas arredondadas para cima, 24 h = uma diária, horas que sobram limitadas a uma diária) e a folga de 5 minutos no início são regras assumidas (dados fictícios); reavaliar quando houver locadora real | CT-REC-10 e CT-REC-13 |
 
 ### Já decidido pelo contrato
 

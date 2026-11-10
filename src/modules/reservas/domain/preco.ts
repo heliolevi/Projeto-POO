@@ -2,7 +2,7 @@
 // reserva (POST /api/reservas) usam esta mesma função, porque o valor é sempre calculado no
 // servidor e nunca pode divergir entre a vitrine e a cobrança (docs/contrato-api-mvp.md).
 //
-// Regra assumida, a confirmar com a locadora:
+// Regra assumida (o projeto usa dados fictícios, sem locadora real; reavaliar quando houver):
 // - as horas são arredondadas para cima (3 h 10 min contam como 4 horas);
 // - cada bloco completo de 24 horas custa o preço por dia;
 // - as horas que sobram custam o preço por hora, mas nunca mais que um dia.
