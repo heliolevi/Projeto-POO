@@ -116,3 +116,53 @@ export function validarLogin(
   if (Object.keys(erros).length > 0) return { erros };
   return { dados: { email, senha: senha as string } };
 }
+
+export type DadosAlterarSenha = { senhaAtual: string; novaSenha: string };
+
+export function validarAlterarSenha(
+  entrada: unknown,
+): { dados: DadosAlterarSenha } | { erros: ErrosPorCampo } {
+  const corpo = comoObjeto(entrada);
+  const erros: ErrosPorCampo = {};
+  // o teto evita gastar scrypt com uma "senha" de vários KiB
+  const senhaAtual = texto(corpo.senhaAtual);
+  if (!senhaAtual || senhaAtual.length > SENHA_MAX) erros.senhaAtual = "Informe a senha atual.";
+
+  const novaSenha = texto(corpo.novaSenha);
+  if (novaSenha === null || novaSenha.length < SENHA_MIN || novaSenha.length > SENHA_MAX) {
+    erros.novaSenha = `A senha deve ter de ${SENHA_MIN} a ${SENHA_MAX} caracteres.`;
+  } else if (!/[A-Za-z]/.test(novaSenha) || !/\d/.test(novaSenha)) {
+    erros.novaSenha = "A senha deve ter ao menos uma letra e um número.";
+  } else if (senhaAtual && novaSenha.normalize("NFKC") === senhaAtual.normalize("NFKC")) {
+    // mesma normalização do hash (senha.ts), para "igual" valer como no login
+    erros.novaSenha = "A nova senha precisa ser diferente da atual.";
+  }
+
+  if (Object.keys(erros).length > 0) return { erros };
+  return { dados: { senhaAtual: senhaAtual as string, novaSenha: novaSenha as string } };
+}
+
+export function validarAltura(entrada: unknown): { dados: number } | { erros: ErrosPorCampo } {
+  const corpo = comoObjeto(entrada);
+  const valor = corpo.alturaCm;
+  if (typeof valor === "number" && Number.isInteger(valor) && valor >= 100 && valor <= 250) {
+    return { dados: valor };
+  }
+  return { erros: { alturaCm: "Altura deve ser um inteiro entre 100 e 250 (cm)." } };
+}
+
+// Só a versão vigente pode ser aceita: o cliente não registra aceite de um texto que não leu.
+export function validarAceiteTermos(
+  entrada: unknown,
+  versaoVigente: string,
+): { dados: string } | { erros: ErrosPorCampo } {
+  const corpo = comoObjeto(entrada);
+  const versao = texto(corpo.versao)?.trim() ?? "";
+  if (!versao || versao.length > 32) {
+    return { erros: { versao: "Informe a versão dos termos aceita." } };
+  }
+  if (versao !== versaoVigente) {
+    return { erros: { versao: `A versão vigente dos termos é ${versaoVigente}.` } };
+  }
+  return { dados: versao };
+}
