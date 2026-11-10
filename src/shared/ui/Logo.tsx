@@ -28,14 +28,27 @@ export function LogoMark({ size = 32 }: LogoProps) {
 
 export function Logo({ withSubtitle = false }: { withSubtitle?: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-10)" }}>
       <LogoMark />
       <div>
-        <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--color-primary)", lineHeight: 1.1 }}>
+        <h1
+          style={{
+            fontSize: "var(--font-size-xl)",
+            fontWeight: "var(--font-weight-bold)",
+            color: "var(--color-primary)",
+            lineHeight: 1.1,
+          }}
+        >
           Bike Ilha Club
         </h1>
         {withSubtitle && (
-          <p style={{ fontSize: 12, color: "var(--color-text-support)", marginTop: 2 }}>
+          <p
+            style={{
+              fontSize: "var(--font-size-sm)",
+              color: "var(--color-text-support)",
+              marginTop: 2,
+            }}
+          >
             São Luís, MA
           </p>
         )}

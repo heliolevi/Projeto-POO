@@ -1,12 +1,12 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 .label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 
@@ -18,7 +18,7 @@
 
 .icon {
   position: absolute;
-  left: 14px;
+  left: var(--space-14);
   display: inline-flex;
   color: var(--color-text-support);
   pointer-events: none;
@@ -30,9 +30,9 @@
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--color-surface-border-strong);
   background: var(--color-surface-soft);
-  padding: 0 16px;
+  padding: 0 var(--space-16);
   padding-left: 42px;
-  font-size: 14px;
+  font-size: var(--font-size-md);
   color: var(--color-text);
   outline: none;
   transition: border-color 0.15s ease;
@@ -53,29 +53,29 @@
 
 .toggleVisibility {
   position: absolute;
-  right: 10px;
+  right: var(--space-10);
   background: none;
   border: none;
   cursor: pointer;
   color: var(--color-text-support);
   display: inline-flex;
-  padding: 8px;
+  padding: var(--space-8);
 }
 
 .errorText {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--color-danger);
 }
 
 .hintText {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--color-text-support);
 }
 
 .checkboxRow {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 .checkbox {
@@ -88,7 +88,7 @@
 }
 
 .checkboxLabel {
-  font-size: 13px;
+  font-size: var(--font-size-base);
   color: var(--color-text-secondary);
   line-height: 1.4;
 }
@@ -96,7 +96,7 @@
 .checkboxLabel a {
   color: var(--color-link-blue);
   text-decoration: none;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .checkboxLabel a:hover {
@@ -110,10 +110,10 @@
 }
 
 .link {
-  font-size: 13px;
+  font-size: var(--font-size-base);
   color: var(--color-primary);
   text-decoration: none;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .link:hover {
@@ -126,15 +126,15 @@
   border: none;
   background: var(--color-primary);
   color: #fff;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-8);
   cursor: pointer;
   transition: opacity 0.15s ease, transform 0.05s ease;
-  margin-top: 4px;
+  margin-top: var(--space-4);
 }
 
 .button:hover:not(:disabled) {
