@@ -90,9 +90,29 @@ test("validarAltura aceita de 100 a 250 cm", () => {
   assert.equal(r.dados, 170);
 });
 
-test("validarAceiteTermos exige a versão", () => {
-  assert.ok("erros" in validarAceiteTermos({}));
-  const r = validarAceiteTermos({ versao: "2026-10" });
+test("validarAlterarSenha recusa nova senha igual à atual", () => {
+  const r = validarAlterarSenha({ senhaAtual: "mesma1234", novaSenha: "mesma1234" });
+  assert.ok("erros" in r);
+  assert.match(r.erros.novaSenha, /diferente/);
+  // a comparação usa a mesma normalização (NFKC) do hash da senha
+  const composta = validarAlterarSenha({ senhaAtual: "café1234", novaSenha: "café1234" });
+  assert.ok("erros" in composta);
+});
+
+test("validarAlterarSenha limita o tamanho da senha atual", () => {
+  const r = validarAlterarSenha({ senhaAtual: "a1".repeat(65), novaSenha: "nova1234" });
+  assert.ok("erros" in r);
+  assert.ok(r.erros.senhaAtual);
+});
+
+test("validarAceiteTermos exige a versão vigente", () => {
+  assert.ok("erros" in validarAceiteTermos({}, "2026-10"));
+  assert.ok("erros" in validarAceiteTermos({ versao: "   " }, "2026-10"));
+  assert.ok("erros" in validarAceiteTermos({ versao: "x".repeat(10_000) }, "2026-10"));
+  const antiga = validarAceiteTermos({ versao: "2025-01" }, "2026-10");
+  assert.ok("erros" in antiga);
+  assert.match(antiga.erros.versao, /2026-10/);
+  const r = validarAceiteTermos({ versao: " 2026-10 " }, "2026-10");
   assert.ok("dados" in r);
   assert.equal(r.dados, "2026-10");
 });
