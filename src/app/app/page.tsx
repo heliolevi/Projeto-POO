@@ -7,8 +7,7 @@ import { PlaceholderScreen } from "@/shared/ui/PlaceholderScreen";
 const TITULO_POR_PERFIL: Record<PerfilUsuario, string> = {
   CLIENTE: "Que bom te ver de novo!",
   OPERADOR: "Painel da equipe",
-  GERENTE_LOCADORA: "Painel da equipe",
-  ADMIN_PLATAFORMA: "Painel da plataforma",
+  ADMIN: "Painel da plataforma",
 };
 
 export default function AppHomePage() {

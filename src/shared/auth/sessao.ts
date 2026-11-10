@@ -1,8 +1,9 @@
-export type PerfilUsuario = "CLIENTE" | "OPERADOR" | "GERENTE_LOCADORA" | "ADMIN_PLATAFORMA";
+export type PerfilUsuario = "CLIENTE" | "OPERADOR" | "ADMIN";
 
 export type Sessao = { usuarioId: string; perfil: PerfilUsuario; exp: number };
 
 const CHAVE_TOKEN = "bik_token";
+const PERFIS_VALIDOS: readonly PerfilUsuario[] = ["CLIENTE", "OPERADOR", "ADMIN"];
 
 // Só lê o payload para montar a UI (ex.: qual menu mostrar). A API sempre confere o
 // token de verdade (assinatura e conta ativa) a cada chamada, então não ter a chave
@@ -17,8 +18,9 @@ export function lerSessao(): Sessao | null {
   try {
     const corpo = JSON.parse(atob(partes[1].replace(/-/g, "+").replace(/_/g, "/")));
     if (typeof corpo.sub !== "string" || typeof corpo.perfil !== "string") return null;
+    if (!PERFIS_VALIDOS.includes(corpo.perfil as PerfilUsuario)) return null;
     if (corpo.exp <= Date.now() / 1000) return null;
-    return { usuarioId: corpo.sub, perfil: corpo.perfil, exp: corpo.exp };
+    return { usuarioId: corpo.sub, perfil: corpo.perfil as PerfilUsuario, exp: corpo.exp };
   } catch {
     return null;
   }

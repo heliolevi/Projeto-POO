@@ -80,16 +80,6 @@ export function CalendarIcon() {
   );
 }
 
-export function BuildingIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="4" y="3" width="11" height="18" rx="1" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M8 7h3M8 11h3M8 15h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M15 10h5v11h-5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 export function LogoutIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
