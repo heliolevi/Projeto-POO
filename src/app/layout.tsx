@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -17,6 +17,15 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "Bike Ilha Club",
   description: "Aluguel de bicicletas em São Luís (MA)",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Bike Ilha Club",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#005F49",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
