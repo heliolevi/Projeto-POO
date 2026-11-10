@@ -130,7 +130,7 @@ PR ou issue do defeito.
 |---|---|---|---|---|---|
 | CT-SEG-01 | P0 | Subir o app sem `SESSION_SECRET` | Erro claro; login e cadastro não funcionam em silêncio | Auto | Automatizado |
 | CT-SEG-02 | P0 | `SESSION_SECRET` curto ou igual ao exemplo do `.env.example` | Recusado | Auto | Automatizado |
-| CT-SEG-03 | P0 | `/api/health/db` sem o segredo certo | Recusada; sem `HEALTH_DB_SECRET` configurada a rota fica desligada (404) | Auto | Automatizado |
+| CT-SEG-03 | P0 | `/api/health/db` sem segredo configurado, com segredo errado e com o segredo certo | 404 sem segredo configurado; 401 com segredo errado; 200 com o certo | Integração | Pendente (a função `bearerConfere` tem teste, a rota não) |
 | CT-SEG-04 | P0 | `/api/health` | Responde 200 sem dados sensíveis | Manual | Pendente |
 | CT-SEG-05 | P0 | Procurar segredos no repositório e no que o PR altera (`.env`, senhas, tokens, strings de conexão) | Nenhum encontrado | Manual | Pendente |
 | CT-SEG-06 | P1 | Consultas ao banco usam parâmetros (`$1`), sem montar SQL com texto do usuário | Nenhuma consulta concatena entrada do usuário | Manual | Pendente |
@@ -138,6 +138,7 @@ PR ou issue do defeito.
 | CT-SEG-08 | P1 | Erro inesperado em qualquer rota | 500 `INTERNAL_ERROR` com mensagem genérica, sem stack nem SQL | Integração | Pendente |
 | CT-SEG-09 | P1 | Formato de erro de todas as rotas | `{ error: { code, message, details } }`, com os `code` da tabela do contrato | Integração | Pendente |
 | CT-SEG-10 | P1 | Variáveis usadas pelo código (incluindo `MP_WEBHOOK_SECRET` e `PAGAMENTO_MODO`) | Todas listadas no `.env.example`, sem valor real | Manual | Pendente |
+| CT-SEG-11 | P1 | Função `bearerConfere` | Aceita o formato `Bearer` certo; recusa segredo errado, de outro tamanho, sem header ou com outro esquema; sem segredo configurado ou curto demais, nada passa | Auto | Automatizado (`segredo.test.ts`) |
 
 ### 4.6 Banco de dados, migrations e RLS
 
@@ -157,7 +158,7 @@ roda com `npm run teste:reserva-e-pagamento`.
 | CT-BD-09 | P1 | `pago_em` incoerente com o status `APROVADO` | Rejeitado nos dois sentidos | Auto | Automatizado (db/tests) |
 | CT-BD-10 | P0 | Código de reserva repetido e `mp_payment_id` repetido; vários `mp_payment_id` nulos | Os repetidos são rejeitados; os nulos são aceitos | Auto | Automatizado (db/tests) |
 | CT-BD-11 | P1 | Reserva com bicicleta inexistente e com status fora do enum | Rejeitada (FK e enum) | Auto | Automatizado (db/tests) |
-| CT-BD-12 | P0 | Constraint `reserva_sem_sobreposicao` | É `EXCLUDE USING gist` em `(bicicleta_id, periodo)`, com `WHERE` só nos três status ativos | Auto | Automatizado (db/tests) |
+| CT-BD-12 | P0 | Constraint `reserva_sem_sobreposicao` | É `EXCLUDE USING gist` em `(bicicleta_id, periodo)`, com `WHERE` só nos três status ativos (só a estrutura; o comportamento está em CT-BD-22 a CT-BD-24) | Auto | Automatizado (db/tests) |
 | CT-BD-13 | P0 | RLS e políticas de `reserva` e `pagamento` | RLS habilitada; existem as políticas de cliente e de equipe | Auto | Automatizado (db/tests) |
 | CT-BD-14 | P1 | Permissões do `app_backend` | `SELECT`, `INSERT` e `UPDATE`, sem `DELETE`, em `reserva` e `pagamento` | Auto | Automatizado (db/tests) |
 | CT-BD-15 | P1 | Índices de apoio e tipos de coluna | Existem como na migration | Auto | Automatizado (db/tests) |
@@ -167,6 +168,9 @@ roda com `npm run teste:reserva-e-pagamento`.
 | CT-BD-19 | P0 | `OPERADOR` e `ADMIN` consultam reservas; visitante consulta | Equipe vê todas; visitante não vê nenhuma | Integração | Pendente |
 | CT-BD-20 | P0 | Duas conexões diferentes disputam a mesma bicicleta ao mesmo tempo | Só uma reserva é criada (os testes atuais usam uma conexão com savepoint, então não provam a concorrência) | Integração | Pendente |
 | CT-BD-21 | P1 | Seed `db/seeds/dev.sql` aplicado no Neon `dev` | Cria empresa, pontos, tipos e bicicletas usados pela demo, e pode ser reaplicado | Manual | Pendente |
+| CT-BD-22 | P0 | Reservar uma bicicleta já reservada em horário que se sobrepõe | A segunda reserva é rejeitada | Auto | Automatizado (db/tests, blackbox) |
+| CT-BD-23 | P0 | Reservar a bicicleta a partir do minuto em que a reserva anterior termina | Aceita (períodos encostados são permitidos) | Auto | Automatizado (db/tests, blackbox) |
+| CT-BD-24 | P0 | Cancelar uma reserva | A bicicleta fica livre no mesmo horário e pode ser reservada de novo | Auto | Automatizado (db/tests, blackbox) |
 
 ### 4.7 Empresa, catálogo e painel do administrador (rotas 9, 10 e 19 a 24)
 
@@ -210,6 +214,7 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead, aguar
 | CT-REC-17 | P0 | Nenhuma bicicleta livre no período | 200 com `resultados: []` (não é erro) | Integração | Aguarda rota |
 | CT-REC-18 | P0 | Tipo cuja única unidade tem reserva sobreposta | Não aparece; volta a aparecer depois de cancelar a reserva | Integração | Aguarda rota |
 | CT-REC-19 | P1 | Mais de 60 buscas por minuto do mesmo IP | 429 | Integração | Aguarda rota |
+| CT-REC-20 | P0 | Tipo cuja única unidade tem reserva `PENDENTE_PAGAMENTO` já vencida, que ninguém listou | O tipo aparece como livre: a rota ignora ou expira as pendentes vencidas, porque a exclusion constraint só as libera quando o status muda | Integração | Aguarda rota |
 
 ### 4.9 Reservas (rotas 12 a 15)
 
@@ -231,6 +236,7 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead, aguar
 | CT-RES-14 | P0 | Cancelar reserva já retirada, concluída, cancelada ou expirada | 409 | Integração | Aguarda rota |
 | CT-RES-15 | P1 | Mais de 20 reservas por hora do mesmo usuário | 429 | Integração | Aguarda rota |
 | CT-RES-16 | P0 | Rotas de reserva sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para a equipe | Integração | Aguarda rota |
+| CT-RES-17 | P0 | Reservar o mesmo período depois que uma reserva pendente venceu e ninguém a listou | 201 para a nova reserva, sem 409 falso; a pendente vencida vira `EXPIRADA` (`POST /api/reservas` expira ou ignora as vencidas antes de reservar) | Integração | Aguarda rota |
 
 ### 4.10 Pagamentos por Pix (rotas 16 a 18)
 
@@ -252,6 +258,10 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead, aguar
 | CT-PAG-14 | P1 | Pix não pago em 15 minutos | Pagamento `EXPIRADO` e reserva `EXPIRADA` | Integração | Aguarda rota |
 | CT-PAG-15 | P1 | `PAGAMENTO_MODO=simulado` | Aprova sem o Mercado Pago só em desenvolvimento e na demo; desligado em produção | Manual | Aguarda rota |
 | CT-PAG-16 | P1 | Valores monetários | Sempre inteiros em centavos, sem arredondamento errado | Auto | Aguarda rota |
+| CT-PAG-17 | P0 | Pix aprovado depois que a reserva expirou (e a bicicleta já foi reservada por outra pessoa) | O webhook não confirma a reserva expirada: ela continua `EXPIRADA`, não há duas reservas ativas na mesma bicicleta e o pagamento fica registrado para tratamento manual | Integração | Aguarda rota |
+| CT-PAG-18 | P0 | Webhook com valor pago diferente do cobrado | O servidor compara com `valor_aluguel_centavos`; se for diferente, não confirma a reserva e registra a divergência | Integração | Aguarda rota |
+| CT-PAG-19 | P0 | Dois pagamentos `APROVADO` na mesma reserva | O segundo é recusado ou ignorado; hoje nada no banco impede isso (sugestão: índice único parcial em `pagamento(reserva_id)` para `APROVADO`) | Integração | Pendente (o banco ainda não impede) |
+| CT-PAG-20 | P0 | Webhook sem sessão de usuário atualizando `pagamento` e `reserva` com a RLS ligada | A atualização funciona pelo papel ou perfil de serviço do webhook; um visitante ou cliente não consegue fazer o mesmo | Integração | Aguarda rota (hoje não existe perfil para isso) |
 
 ### 4.11 Operação: retirada e devolução (rotas 25 a 27)
 
@@ -294,7 +304,7 @@ Só como lembrete: não há rota no contrato, então não bloqueiam o MVP.
 | CT-NOT-01 | P2 | Reserva confirmada | Cliente recebe o aviso no canal configurado | Integração | Aguarda fase 6 |
 | CT-AUD-01 | P2 | Alteração de reserva, estoque ou valores | Registro em `auditoria_log` com dados antes e depois | Integração | Aguarda fase 6 |
 
-**Total:** 160 casos (P0: 104, P1: 53, P2: 3). 35 já têm teste automatizado ou rodam na CI, 29 estão em PRs abertos (#14, #15 e #19), 1 está bloqueado, 65 aguardam rotas que ainda não existem e 30 estão pendentes de execução. Nenhum caso falhou até agora.
+**Total:** 170 casos (P0: 113, P1: 54, P2: 3). 38 já têm teste automatizado ou rodam na CI, 29 estão em PRs abertos (#14, #15 e #19), 1 está bloqueado, 70 aguardam rotas que ainda não existem e 32 estão pendentes de execução. Nenhum caso falhou até agora.
 
 ## 5. Checklist de aceite por tela
 
@@ -397,6 +407,8 @@ Encontrados ao comparar o contrato com o código e os testes.
 | 6 | O `npm test` da raiz agora roda só `src/**/*.test.ts`; os testes de banco rodam apenas no job de banco da CI | Quem mexer em migration precisa rodar os testes de `db` ou esperar a CI |
 | 7 | A RLS só vale com o papel `app_login`, e o `.env` de desenvolvimento conecta como dono do banco | CT-BD-04 fica `Bloqueado` até o tech lead fechar a pendência |
 | 8 | `src/shared/http/api-cliente.ts` ainda declara `GERENTE_LOCADORA` e `ADMIN_PLATAFORMA` no tipo do perfil, e `lerSessao` aceita token sem `exp` (sugestões do tech lead no PR #19, para outro PR) | Alinhar os tipos com o modelo novo; caso CT-UI-10 |
+| 9 | O PR #15 está com base em `feat/contas-gestao-conta-cliente`, que já foi mesclada pelo #9, e não em `dev` | Trocar a base para `dev` antes do merge. Dependem dele CT-SES-07 a CT-SES-09, CT-CTA-12 e CT-BD-05 |
+| 10 | Riscos de reserva e pagamento apontados na revisão do tech lead: pendente vencida que ninguém listou, Pix aprovado depois da expiração, valor pago diferente do cobrado, dois pagamentos aprovados na mesma reserva e webhook sem perfil sob RLS | CT-RES-17, CT-REC-20 e CT-PAG-17 a CT-PAG-20 |
 
 ### Decisões ainda em aberto
 
@@ -406,6 +418,8 @@ Encontrados ao comparar o contrato com o código e os testes.
 | Formato final de `horarios` do ponto (`diaSemana` de 0 a 6?) | Resultado esperado do CT-CAT-01 |
 | Texto exato das mensagens de erro 409 mostradas ao cliente | Checklist das telas de reserva e cadastro |
 | Menu do perfil `ADMIN` (por enquanto pode ser igual ao do `OPERADOR`) | CT-UI-03, CT-UI-04 e o checklist de navegação |
+| O que fazer com um pagamento aprovado de uma reserva já expirada (devolver no balcão?) | Resultado esperado do CT-PAG-17 |
+| Perfil ou papel de serviço para o webhook atualizar `pagamento` e `reserva` sob a RLS | CT-PAG-20 |
 | Regras de preço do PR #14 (horas arredondadas para cima, 5 minutos de folga no início) a confirmar com a locadora | CT-REC-10 e CT-REC-13 |
 
 ### Já decidido pelo contrato
