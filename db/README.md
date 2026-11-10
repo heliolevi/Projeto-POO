@@ -51,6 +51,36 @@ Crie o papel por SQL, e não pelo botão de roles do console, que costuma dar `B
 As consultas de locadoras e pontos devem passar por `comSessao` (`src/shared/db/sessao.ts`), que
 declara perfil e locadora dentro de uma transação para as políticas valerem.
 
+> **Uma única locadora.** A migration `0004` leva o banco do modelo anterior (várias locadoras) para o
+> modelo atual: tabela `empresa` com uma linha só, perfis `CLIENTE`, `OPERADOR` e `ADMIN`, sem
+> `locadora_id`. A segurança por linha passa a olhar o perfil e o usuário da sessão
+> (`sessao_perfil()` e `sessao_usuario_id()`), e o `comSessao` do app deve declarar
+> `app.perfil` e `app.usuario_id`. A `0005` cria o catálogo (`tipo_bicicleta` e `bicicleta`).
+
+## Dados de exemplo (seed)
+
+`seeds/dev.sql` cria uma empresa fictícia, um ponto de retirada em São Luís, 6 tipos de bicicleta,
+14 unidades e as contas `admin@bikeilha.test` e `operador@bikeilha.test`. Serve só para o
+**desenvolvimento** e pode rodar várias vezes (atualiza em vez de duplicar).
+
+As senhas da equipe **não ficam no Git**. Coloque no seu `.env.local` (que o Git ignora):
+
+```
+SEED_ADMIN_SENHA=<senha de teste do admin>
+SEED_OPERADOR_SENHA=<senha de teste do operador>
+```
+
+Cada senha precisa ter 8 caracteres ou mais, com letra e número. Depois, com `DATABASE_URL_UNPOOLED`
+apontando para o branch **dev** do Neon:
+
+```bash
+cd db
+npm run seed:dev -- --ok-dev
+```
+
+O script imprime o host, gera o hash das senhas com a mesma função do app e aplica o seed numa
+transação. A flag `--ok-dev` é uma confirmação: confira o host antes e **nunca rode em production**.
+
 ## Esquema atual
 
 Veja `docs/modelo-de-dados.md`.
