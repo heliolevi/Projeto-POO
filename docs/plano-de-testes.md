@@ -205,7 +205,7 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-REC-07 | P0 | Dado que falta no perfil (altura, experiência ou atividade) | Não pontua para nenhum tipo; ninguém é favorecido | Auto | Em revisão (PR #14) |
 | CT-REC-08 | P1 | Ordem do resultado | Por pontos; empate pelo menor preço por dia; depois pelo nome | Auto | Em revisão (PR #14) |
 | CT-REC-09 | P1 | Motivos de cada resultado | Texto com o que favorece e o que pesa contra (por exemplo "Não é a mais indicada para trilha") | Auto | Em revisão (PR #14) |
-| CT-REC-10 | P0 | Preço: horas arredondadas para cima; cada 24 h vale o preço do dia; as horas que sobram custam o preço por hora, limitadas a um dia | Valor em centavos conforme a regra, igual na recomendação e na reserva | Auto | Em revisão (PR #14) |
+| CT-REC-10 | P0 | Preço: horas arredondadas para cima; cada 24 h vale o preço do dia; as horas que sobram custam o preço por hora, limitadas a um dia (3 h 10 min = 4 h; 24 h = 1 diária; 25 h = 1 diária + 1 hora) | Valor em centavos inteiros conforme a regra, pela mesma função (`calcularValorAluguel`) na recomendação e na reserva | Auto | Em revisão (este PR; `reservas/domain/preco.test.ts`) |
 | CT-REC-11 | P0 | Parâmetros `inicio`, `fim` e `atividade` inválidos ou ausentes | 400 com `details` do campo | Auto | Em revisão (PR #14) |
 | CT-REC-12 | P0 | `inicio` ou `fim` sem fuso horário | Recusado (sem fuso, a hora seria lida em UTC na Vercel) | Auto | Em revisão (PR #14) |
 | CT-REC-13 | P1 | `inicio` "agora", com até 5 minutos de atraso | Aceito pela folga de 5 minutos; mais que isso no passado é recusado | Auto | Em revisão (PR #14) |
@@ -422,7 +422,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 | Menu do perfil `ADMIN` (por enquanto pode ser igual ao do `OPERADOR`) | CT-UI-03, CT-UI-04 e o checklist de navegação |
 | O que fazer com um pagamento aprovado de uma reserva já expirada (devolver no balcão?) | Resultado esperado do CT-PAG-17 |
 | Perfil ou papel de serviço para o webhook atualizar `pagamento` e `reserva` sob a RLS | CT-PAG-20 |
-| Regras de preço do PR #14 (horas arredondadas para cima, 5 minutos de folga no início) a confirmar com a locadora | CT-REC-10 e CT-REC-13 |
+| Regras de preço (horas arredondadas para cima, 24 h = uma diária, horas que sobram limitadas a uma diária) e a folga de 5 minutos no início a confirmar com a locadora | CT-REC-10 e CT-REC-13 |
 
 ### Já decidido pelo contrato
 

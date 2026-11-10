@@ -13,7 +13,6 @@ test("aceita um período válido no fuso de São Luís e devolve em UTC", () => 
   assert.ok("dados" in r);
   assert.equal(r.dados.inicio.toISOString(), "2026-11-14T12:00:00.000Z");
   assert.equal(r.dados.fim.toISOString(), "2026-11-14T16:00:00.000Z");
-  assert.equal(r.dados.horas, 4);
   assert.equal(r.dados.atividade, "PASSEIO");
 });
 

@@ -6,13 +6,17 @@ import {
   type Experiencia,
   type PerfilCiclista,
 } from "./perfil.ts";
-import { valorAluguelCentavos } from "./preco.ts";
 
 // Recomendação de bicicletas (docs/modelo-de-dados.md, "Dados de recomendação").
 //
 // Função pura: recebe o perfil do cliente, os tipos do catálogo já com a contagem de
-// unidades livres no período e o número de horas, e devolve a lista ordenada. Não lê banco
-// nem relógio, então o mesmo pedido dá sempre a mesma resposta e tudo pode ser testado.
+// unidades livres no período e a função que calcula o valor do aluguel, e devolve a lista
+// ordenada. Não lê banco nem relógio, então o mesmo pedido dá sempre a mesma resposta e tudo
+// pode ser testado.
+//
+// O preço NÃO é calculado aqui: a regra mora só em src/modules/reservas (calcularValorAluguel),
+// a mesma que a reserva usa. Quem chama monta o período e entrega a função pronta, e assim a
+// vitrine nunca diverge da cobrança.
 //
 // 1. Filtro: tipos ativos, com unidade livre e cuja faixa de altura inclui a do cliente
 //    (sem altura informada, nenhum tipo sai por altura).
@@ -47,6 +51,9 @@ export type Recomendacao = {
   valorCaucaoCentavos: number;
   unidadesLivres: number;
 };
+
+// Valor do aluguel de um tipo no período da busca, em centavos.
+export type CalcularValorAluguel = (tipo: TipoCandidato) => number;
 
 export function cabeNaAltura(alturaCm: number, tipo: Pick<TipoCandidato, "alturaMinCm" | "alturaMaxCm">) {
   return alturaCm >= tipo.alturaMinCm && alturaCm <= tipo.alturaMaxCm;
@@ -107,7 +114,7 @@ function avaliar(perfil: PerfilCiclista, tipo: TipoCandidato) {
 export function recomendar(
   perfil: PerfilCiclista,
   tipos: readonly TipoCandidato[],
-  horas: number,
+  calcularValorAluguel: CalcularValorAluguel,
 ): Recomendacao[] {
   const candidatos = tipos.filter(
     (tipo) =>
@@ -127,7 +134,7 @@ export function recomendar(
           descricao: tipo.descricao,
           pontos,
           motivos,
-          valorAluguelCentavos: valorAluguelCentavos(tipo, horas),
+          valorAluguelCentavos: calcularValorAluguel(tipo),
           valorCaucaoCentavos: tipo.valorCaucaoCentavos,
           unidadesLivres: tipo.unidadesLivres,
         },
