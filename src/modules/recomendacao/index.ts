@@ -5,4 +5,20 @@
  * outros módulos ou pelos Route Handlers em src/app/api.
  * Camadas internas: domain → application → infrastructure / http.
  */
-export {};
+export {
+  ATIVIDADES,
+  EXPERIENCIAS,
+  ehAtividade,
+  ehExperiencia,
+  type Atividade,
+  type Experiencia,
+  type PerfilCiclista,
+} from "./domain/perfil";
+export { validarBusca, type BuscaValidada } from "./domain/periodo";
+export { horasCobradas, valorAluguelCentavos, type Precos } from "./domain/preco";
+export {
+  PESOS,
+  recomendar,
+  type Recomendacao,
+  type TipoCandidato,
+} from "./domain/recomendacao";
