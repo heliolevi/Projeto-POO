@@ -268,20 +268,22 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead, aguar
 
 ### 4.12 Interface e navegação (`/app`)
 
-Casos do PR #19 (base visual e navegação por perfil). O PR está com pedido de mudanças do tech lead: o
-menu ainda usa os perfis do modelo antigo (`GERENTE_LOCADORA`, `ADMIN_PLATAFORMA`).
+Casos do PR #19 (base visual e navegação por perfil). O PR teve pedido de mudanças do tech lead (menu com os
+perfis do modelo antigo e `/app` quebrando com `ADMIN`). O Renan corrigiu, o Luis aprovou e falta o merge.
+Os casos CT-UI-04 e CT-UI-05 falharam na primeira revisão e foram corrigidos; reexecutar depois do merge.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
 | CT-UI-01 | P0 | Abrir `/app` sem token de sessão | Redireciona para `/login` | Manual | Em revisão (PR #19) |
 | CT-UI-02 | P0 | Abrir `/app` com token expirado | Redireciona para `/login` | Manual | Em revisão (PR #19) |
 | CT-UI-03 | P0 | Entrar como `CLIENTE` | Menu inferior com Início, Reservas e Perfil | Manual | Em revisão (PR #19) |
-| CT-UI-04 | P0 | Entrar como `ADMIN` e como `OPERADOR` (perfis do modelo novo) | A tela carrega, sem "This page couldn't load" | Manual | Falhou no PR #19 (o menu não tem a chave `ADMIN`) |
-| CT-UI-05 | P0 | Token com perfil desconhecido ou ausente | A tela nunca quebra: volta ao `/login` | Manual | Falhou no PR #19 (falta o fallback) |
-| CT-UI-06 | P0 | `lerSessao` com token válido, expirado, malformado e sem `perfil` | Devolve a sessão ou nada, sem lançar erro | Auto | Pendente (sugestão do tech lead) |
+| CT-UI-04 | P0 | Entrar como `ADMIN` e como `OPERADOR` (perfis do modelo novo) | A tela carrega, sem "This page couldn't load" | Manual | Em revisão (PR #19, corrigido e aprovado; reexecutar após o merge) |
+| CT-UI-05 | P0 | Token com perfil desconhecido ou ausente | A tela nunca quebra: volta ao `/login` | Manual | Em revisão (PR #19, corrigido e aprovado; reexecutar após o merge) |
+| CT-UI-06 | P0 | `lerSessao` com token válido, expirado, malformado e sem `perfil` | Devolve a sessão ou nada, sem lançar erro | Auto | Em revisão (PR #19, testes novos de `lerSessao`) |
 | CT-UI-07 | P1 | Cadastro e login concluídos | Levam a `/app` em vez de `/` | Manual | Em revisão (PR #19) |
 | CT-UI-08 | P1 | Cabeçalho do app | Logo e botão de sair; sair encerra a sessão; item ativo do menu destacado | Manual | Em revisão (PR #19) |
 | CT-UI-09 | P2 | Telas de destino ainda "em construção" | Mostram o aviso, sem erro | Manual | Em revisão (PR #19) |
+| CT-UI-10 | P1 | Token sem `exp` lido pela tela | A tela não o trata como sessão válida (hoje `lerSessao` aceita, porque `undefined <= agora` dá falso); a API continua recusando com 401 | Auto | Pendente (sugestão do tech lead no PR #19) |
 
 ### 4.13 Avisos e auditoria (fora do contrato do MVP)
 
@@ -292,7 +294,7 @@ Só como lembrete: não há rota no contrato, então não bloqueiam o MVP.
 | CT-NOT-01 | P2 | Reserva confirmada | Cliente recebe o aviso no canal configurado | Integração | Aguarda fase 6 |
 | CT-AUD-01 | P2 | Alteração de reserva, estoque ou valores | Registro em `auditoria_log` com dados antes e depois | Integração | Aguarda fase 6 |
 
-**Total:** 159 casos (P0: 104, P1: 52, P2: 3). 35 já têm teste automatizado ou rodam na CI, 26 estão em PRs abertos (#14, #15 e #19), 2 falharam na revisão do PR #19, 1 está bloqueado, 65 aguardam rotas que ainda não existem e 30 estão pendentes de execução.
+**Total:** 160 casos (P0: 104, P1: 53, P2: 3). 35 já têm teste automatizado ou rodam na CI, 29 estão em PRs abertos (#14, #15 e #19), 1 está bloqueado, 65 aguardam rotas que ainda não existem e 30 estão pendentes de execução. Nenhum caso falhou até agora.
 
 ## 5. Checklist de aceite por tela
 
@@ -394,6 +396,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 | 5 | Os testes de banco usam uma conexão com savepoint, então não provam concorrência; RLS de `pagamento` e acesso da equipe só são conferidos pela inspeção das políticas | Casos CT-BD-18, CT-BD-19 e CT-BD-20 |
 | 6 | O `npm test` da raiz agora roda só `src/**/*.test.ts`; os testes de banco rodam apenas no job de banco da CI | Quem mexer em migration precisa rodar os testes de `db` ou esperar a CI |
 | 7 | A RLS só vale com o papel `app_login`, e o `.env` de desenvolvimento conecta como dono do banco | CT-BD-04 fica `Bloqueado` até o tech lead fechar a pendência |
+| 8 | `src/shared/http/api-cliente.ts` ainda declara `GERENTE_LOCADORA` e `ADMIN_PLATAFORMA` no tipo do perfil, e `lerSessao` aceita token sem `exp` (sugestões do tech lead no PR #19, para outro PR) | Alinhar os tipos com o modelo novo; caso CT-UI-10 |
 
 ### Decisões ainda em aberto
 
@@ -424,4 +427,5 @@ Observações da rodada de 10/11/2026:
 - O `npm ci` avisa que `unrs-resolver@1.12.2` tem script de instalação ainda não coberto por `allowScripts`. É só um aviso do npm.
 - Os testes avisam `MODULE_TYPELESS_PACKAGE_JSON` (falta `"type": "module"` no `package.json`). Só afeta desempenho, não é falha.
 - O teste de `sessao.test.ts` ainda descreve `locadora` e `gerente` (modelo antigo); o PR #15 deve atualizar.
+- Segundo a revisão do PR #19, a união da branch do Renan com a `dev` e com os PRs #14 e #15 roda 109 testes, todos passando.
 - Os testes de banco (`db/tests`) não foram rodados localmente: rodam no job de banco da CI.
