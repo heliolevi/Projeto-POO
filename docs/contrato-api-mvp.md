@@ -327,7 +327,8 @@ Os tipos com unidade livre no período, ordenados pela adequação ao cliente. *
     "periodo": { "inicio": "2026-11-14T12:00:00.000Z", "fim": "2026-11-14T16:00:00.000Z", "horas": 4 },
     "resultados": [
       { "tipoId": "uuid", "nome": "Passeio", "descricao": "Confortável para orla e passeio",
-        "pontos": 92, "motivos": ["Cabe na sua altura de 172 cm", "Boa para passeio"],
+        "pontos": 90,
+        "motivos": ["Cabe bem na sua altura de 172 cm", "Boa para passeio", "Adequada ao seu nível (iniciante)"],
         "valorAluguelCentavos": 4800, "valorCaucaoCentavos": 15000, "unidadesLivres": 3 } ] } }
 ```
 

@@ -155,9 +155,9 @@ npm run build
 Estrutura do back-end: um diretório por módulo em `src/modules/<modulo>`, cada um com as camadas
 `domain`, `application`, `infrastructure` e `http` e uma API pública em `index.ts`. Os Route Handlers
 ficam em `src/app/api` e só importam os módulos pelo `index.ts` (regra imposta pelo ESLint). Código
-comum fica em `src/shared`. A lista de módulos do modelo anterior (`contas`, `locadoras`, `catalogo`,
-`busca`, `reservas`, `pagamentos`, `operacao`, `administracao`, `notificacoes`) será ajustada: o módulo
-`locadoras` sai e `busca` passa a se chamar `recomendacao`.
+comum fica em `src/shared`. Os módulos são `contas`, `catalogo`, `recomendacao`, `reservas`,
+`pagamentos`, `operacao`, `administracao` e `notificacoes` (o `locadoras` do modelo anterior saiu e
+`busca` passou a se chamar `recomendacao`).
 
 ### Como trabalhar em equipe
 
