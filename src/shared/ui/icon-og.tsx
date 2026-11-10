@@ -1,5 +1,4 @@
-// JSX usado pelo next/og (satori) para gerar os ícones do PWA. Cores fixas porque
-// variáveis CSS não resolvem nesse contexto de renderização.
+// usado pelo next/og; cores fixas, sem CSS vars
 export function BikeIconOg({
   background,
   foreground = "#FFFFFF",
