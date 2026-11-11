@@ -16,7 +16,7 @@ export type UsuarioComSenha = UsuarioPublico & {
 };
 
 // Versão dos termos de uso aceita no cadastro. Muda quando os termos mudarem.
-export const VERSAO_TERMOS_ATUAL = "2026-10";
+export const VERSAO_TERMOS_ATUAL = "2026-11";
 
 export function documentoValido(documentoChave: string | null): boolean {
   return documentoChave !== null;
