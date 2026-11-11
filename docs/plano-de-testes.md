@@ -309,7 +309,7 @@ Só como lembrete: não há rota no contrato, então não bloqueiam o MVP.
 | CT-NOT-01 | P2 | Reserva confirmada | Cliente recebe o aviso no canal configurado | Integração | Aguarda fase 6 |
 | CT-AUD-01 | P2 | Alteração de reserva, estoque ou valores | Registro em `auditoria_log` com dados antes e depois | Integração | Aguarda fase 6 |
 
-**Total:** 170 casos (P0: 113, P1: 54, P2: 3). 38 já têm teste automatizado ou rodam na CI, 29 estão em PRs abertos (#14, #15 e #19), 1 está bloqueado, 70 aguardam rotas que ainda não existem e 32 estão pendentes de execução. Nenhum caso falhou até agora.
+**Total:** 174 casos (P0: 116, P1: 55, P2: 3). 42 já têm teste automatizado ou rodam na CI, 29 estão em PRs abertos (#14, #15, #19 e #30), 1 está bloqueado, 70 aguardam rotas que ainda não existem e 32 estão pendentes de execução. Nenhum caso falhou até agora.
 
 ## 5. Checklist de aceite por tela
 
