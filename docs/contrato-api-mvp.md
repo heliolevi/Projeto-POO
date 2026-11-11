@@ -307,12 +307,12 @@ Lista dos tipos de bicicleta ativos. **Novo.**
 
 ### 11. `GET /api/recomendacao`
 
-Os tipos com unidade livre no período, ordenados pela adequação ao cliente. **Novo.**
+Os tipos com unidade livre no período, ordenados pela adequação ao cliente. **Existe.**
 
 | | |
 |---|---|
 | **Quem** | CLIENTE |
-| **Limite** | 60 por minuto por IP |
+| **Limite** | 60 por minuto por **usuário** (e 300 por minuto por IP, mais folgado por causa de várias pessoas atrás do mesmo NAT); excedeu: `429` |
 
 **Parâmetros (query):**
 
@@ -338,6 +338,13 @@ Ordem: mais `pontos` primeiro; empate pelo menor preço por dia. Só entram tipo
 unidade livre (sem reserva ativa sobreposta) e que servem na altura do cliente (se ele não informou a
 altura, nenhum tipo sai por altura). `pontos` vai de 0 a 100 (altura 50, atividade 30, experiência 20).
 Lista vazia (`resultados: []`) **não é erro**: significa que nenhuma bicicleta está livre no período.
+
+"Unidade livre" é uma bicicleta `DISPONIVEL`, de um tipo ativo e de um ponto ativo, **sem reserva ativa
+sobreposta** ao período. Conta como ativa a reserva `CONFIRMADA`, a `EM_ANDAMENTO` e a
+`PENDENTE_PAGAMENTO` criada há menos de 15 minutos: antes de contar, a busca marca como `EXPIRADA` as
+pendentes vencidas (`expirar_reservas_vencidas()`), então ninguém precisa ter listado a reserva antes. O período é `[início, fim)`: uma reserva que termina no minuto em que
+a busca começa (ou que começa quando ela termina) não conflita. O valor segue a regra de preço de
+`src/modules/reservas` (24 h = uma diária; as horas que sobram custam o preço por hora, até uma diária).
 
 **Erros:** `400` (`details`: `inicio`, `fim`, `atividade`), `401`, `403` (não é cliente), `429`.
 

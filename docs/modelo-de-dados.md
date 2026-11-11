@@ -373,6 +373,10 @@ O backend informa quem está logado no início de cada transação (`set_config(
    conecta com o papel `app_login`, que pertence ao grupo `app_backend` (passo a passo em
    `db/README.md`).
 2. A tabela `usuario` não tem política: o login consulta a tabela antes de existir uma sessão.
+   Do mesmo jeito, a busca de disponibilidade não lê `reserva` (a RLS só mostraria ao cliente as
+   próprias reservas, e uma bicicleta ocupada por outra pessoa pareceria livre): ela chama
+   `expirar_reservas_vencidas()` (0008) e depois `unidades_livres_por_tipo()` (0009), por ponto
+   ativo. As duas são `SECURITY DEFINER` e só devolvem contagens, sem dado de cliente.
 3. Quem diz o perfil da sessão é o próprio backend. A RLS protege contra um filtro esquecido no
    código, mas não contra injeção de SQL ou um backend comprometido. Toda consulta precisa usar
    parâmetros.
