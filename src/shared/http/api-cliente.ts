@@ -25,13 +25,8 @@ export class ApiError extends Error {
   }
 }
 
-export async function postJson<T>(url: string, corpo: unknown): Promise<T> {
-  const resposta = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(corpo),
-  });
-
+async function enviar<T>(url: string, init: RequestInit): Promise<T> {
+  const resposta = await fetch(url, init);
   const json = await resposta.json().catch(() => null);
 
   if (!resposta.ok) {
@@ -40,4 +35,31 @@ export async function postJson<T>(url: string, corpo: unknown): Promise<T> {
   }
 
   return json.data as T;
+}
+
+export function postJson<T>(url: string, corpo: unknown): Promise<T> {
+  return enviar<T>(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(corpo),
+  });
+}
+
+// Rotas que exigem login mandam o token da sessão em Authorization.
+// (Mesma chave de localStorage usada em shared/auth/sessao.)
+function cabecalhoAutenticado(): Record<string, string> {
+  const token = typeof window === "undefined" ? null : window.localStorage.getItem("bik_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function getAutenticado<T>(url: string): Promise<T> {
+  return enviar<T>(url, { headers: cabecalhoAutenticado() });
+}
+
+export function postAutenticado<T>(url: string, corpo: unknown = {}): Promise<T> {
+  return enviar<T>(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...cabecalhoAutenticado() },
+    body: JSON.stringify(corpo),
+  });
 }
