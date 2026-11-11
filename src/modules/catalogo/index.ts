@@ -5,4 +5,14 @@
  * outros módulos ou pelos Route Handlers em src/app/api.
  * Camadas internas: domain → application → infrastructure / http.
  */
-export {};
+export {
+  getAdminBicicletas,
+  getAdminTipos,
+  getTiposPublicos,
+  patchAdminBicicleta,
+  postAdminBicicletas,
+  postAdminTipos,
+  putAdminTipo,
+} from "./http/handlers";
+export type { BicicletaAdmin, TipoAdmin, TipoPublico } from "./domain/catalogo";
+export { STATUS_BICICLETA, type StatusBicicleta } from "./domain/validacao";
