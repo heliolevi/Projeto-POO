@@ -16,7 +16,8 @@
     "teste:unit": "node tests/unit/constraints.test.mjs",
     "teste:whitebox": "node tests/whitebox/schema.test.mjs",
     "teste:blackbox": "node tests/blackbox/reserva_e_pagamento.test.mjs",
-    "teste:reserva-e-pagamento": "npm run teste:unit && npm run teste:whitebox && npm run teste:blackbox"
+    "teste:ocupacao": "node tests/blackbox/ocupacao_bicicleta.test.mjs",
+    "teste:reserva-e-pagamento": "npm run teste:unit && npm run teste:whitebox && npm run teste:blackbox && npm run teste:ocupacao"
   },
   "dependencies": {
     "pg": "^8.13.1"
