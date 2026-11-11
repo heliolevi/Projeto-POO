@@ -144,8 +144,13 @@ revisado rápido e tem menos risco.
 
 **Para ser mesclado, o PR precisa de:** a CI verde e ao menos uma aprovação. A CI tem 5 checks, que
 rodam em paralelo: `lint`, `typecheck`, `test`, `build` e `banco` (migrations e testes de banco). Se
-um deles ficar vermelho, abra o job com esse nome para ver o log. Quem mudar o nome de um job avisa o
-dono do repositório, porque a proteção da `dev` exige esses nomes.
+um deles ficar vermelho, abra o job com esse nome para ver o log.
+
+**Proteção da `dev` (ruleset "Proteger dev"):** hoje exige PR com 1 aprovação e bloqueia push direto,
+force push e a exclusão da branch. Os 5 checks acima passam a ser exigidos depois do merge do PR da T14
+(a ativação é feita pelo Hélio, dono do repositório). Quem renomear um job avisa o Hélio, porque o nome
+do job é o nome do check exigido.
+
 ### Checklist de quem revisa
 
 - [ ] A base é `dev` e o PR só tem commits e arquivos da tarefa.
