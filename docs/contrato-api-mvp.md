@@ -234,8 +234,10 @@ Cada campo pode ser `null` (ou ausente) para apagar o dado. `alturaCm`: inteiro 
 **Corpo:** `{ "alturaCm": 172 }` (inteiro de 100 a 250). **Quem:** CLIENTE.
 **Sucesso `204`.** **Erros:** `400` (`details.alturaCm`), `401`, `413`.
 
-> Depois do `PUT /api/conta/perfil-ciclista`, a tela de perfil usa a rota 4; esta continua para a tela
-> "Minha conta".
+> **Qual rota de altura usar.** As rotas 4 e 6 gravam a mesma coluna (`altura_cm`). A **oficial para a
+> tela do perfil de ciclista é a rota 4** (`PUT /api/conta/perfil-ciclista`), que grava altura, experiência
+> e atividade juntas. Esta rota 6 só altera a altura isolada e fica para a tela "Minha conta". Quem
+> grava o perfil inteiro não precisa chamar a rota 6 antes nem depois.
 
 ### 7. `POST /api/conta/termos`
 

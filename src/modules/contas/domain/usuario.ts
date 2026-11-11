@@ -1,9 +1,9 @@
+import type { Atividade, Experiencia } from "../../../shared/dominio/ciclista.ts";
+
 // Perfis do modelo de uma única locadora (migration 0004): o cliente, quem atende no balcão
 // (OPERADOR) e quem administra a loja (ADMIN).
 export const PERFIS = ["CLIENTE", "OPERADOR", "ADMIN"] as const;
 export type PerfilUsuario = (typeof PERFIS)[number];
-
-import type { Atividade, Experiencia } from "../../../shared/dominio/ciclista.ts";
 
 export type UsuarioPublico = {
   id: string;
