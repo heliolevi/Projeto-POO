@@ -6,16 +6,25 @@
  * Camadas internas: domain → application → infrastructure / http.
  */
 export {
+  getMe,
+  perfilCiclista,
   postAceitarTermos,
   postAlterarSenha,
   postAtualizarAltura,
   postCadastro,
   postDesativar,
   postLogin,
+  putPerfilCiclista,
 } from "./http/handlers";
 export { verificarToken, type SessaoToken } from "./infrastructure/token";
 export { exigirPerfil, type SessaoAtiva } from "./application/exigir-sessao";
-export { PERFIS, type PerfilUsuario, type UsuarioPublico } from "./domain/usuario";
+export {
+  PERFIS,
+  type ContaLogada,
+  type PerfilCiclistaConta,
+  type PerfilUsuario,
+  type UsuarioPublico,
+} from "./domain/usuario";
 
 // Rotas que exigem login: `const sessao = await exigirSessao(request)` (401 se não houver
 // sessão válida). Para restringir o perfil: `exigirPerfil(sessao, "OPERADOR", "ADMIN")` (403).

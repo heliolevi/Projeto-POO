@@ -1,6 +1,12 @@
 import { query } from "@/shared/db/pool";
-import type { DadosCadastro } from "../domain/validacao";
-import type { PerfilUsuario, UsuarioComSenha, UsuarioPublico } from "../domain/usuario";
+import type { DadosCadastro, DadosPerfilCiclista } from "../domain/validacao";
+import type {
+  ContaLogada,
+  PerfilCiclistaConta,
+  PerfilUsuario,
+  UsuarioComSenha,
+  UsuarioPublico,
+} from "../domain/usuario";
 
 type Linha = {
   id: string;
@@ -100,4 +106,52 @@ export async function buscarPorEmail(email: string): Promise<UsuarioComSenha | n
     senhaHash: l.senha_hash,
     ativo: l.ativo,
   };
+}
+
+type LinhaConta = {
+  id: string;
+  perfil: PerfilUsuario;
+  nome: string;
+  email: string;
+  altura_cm: number | null;
+  experiencia: PerfilCiclistaConta["experiencia"];
+  atividade_preferida: PerfilCiclistaConta["atividade"];
+};
+
+const COLUNAS_CONTA = "id, perfil, nome, email, altura_cm, experiencia, atividade_preferida";
+
+function paraConta(l: LinhaConta): ContaLogada {
+  const conta: ContaLogada = { id: l.id, perfil: l.perfil, nome: l.nome, email: l.email };
+  // os dados de ciclista só existem para cliente (a constraint usuario_dados_cliente os
+  // proíbe nos outros perfis)
+  if (l.perfil === "CLIENTE") {
+    conta.ciclista = {
+      alturaCm: l.altura_cm,
+      experiencia: l.experiencia,
+      atividade: l.atividade_preferida,
+    };
+  }
+  return conta;
+}
+
+export async function buscarConta(id: string): Promise<ContaLogada | null> {
+  const { rows } = await query<LinhaConta>(`SELECT ${COLUNAS_CONTA} FROM usuario WHERE id = $1`, [id]);
+  return rows[0] ? paraConta(rows[0]) : null;
+}
+
+// Grava os três dados do ciclista de uma vez. O filtro por perfil é uma segunda barreira: a rota
+// já exige CLIENTE, e a constraint do banco recusaria os dados em outro perfil. Devolve null se
+// a conta não for de um cliente.
+export async function gravarPerfilCiclista(
+  id: string,
+  dados: DadosPerfilCiclista,
+): Promise<PerfilCiclistaConta | null> {
+  const { rows } = await query<LinhaConta>(
+    `UPDATE usuario
+        SET altura_cm = $2, experiencia = $3, atividade_preferida = $4
+      WHERE id = $1 AND perfil = 'CLIENTE'
+      RETURNING ${COLUNAS_CONTA}`,
+    [id, dados.alturaCm, dados.experiencia, dados.atividade],
+  );
+  return rows[0] ? (paraConta(rows[0]).ciclista ?? null) : null;
 }

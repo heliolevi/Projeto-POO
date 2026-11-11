@@ -1,6 +1,6 @@
 import { query } from "@/shared/db/pool";
-import { ipDoCliente, lerTextoLimitado } from "@/shared/http/corpo";
-import { ValidationError } from "@/shared/http/errors";
+import { ipDoCliente } from "@/shared/http/corpo";
+import { lerJson } from "@/shared/http/json";
 import { created, errorResponse, noContent, ok } from "@/shared/http/response";
 import { aceitarTermos } from "../application/aceitar-termos";
 import { criarAlterarSenha } from "../application/alterar-senha";
@@ -9,7 +9,13 @@ import { autenticar } from "../application/autenticar";
 import { cadastrarCliente } from "../application/cadastrar-cliente";
 import { desativarConta } from "../application/desativar-conta";
 import { exigirPerfil } from "../application/exigir-sessao";
-import { atualizarSenha, buscarSenhaHashPorId } from "../infrastructure/repositorio-usuarios";
+import { criarPerfilCiclista } from "../application/perfil-ciclista";
+import {
+  atualizarSenha,
+  buscarConta,
+  buscarSenhaHashPorId,
+  gravarPerfilCiclista,
+} from "../infrastructure/repositorio-usuarios";
 import { gerarHashSenha, verificarSenha } from "../infrastructure/senha";
 import { exigirSessao } from "./sessao";
 
@@ -21,19 +27,10 @@ const alterarSenha = criarAlterarSenha({
   gerarHashSenha,
 });
 
+// Exportado para outros módulos (a recomendação lê o perfil do ciclista) pelo index.ts.
+export const perfilCiclista = criarPerfilCiclista({ buscarConta, gravarPerfilCiclista });
+
 const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
-
-// Cadastro e login recebem poucos campos de texto; passar disso é abuso.
-const LIMITE_CORPO_BYTES = 16 * 1024;
-
-async function lerJson(request: Request): Promise<unknown> {
-  const texto = await lerTextoLimitado(request, LIMITE_CORPO_BYTES);
-  try {
-    return JSON.parse(texto);
-  } catch {
-    throw new ValidationError("O corpo da requisição precisa ser um JSON válido.");
-  }
-}
 
 export async function postCadastro(request: Request) {
   try {
@@ -88,6 +85,27 @@ export async function postAceitarTermos(request: Request) {
     const sessao = exigirPerfil(await exigirSessao(request), "CLIENTE");
     await aceitarTermos(sessao.usuarioId, await lerJson(request));
     return noContent();
+  } catch (erro) {
+    return errorResponse(erro);
+  }
+}
+
+// GET /api/conta/me: qualquer perfil logado; `ciclista` só vem para CLIENTE.
+export async function getMe(request: Request) {
+  try {
+    const sessao = await exigirSessao(request);
+    return ok(await perfilCiclista.consultarConta(sessao.usuarioId), SEM_CACHE);
+  } catch (erro) {
+    return errorResponse(erro);
+  }
+}
+
+// PUT /api/conta/perfil-ciclista: só CLIENTE, sempre na própria conta (o id vem do token).
+export async function putPerfilCiclista(request: Request) {
+  try {
+    const sessao = exigirPerfil(await exigirSessao(request), "CLIENTE");
+    const corpo = await lerJson(request);
+    return ok(await perfilCiclista.atualizarPerfilCiclista(sessao.usuarioId, corpo), SEM_CACHE);
   } catch (erro) {
     return errorResponse(erro);
   }

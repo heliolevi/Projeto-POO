@@ -1,3 +1,12 @@
+import {
+  ATIVIDADES,
+  EXPERIENCIAS,
+  ehAtividade,
+  ehExperiencia,
+  type Atividade,
+  type Experiencia,
+} from "../../../shared/dominio/ciclista.ts";
+
 export type ErrosPorCampo = Record<string, string>;
 
 export type DadosCadastro = {
@@ -149,6 +158,46 @@ export function validarAltura(entrada: unknown): { dados: number } | { erros: Er
     return { dados: valor };
   }
   return { erros: { alturaCm: "Altura deve ser um inteiro entre 100 e 250 (cm)." } };
+}
+
+export type DadosPerfilCiclista = {
+  alturaCm: number | null;
+  experiencia: Experiencia | null;
+  atividade: Atividade | null;
+};
+
+// PUT /api/conta/perfil-ciclista substitui os três campos de uma vez. Cada um pode vir ausente
+// ou null, e então o dado é apagado. A altura passa pelo mesmo validador da rota de altura.
+export function validarPerfilCiclista(
+  entrada: unknown,
+): { dados: DadosPerfilCiclista } | { erros: ErrosPorCampo } {
+  if (!entrada || typeof entrada !== "object" || Array.isArray(entrada)) {
+    return { erros: { corpo: "Envie um objeto JSON com alturaCm, experiencia e atividade." } };
+  }
+  const corpo = entrada as Record<string, unknown>;
+  const erros: ErrosPorCampo = {};
+
+  let alturaCm: number | null = null;
+  if (corpo.alturaCm !== undefined && corpo.alturaCm !== null) {
+    const altura = validarAltura({ alturaCm: corpo.alturaCm });
+    if ("erros" in altura) erros.alturaCm = altura.erros.alturaCm;
+    else alturaCm = altura.dados;
+  }
+
+  let experiencia: Experiencia | null = null;
+  if (corpo.experiencia !== undefined && corpo.experiencia !== null) {
+    if (ehExperiencia(corpo.experiencia)) experiencia = corpo.experiencia;
+    else erros.experiencia = `Experiência inválida. Use um destes valores: ${EXPERIENCIAS.join(", ")}.`;
+  }
+
+  let atividade: Atividade | null = null;
+  if (corpo.atividade !== undefined && corpo.atividade !== null) {
+    if (ehAtividade(corpo.atividade)) atividade = corpo.atividade;
+    else erros.atividade = `Atividade inválida. Use um destes valores: ${ATIVIDADES.join(", ")}.`;
+  }
+
+  if (Object.keys(erros).length > 0) return { erros };
+  return { dados: { alturaCm, experiencia, atividade } };
 }
 
 // Só a versão vigente pode ser aceita: o cliente não registra aceite de um texto que não leu.
