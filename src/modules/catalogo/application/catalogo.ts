@@ -13,6 +13,7 @@ import {
 import {
   CodigoDeBicicletaJaExiste,
   NomeDeTipoJaExiste,
+  PontoInativo,
   PontoInexistente,
   TipoInexistente,
 } from "../domain/erros.ts";
@@ -108,6 +109,9 @@ export function criarCatalogo(repositorio: RepositorioCatalogo) {
       }
       if (erro instanceof TipoInexistente) throw new NotFoundError(SEM_TIPO);
       if (erro instanceof PontoInexistente) throw new NotFoundError("Ponto de retirada não encontrado.");
+      if (erro instanceof PontoInativo) {
+        throw new ConflictError("O ponto de retirada está inativo: reative-o antes de cadastrar bicicletas nele.");
+      }
       throw erro;
     }
   }

@@ -4,3 +4,4 @@ export class NomeDeTipoJaExiste extends Error {}
 export class CodigoDeBicicletaJaExiste extends Error {}
 export class TipoInexistente extends Error {}
 export class PontoInexistente extends Error {}
+export class PontoInativo extends Error {}
