@@ -58,7 +58,7 @@ export default function CadastroPage() {
         aceiteTermos,
       });
       localStorage.setItem("bik_token", sessao.token);
-      router.push("/");
+      router.push("/app");
     } catch (erro) {
       if (erro instanceof ApiError) {
         if (erro.details) setErros((atual) => ({ ...atual, ...erro.details }));
