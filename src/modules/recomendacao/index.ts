@@ -22,3 +22,4 @@ export {
   type Recomendacao,
   type TipoCandidato,
 } from "./domain/recomendacao";
+export { getRecomendacao } from "./http/handlers";

@@ -15,7 +15,7 @@ testes que já existem no repositório. Mantido por William (DevOps e QA).
 - Garantir que o MVP (sexta, 13/11/2026) funcione de ponta a ponta: cadastro, login, catálogo,
   recomendação, reserva, pagamento por Pix e operação de retirada e devolução.
 - Dar à equipe uma lista única do que foi testado, do que falta e do que está quebrado.
-- **Dentro do escopo:** as 27 rotas do contrato, o banco (migrations 0004 a 0006), a CI e as telas do MVP.
+- **Dentro do escopo:** as 27 rotas do contrato, o banco (migrations 0004 a 0009), a CI e as telas do MVP.
 - **Fora do escopo:** cartão de crédito e débito, estorno de pagamento, assinaturas e créditos, ocorrências
   (dano, furto, atraso), fotos e notificações. Nada disso está no contrato do MVP e fica para uma fase
   posterior (os casos de avisos e auditoria estão na seção 4.13, só como lembrete).
@@ -144,7 +144,7 @@ PR ou issue do defeito.
 
 ### 4.6 Banco de dados, migrations e RLS
 
-Os casos CT-BD-06 a CT-BD-17 e CT-BD-22 a CT-BD-24 correspondem aos testes de `db/tests` (unit, whitebox e
+Os casos CT-BD-06 a CT-BD-17 e CT-BD-22 a CT-BD-28 correspondem aos testes de `db/tests` (unit, whitebox e
 blackbox), que a CI roda com `npm run teste:reserva-e-pagamento`.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
@@ -173,21 +173,25 @@ blackbox), que a CI roda com `npm run teste:reserva-e-pagamento`.
 | CT-BD-22 | P0 | Reservar uma bicicleta já reservada em horário que se sobrepõe | A segunda reserva é rejeitada | Auto | Automatizado (db/tests, blackbox) |
 | CT-BD-23 | P0 | Reservar a bicicleta a partir do minuto em que a reserva anterior termina | Aceita (períodos encostados são permitidos) | Auto | Automatizado (db/tests, blackbox) |
 | CT-BD-24 | P0 | Cancelar uma reserva | A bicicleta fica livre no mesmo horário e pode ser reservada de novo | Auto | Automatizado (db/tests, blackbox) |
+| CT-BD-25 | P0 | Período da reserva com fim aberto (`[início,)`), `infinity` ou início infinito | Rejeitado (`reserva_periodo_finito`) | Auto | Automatizado (db/tests) |
+| CT-BD-26 | P1 | `atualizado_em` de reserva e pagamento a cada UPDATE | O trigger renova o valor, mesmo que o UPDATE informe outro | Auto | Automatizado (db/tests) |
+| CT-BD-27 | P0 | `expirar_reservas_vencidas()` | Expira só `PENDENTE_PAGAMENTO` com 15 minutos ou mais e sem pagamento aprovado; libera a bicicleta; expira o pagamento pendente; é idempotente; funciona para um cliente apesar da RLS | Auto | Automatizado (db/tests) |
+| CT-BD-28 | P0 | `unidades_livres_por_tipo()` com o papel `app_backend` e perfil `CLIENTE` | Desconta as reservas ativas de outros clientes (a RLS não distorce); ignora reservas encerradas, períodos que só encostam, unidades fora de `DISPONIVEL` e tipos inativos; filtra por ponto; recusa período inválido | Auto | Automatizado (db/tests) |
 
 ### 4.7 Empresa, catálogo e painel do administrador (rotas 9, 10 e 19 a 24)
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
 | CT-CAT-01 | P0 | `GET /api/empresa` sem login | 200 só com pontos ativos; nunca CNPJ, razão social, conta de recebimento nem campos de controle | Integração | Aguarda rota |
-| CT-CAT-02 | P0 | `GET /api/catalogo/tipos` sem login | 200 só com tipos ativos, com preços em centavos | Integração | Aguarda rota |
-| CT-CAT-03 | P1 | Inativar um tipo | Some do catálogo e das buscas; reservas já feitas continuam visíveis | Integração | Aguarda rota |
-| CT-ADM-01 | P0 | Rotas `/api/admin/tipos` e `/api/admin/bicicletas` com `CLIENTE`, `OPERADOR` e sem login | 403 para `CLIENTE` e `OPERADOR`; 401 sem login | Integração | Aguarda rota |
-| CT-ADM-02 | P0 | `POST /api/admin/tipos` com dados válidos | 201 com o tipo criado | Integração | Aguarda rota |
-| CT-ADM-03 | P1 | `POST /api/admin/tipos` com nome repetido, sem atividade, altura mínima maior que a máxima, altura fora de 100 a 250, preço negativo ou decimal | 409 para nome repetido; 400 com `details` nos demais | Integração | Aguarda rota |
-| CT-ADM-04 | P1 | `PUT /api/admin/tipos/{id}` com `ativo: false` | O tipo sai do catálogo; não existe exclusão | Integração | Aguarda rota |
-| CT-ADM-05 | P0 | `POST /api/admin/bicicletas` válida, com código repetido e com tipo ou ponto inexistente | 201 com status `DISPONIVEL`; 409 para código repetido; 404 para tipo ou ponto inexistente | Integração | Aguarda rota |
-| CT-ADM-06 | P1 | `PATCH /api/admin/bicicletas/{id}` com `MANUTENCAO`, e com corpo vazio | A bicicleta deixa de ser reservável; corpo vazio recebe 400 | Integração | Aguarda rota |
-| CT-ADM-07 | P1 | `GET /api/admin/bicicletas` com filtros `tipoId` e `status` | Filtra; status inválido recebe 400 | Integração | Aguarda rota |
+| CT-CAT-02 | P0 | `GET /api/catalogo/tipos` sem login | 200 só com tipos ativos, com preços em centavos | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-CAT-03 | P1 | Inativar um tipo | Some do catálogo e das buscas; reservas já feitas continuam visíveis | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-01 | P0 | Rotas `/api/admin/tipos` e `/api/admin/bicicletas` com `CLIENTE`, `OPERADOR` e sem login | 403 para `CLIENTE` e `OPERADOR`; 401 sem login | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-02 | P0 | `POST /api/admin/tipos` com dados válidos | 201 com o tipo criado | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-03 | P1 | `POST /api/admin/tipos` com nome repetido, sem atividade, altura mínima maior que a máxima, altura fora de 100 a 250, preço negativo ou decimal | 409 para nome repetido; 400 com `details` nos demais | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-04 | P1 | `PUT /api/admin/tipos/{id}` com `ativo: false`, e só com os campos obrigatórios (sem caução, nível, descrição e `ativo`) | O tipo sai do catálogo; não existe exclusão. Sem os opcionais, o PUT mantém os valores atuais (não zera a caução) | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-05 | P0 | `POST /api/admin/bicicletas` válida, com código repetido, com tipo ou ponto inexistente e com ponto inativo | 201 com status `DISPONIVEL`; 409 para código repetido; 404 para tipo ou ponto inexistente; 409 para ponto inativo | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-06 | P1 | `PATCH /api/admin/bicicletas/{id}` com `MANUTENCAO`, e com corpo vazio | A bicicleta deixa de ser reservável; corpo vazio recebe 400 | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-07 | P1 | `GET /api/admin/bicicletas` com filtros `tipoId` e `status` | Filtra; status inválido recebe 400 | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-08 | P0 | `GET /api/admin/reservas` por `OPERADOR` e `ADMIN`, com filtros `status` e `data` (fuso de São Luís); por `CLIENTE` | Equipe recebe a lista com cliente e unidade; `CLIENTE` recebe 403 | Integração | Aguarda rota |
 
 ### 4.8 Recomendação (rota 11)
@@ -211,12 +215,12 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-REC-12 | P0 | `inicio` ou `fim` sem fuso horário | Recusado (sem fuso, a hora seria lida em UTC na Vercel) | Auto | Em revisão (PR #14) |
 | CT-REC-13 | P1 | `inicio` "agora", com até 5 minutos de atraso | Aceito pela folga de 5 minutos; mais que isso no passado é recusado | Auto | Em revisão (PR #14) |
 | CT-REC-14 | P1 | Trocar a atividade na busca | Vale a atividade da busca, não a do perfil | Auto | Em revisão (PR #14) |
-| CT-REC-15 | P0 | `GET /api/recomendacao` sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para quem não é cliente | Integração | Aguarda rota |
-| CT-REC-16 | P0 | Período menor que 1 hora ou maior que 7 dias | 400 com `details.fim` | Integração | Aguarda rota |
-| CT-REC-17 | P0 | Nenhuma bicicleta livre no período | 200 com `resultados: []` (não é erro) | Integração | Aguarda rota |
-| CT-REC-18 | P0 | Tipo cuja única unidade tem reserva sobreposta | Não aparece; volta a aparecer depois de cancelar a reserva | Integração | Aguarda rota |
-| CT-REC-19 | P1 | Mais de 60 buscas por minuto do mesmo IP | 429 | Integração | Aguarda rota |
-| CT-REC-20 | P0 | Tipo cuja única unidade tem reserva `PENDENTE_PAGAMENTO` já vencida, que ninguém listou | O tipo aparece como livre: a rota ignora ou expira as pendentes vencidas, porque a exclusion constraint só as libera quando o status muda | Integração | Aguarda rota |
+| CT-REC-15 | P0 | `GET /api/recomendacao` sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para quem não é cliente | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-REC-16 | P0 | Período menor que 1 hora ou maior que 7 dias | 400 com `details.fim` | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-REC-17 | P0 | Nenhuma bicicleta livre no período | 200 com `resultados: []` (não é erro) | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-REC-18 | P0 | Tipo cuja única unidade tem reserva sobreposta | Não aparece; volta a aparecer depois de cancelar a reserva | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-REC-19 | P1 | Mais de 60 buscas por minuto do mesmo usuário (e outro cliente no mesmo IP buscando em seguida) | 429 para o usuário que passou do limite; o outro cliente continua recebendo 200. O limite por IP (300 por minuto) é mais folgado | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-REC-20 | P0 | Tipo cuja única unidade tem reserva `PENDENTE_PAGAMENTO` já vencida, que ninguém listou | O tipo aparece como livre: a rota ignora ou expira as pendentes vencidas, porque a exclusion constraint só as libera quando o status muda | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 
 ### 4.9 Reservas (rotas 12 a 15)
 
@@ -306,7 +310,7 @@ Só como lembrete: não há rota no contrato, então não bloqueiam o MVP.
 | CT-NOT-01 | P2 | Reserva confirmada | Cliente recebe o aviso no canal configurado | Integração | Aguarda fase 6 |
 | CT-AUD-01 | P2 | Alteração de reserva, estoque ou valores | Registro em `auditoria_log` com dados antes e depois | Integração | Aguarda fase 6 |
 
-**Total:** 170 casos (P0: 113, P1: 54, P2: 3). 38 já têm teste automatizado ou rodam na CI, 29 estão em PRs abertos (#14, #15 e #19), 1 está bloqueado, 70 aguardam rotas que ainda não existem e 32 estão pendentes de execução. Nenhum caso falhou até agora.
+**Total:** 174 casos (P0: 116, P1: 55, P2: 3). 42 já têm teste automatizado ou rodam na CI, 29 estão em PRs abertos (#14, #15, #19 e #30), 1 está bloqueado, 70 aguardam rotas que ainda não existem e 32 estão pendentes de execução. Nenhum caso falhou até agora.
 
 ## 5. Checklist de aceite por tela
 

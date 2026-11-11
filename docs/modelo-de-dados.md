@@ -103,6 +103,7 @@ erDiagram
         integer valor_aluguel_centavos
         integer valor_caucao_centavos
         timestamptz criado_em
+        timestamptz atualizado_em
         timestamptz cancelada_em
     }
 
@@ -117,6 +118,7 @@ erDiagram
         timestamptz pix_expira_em
         timestamptz pago_em
         timestamptz criado_em
+        timestamptz atualizado_em
     }
 
     MOVIMENTACAO {
@@ -274,6 +276,23 @@ ALTER TABLE reserva
 Usa a extensão `btree_gist`, já habilitada. A reserva em `PENDENTE_PAGAMENTO` segura a bicicleta até o
 pagamento ser aprovado ou a reserva expirar. A retirada e a devolução são no mesmo `ponto`.
 
+O período tem de ser finito (`reserva_periodo_finito`, migration 0008): início e fim definidos, com o
+início antes do fim; um fim aberto seguraria a bicicleta para sempre.
+
+A função `expirar_reservas_vencidas()` (migration 0008) marca como `EXPIRADA` a reserva
+`PENDENTE_PAGAMENTO` criada há 15 minutos ou mais e passa seus pagamentos `PENDENTE` para `EXPIRADO`;
+devolve quantas reservas expirou. Reserva com pagamento `APROVADO` nunca expira. Não recebe
+parâmetros (o prazo é regra do sistema) e roda com os direitos do dono (`SECURITY DEFINER`), porque a
+RLS só mostra ao cliente as próprias reservas. É a chamada que o contrato descreve como "antes de
+listar, o servidor marca como `EXPIRADA` as pendentes vencidas".
+
+A função `unidades_livres_por_tipo(inicio, fim, ponto_id)` (migration 0009) devolve, por tipo ativo, as
+unidades `DISPONIVEL` sem reserva ativa que se sobreponha ao período (`ponto_id` é opcional). É por ela
+que a busca e a recomendação devem calcular `unidadesLivres`, e não por uma consulta direta em
+`reserva`: com o papel do cliente a RLS esconde as reservas dos outros e a consulta direta conta como
+livre uma bicicleta já reservada (medido: 190 livres contra 120 reais). A função roda com os direitos
+do dono (`SECURITY DEFINER`) e devolve só contagens, nunca quem reservou.
+
 ### `pagamento`
 
 Pix ou cartão pelo Mercado Pago, em centavos. `mp_payment_id` é único, para o mesmo aviso do Mercado
@@ -354,6 +373,10 @@ O backend informa quem está logado no início de cada transação (`set_config(
    conecta com o papel `app_login`, que pertence ao grupo `app_backend` (passo a passo em
    `db/README.md`).
 2. A tabela `usuario` não tem política: o login consulta a tabela antes de existir uma sessão.
+   Do mesmo jeito, a busca de disponibilidade não lê `reserva` (a RLS só mostraria ao cliente as
+   próprias reservas, e uma bicicleta ocupada por outra pessoa pareceria livre): ela chama
+   `expirar_reservas_vencidas()` (0008) e depois `unidades_livres_por_tipo()` (0009), por ponto
+   ativo. As duas são `SECURITY DEFINER` e só devolvem contagens, sem dado de cliente.
 3. Quem diz o perfil da sessão é o próprio backend. A RLS protege contra um filtro esquecido no
    código, mas não contra injeção de SQL ou um backend comprometido. Toda consulta precisa usar
    parâmetros.
