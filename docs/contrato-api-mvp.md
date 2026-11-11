@@ -103,8 +103,8 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 7 | `POST /api/conta/termos` | CLIENTE | existe (PR do Renan) | Renan | Luis |
 | 8 | `POST /api/conta/desativar` | Logado | existe (PR do Renan) | Renan | Luis |
 | 9 | `GET /api/empresa` | Visitante | novo | Hélio | Renan |
-| 10 | `GET /api/catalogo/tipos` | Visitante | existe | Hélio | Renan |
-| 11 | `GET /api/recomendacao` | CLIENTE | existe | Hélio | Renan |
+| 10 | `GET /api/catalogo/tipos` | Visitante | novo | Hélio | Renan |
+| 11 | `GET /api/recomendacao` | CLIENTE | novo | Hélio | Renan |
 | 12 | `POST /api/reservas` | CLIENTE | novo | Luis | Renan |
 | 13 | `GET /api/reservas` | CLIENTE | novo | Luis | Renan |
 | 14 | `GET /api/reservas/{id}` | CLIENTE | novo | Luis | Renan |
