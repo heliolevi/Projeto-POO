@@ -68,6 +68,11 @@ test("token com perfil desconhecido (modelo antigo) é recusado", () => {
   assert.equal(lerSessao(), null);
 });
 
+test("token sem exp é recusado", () => {
+  window.localStorage.setItem("bik_token", montarToken({ sub: "u1", perfil: "CLIENTE" }));
+  assert.equal(lerSessao(), null);
+});
+
 test("sem token salvo, não há sessão", () => {
   assert.equal(lerSessao(), null);
 });

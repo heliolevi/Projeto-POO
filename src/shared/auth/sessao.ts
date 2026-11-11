@@ -19,7 +19,7 @@ export function lerSessao(): Sessao | null {
     const corpo = JSON.parse(atob(partes[1].replace(/-/g, "+").replace(/_/g, "/")));
     if (typeof corpo.sub !== "string" || typeof corpo.perfil !== "string") return null;
     if (!PERFIS_VALIDOS.includes(corpo.perfil as PerfilUsuario)) return null;
-    if (corpo.exp <= Date.now() / 1000) return null;
+    if (typeof corpo.exp !== "number" || corpo.exp <= Date.now() / 1000) return null;
     return { usuarioId: corpo.sub, perfil: corpo.perfil as PerfilUsuario, exp: corpo.exp };
   } catch {
     return null;
