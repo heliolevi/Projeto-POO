@@ -6,6 +6,7 @@ import type { BicicletaAdmin, TipoAdmin } from "../domain/catalogo";
 import {
   CodigoDeBicicletaJaExiste,
   NomeDeTipoJaExiste,
+  PontoInativo,
   PontoInexistente,
   TipoInexistente,
 } from "../domain/erros";
@@ -111,19 +112,20 @@ export const repositorioCatalogo: RepositorioCatalogo = {
           `INSERT INTO tipo_bicicleta
              (nome, descricao, atividades, altura_min_cm, altura_max_cm, nivel_recomendado,
               preco_hora_centavos, preco_dia_centavos, valor_caucao_centavos, ativo)
-           VALUES ($1, $2, $3::atividade[], $4, $5, $6, $7, $8, $9, COALESCE($10::boolean, true))
+           VALUES ($1, $2, $3::atividade[], $4, $5, COALESCE($6::experiencia, 'INICIANTE'), $7, $8,
+                   COALESCE($9::integer, 0), COALESCE($10::boolean, true))
            RETURNING ${COLUNAS_TIPO}`,
           [
             dados.nome,
-            dados.descricao,
+            dados.descricao ?? null,
             dados.atividades,
             dados.alturaMinCm,
             dados.alturaMaxCm,
-            dados.nivelRecomendado,
+            dados.nivelRecomendado ?? null,
             dados.precoHoraCentavos,
             dados.precoDiaCentavos,
-            dados.valorCaucaoCentavos,
-            dados.ativo,
+            dados.valorCaucaoCentavos ?? null,
+            dados.ativo ?? null,
           ],
         );
         return paraTipo(rows[0]);
@@ -138,25 +140,31 @@ export const repositorioCatalogo: RepositorioCatalogo = {
     return comSessao(sessao, async (client) => {
       try {
         const { rows } = await client.query<LinhaTipo>(
+          // os obrigatórios são substituídos; os opcionais que não vieram no corpo mantêm o valor
+          // atual (a descrição só é apagada com null de propósito: $12 diz se ela foi informada)
           `UPDATE tipo_bicicleta
-              SET nome = $2, descricao = $3, atividades = $4::atividade[], altura_min_cm = $5,
-                  altura_max_cm = $6, nivel_recomendado = $7, preco_hora_centavos = $8,
-                  preco_dia_centavos = $9, valor_caucao_centavos = $10,
+              SET nome = $2,
+                  descricao = CASE WHEN $12::boolean THEN $3 ELSE descricao END,
+                  atividades = $4::atividade[], altura_min_cm = $5, altura_max_cm = $6,
+                  nivel_recomendado = COALESCE($7::experiencia, nivel_recomendado),
+                  preco_hora_centavos = $8, preco_dia_centavos = $9,
+                  valor_caucao_centavos = COALESCE($10::integer, valor_caucao_centavos),
                   ativo = COALESCE($11::boolean, ativo)
             WHERE id = $1
             RETURNING ${COLUNAS_TIPO}`,
           [
             id,
             dados.nome,
-            dados.descricao,
+            dados.descricao ?? null,
             dados.atividades,
             dados.alturaMinCm,
             dados.alturaMaxCm,
-            dados.nivelRecomendado,
+            dados.nivelRecomendado ?? null,
             dados.precoHoraCentavos,
             dados.precoDiaCentavos,
-            dados.valorCaucaoCentavos,
-            dados.ativo,
+            dados.valorCaucaoCentavos ?? null,
+            dados.ativo ?? null,
+            dados.descricao !== undefined,
           ],
         );
         return rows[0] ? paraTipo(rows[0]) : null;
@@ -183,13 +191,17 @@ export const repositorioCatalogo: RepositorioCatalogo = {
   criarBicicleta(sessao, dados) {
     return comSessao(sessao, async (client) => {
       // confere antes, para dizer qual dos dois não existe; a FK continua valendo como rede
-      const { rows: existe } = await client.query<{ tipo: boolean; ponto: boolean }>(
+      // ponto_ativo é null quando o ponto não existe
+      const { rows: existe } = await client.query<{ tipo: boolean; ponto_ativo: boolean | null }>(
         `SELECT EXISTS (SELECT 1 FROM tipo_bicicleta WHERE id = $1) AS tipo,
-                EXISTS (SELECT 1 FROM ponto WHERE id = $2) AS ponto`,
+                (SELECT ativo FROM ponto WHERE id = $2) AS ponto_ativo`,
         [dados.tipoId, dados.pontoId],
       );
       if (!existe[0].tipo) throw new TipoInexistente();
-      if (!existe[0].ponto) throw new PontoInexistente();
+      if (existe[0].ponto_ativo === null) throw new PontoInexistente();
+      // a recomendação só oferece bicicletas de ponto ativo: cadastrar em um inativo faria a
+      // unidade sumir da busca sem explicação
+      if (!existe[0].ponto_ativo) throw new PontoInativo();
       try {
         const { rows } = await client.query<{ id: string }>(
           `INSERT INTO bicicleta (tipo_id, ponto_id, codigo, numero_serie, tamanho_quadro, observacoes)
@@ -201,9 +213,9 @@ export const repositorioCatalogo: RepositorioCatalogo = {
       } catch (erro) {
         const { code, constraint } = codigoDoErro(erro);
         if (code === "23505") throw new CodigoDeBicicletaJaExiste();
-        if (code === "23503") {
-          throw constraint?.includes("ponto") ? new PontoInexistente() : new TipoInexistente();
-        }
+        // corrida entre a conferência acima e o INSERT: o tipo ou o ponto foi apagado no meio
+        if (code === "23503" && constraint === "bicicleta_ponto_id_fkey") throw new PontoInexistente();
+        if (code === "23503" && constraint === "bicicleta_tipo_id_fkey") throw new TipoInexistente();
         throw erro;
       }
     });

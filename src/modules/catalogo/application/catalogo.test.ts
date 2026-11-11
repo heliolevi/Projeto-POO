@@ -6,6 +6,7 @@ import type { BicicletaAdmin, TipoAdmin } from "../domain/catalogo.ts";
 import {
   CodigoDeBicicletaJaExiste,
   NomeDeTipoJaExiste,
+  PontoInativo,
   PontoInexistente,
   TipoInexistente,
 } from "../domain/erros.ts";
@@ -16,6 +17,7 @@ const VISITANTE: SessaoBanco = { perfil: null, usuarioId: null };
 const ID_TIPO = "3f2b8c1e-5d4a-4b6f-9c7e-1a2b3c4d5e6f";
 const ID_PONTO = "bbbbbbbb-0000-4000-8000-000000000002";
 const ID_BICI = "cccccccc-0000-4000-8000-000000000003";
+const ID_PONTO_INATIVO = "bbbbbbbb-0000-4000-8000-0000000000ff";
 
 const CORPO_TIPO = {
   nome: "Urbana",
@@ -34,7 +36,7 @@ function repositorioFalso() {
   const bicicletas = new Map<string, BicicletaAdmin>();
   const sessoesVistas: SessaoBanco[] = [];
   let sequencia = 0;
-  const pontos = new Set([ID_PONTO]);
+  const pontos = new Map([[ID_PONTO, true], [ID_PONTO_INATIVO, false]]); // id -> ativo
 
   const repositorio: RepositorioCatalogo = {
     async listarTipos(sessao, { apenasAtivos }) {
@@ -45,7 +47,20 @@ function repositorioFalso() {
       sessoesVistas.push(sessao);
       if ([...tipos.values()].some((t) => t.nome === dados.nome)) throw new NomeDeTipoJaExiste();
       const id = `00000000-0000-4000-8000-${String(++sequencia).padStart(12, "0")}`;
-      const tipo: TipoAdmin = { id, ...dados, ativo: dados.ativo ?? true };
+      // os padrões do INSERT: descrição vazia, INICIANTE, caução 0 e ativo
+      const tipo: TipoAdmin = {
+        id,
+        nome: dados.nome,
+        descricao: dados.descricao ?? null,
+        atividades: dados.atividades,
+        alturaMinCm: dados.alturaMinCm,
+        alturaMaxCm: dados.alturaMaxCm,
+        nivelRecomendado: dados.nivelRecomendado ?? "INICIANTE",
+        precoHoraCentavos: dados.precoHoraCentavos,
+        precoDiaCentavos: dados.precoDiaCentavos,
+        valorCaucaoCentavos: dados.valorCaucaoCentavos ?? 0,
+        ativo: dados.ativo ?? true,
+      };
       tipos.set(id, tipo);
       return tipo;
     },
@@ -54,7 +69,20 @@ function repositorioFalso() {
       const atual = tipos.get(id);
       if (!atual) return null;
       if ([...tipos.values()].some((t) => t.id !== id && t.nome === dados.nome)) throw new NomeDeTipoJaExiste();
-      const novo: TipoAdmin = { id, ...dados, ativo: dados.ativo ?? atual.ativo };
+      // os obrigatórios são substituídos; os opcionais ausentes mantêm o valor atual
+      const novo: TipoAdmin = {
+        id,
+        nome: dados.nome,
+        descricao: dados.descricao !== undefined ? dados.descricao : atual.descricao,
+        atividades: dados.atividades,
+        alturaMinCm: dados.alturaMinCm,
+        alturaMaxCm: dados.alturaMaxCm,
+        nivelRecomendado: dados.nivelRecomendado ?? atual.nivelRecomendado,
+        precoHoraCentavos: dados.precoHoraCentavos,
+        precoDiaCentavos: dados.precoDiaCentavos,
+        valorCaucaoCentavos: dados.valorCaucaoCentavos ?? atual.valorCaucaoCentavos,
+        ativo: dados.ativo ?? atual.ativo,
+      };
       tipos.set(id, novo);
       return novo;
     },
@@ -69,6 +97,7 @@ function repositorioFalso() {
       const tipo = tipos.get(dados.tipoId);
       if (!tipo) throw new TipoInexistente();
       if (!pontos.has(dados.pontoId)) throw new PontoInexistente();
+      if (!pontos.get(dados.pontoId)) throw new PontoInativo();
       if ([...bicicletas.values()].some((b) => b.codigo === dados.codigo)) throw new CodigoDeBicicletaJaExiste();
       const id = `dddddddd-0000-4000-8000-${String(++sequencia).padStart(12, "0")}`;
       const bici: BicicletaAdmin = {
@@ -302,4 +331,68 @@ test("erro inesperado do banco não é engolido nem vira 409/404", async () => {
   await assert.rejects(catalogo.atualizarTipo(ADMIN, ID_TIPO, CORPO_TIPO), /banco fora do ar/);
   await assert.rejects(catalogo.criarBicicleta(ADMIN, corpoBici(ID_TIPO)), /banco fora do ar/);
   await assert.rejects(catalogo.atualizarBicicleta(ADMIN, ID_BICI, { status: "BAIXADA" }), /banco fora do ar/);
+});
+
+// ---------------------------------------------------------------------------
+// Pontos da review do PR #28
+// ---------------------------------------------------------------------------
+test("PUT sem os opcionais mantém caução, nível, descrição e ativo (só quer mudar o preço)", async () => {
+  const { catalogo } = repositorioFalso();
+  const criado = await catalogo.criarTipo(ADMIN, {
+    ...CORPO_TIPO,
+    descricao: "Leve e prática",
+    nivelRecomendado: "INTERMEDIARIO",
+    valorCaucaoCentavos: 15000,
+    ativo: false,
+  });
+  const { nome, atividades, alturaMinCm, alturaMaxCm, precoHoraCentavos } = CORPO_TIPO;
+  const editado = await catalogo.atualizarTipo(ADMIN, criado.id, {
+    nome, atividades, alturaMinCm, alturaMaxCm, precoHoraCentavos, precoDiaCentavos: 7000,
+  });
+  assert.equal(editado.precoDiaCentavos, 7000, "o preço mudou");
+  assert.equal(editado.valorCaucaoCentavos, 15000, "a caução NÃO foi zerada");
+  assert.equal(editado.nivelRecomendado, "INTERMEDIARIO", "o nível NÃO voltou para INICIANTE");
+  assert.equal(editado.descricao, "Leve e prática", "a descrição NÃO foi apagada");
+  assert.equal(editado.ativo, false, "o estado NÃO mudou");
+});
+
+test("PUT com o opcional informado o substitui, inclusive caução 0 e descrição null", async () => {
+  const { catalogo } = repositorioFalso();
+  const criado = await catalogo.criarTipo(ADMIN, { ...CORPO_TIPO, descricao: "Antiga", nivelRecomendado: "AVANCADO" });
+  const editado = await catalogo.atualizarTipo(ADMIN, criado.id, {
+    ...CORPO_TIPO,
+    descricao: null,
+    nivelRecomendado: "INICIANTE",
+    valorCaucaoCentavos: 0,
+  });
+  assert.equal(editado.descricao, null, "descricao: null apaga de propósito");
+  assert.equal(editado.nivelRecomendado, "INICIANTE");
+  assert.equal(editado.valorCaucaoCentavos, 0, "caução 0 informada é respeitada");
+  const vazia = await catalogo.atualizarTipo(ADMIN, criado.id, { ...CORPO_TIPO, descricao: "   " });
+  assert.equal(vazia.descricao, null, "texto vazio também apaga");
+});
+
+test("POST sem os opcionais usa os padrões", async () => {
+  const { catalogo } = repositorioFalso();
+  const { nome, atividades, alturaMinCm, alturaMaxCm, precoHoraCentavos, precoDiaCentavos } = CORPO_TIPO;
+  const tipo = await catalogo.criarTipo(ADMIN, { nome, atividades, alturaMinCm, alturaMaxCm, precoHoraCentavos, precoDiaCentavos });
+  assert.deepEqual(
+    [tipo.descricao, tipo.nivelRecomendado, tipo.valorCaucaoCentavos, tipo.ativo],
+    [null, "INICIANTE", 0, true],
+  );
+});
+
+test("cadastrar bicicleta em ponto inativo responde 409, e em ponto que não existe, 404", async () => {
+  const { catalogo, tipo, bicicletas } = await comTipo();
+  await assert.rejects(
+    catalogo.criarBicicleta(ADMIN, corpoBici(tipo.id, { pontoId: ID_PONTO_INATIVO })),
+    (erro: unknown) => erro instanceof ConflictError && erro.status === 409 && /inativo/.test(erro.message),
+  );
+  await assert.rejects(
+    catalogo.criarBicicleta(ADMIN, corpoBici(tipo.id, { pontoId: "ffffffff-0000-4000-8000-000000000009" })),
+    NotFoundError,
+  );
+  assert.equal(bicicletas.size, 0, "nada foi gravado");
+  await catalogo.criarBicicleta(ADMIN, corpoBici(tipo.id)); // ponto ativo continua funcionando
+  assert.equal(bicicletas.size, 1);
 });
