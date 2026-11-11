@@ -11,13 +11,8 @@ import { MailIcon } from "@/shared/ui/icons";
 import styles from "@/shared/ui/form.module.css";
 import authStyles from "@/shared/ui/AuthLayout.module.css";
 import { ApiError, postJson, type ResultadoSessao } from "@/shared/http/api-cliente";
+import { destinoSeguro } from "@/shared/auth/destino-seguro";
 import { salvarSessao } from "@/shared/auth/sessao";
-
-// rota de origem (ex.: /perfil, guardada pela guarda de rota) para voltar depois do login
-function destinoSeguro(next: string | null): string {
-  if (next && next.startsWith("/") && !next.startsWith("//")) return next;
-  return "/app";
-}
 
 export default function LoginPage() {
   return (

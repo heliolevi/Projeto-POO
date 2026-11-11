@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useState } from "react";
-import { lerSessao, limparSessao, type PerfilUsuario, type Sessao } from "@/shared/auth/sessao";
+import { limparSessao, type PerfilUsuario } from "@/shared/auth/sessao";
+import { useSessao } from "@/shared/auth/use-sessao";
 import styles from "./SiteHeader.module.css";
 import { Logo } from "./Logo";
 import { CalendarIcon, LogoutIcon, SearchIcon, ShieldIcon, UserIcon } from "./icons";
@@ -29,12 +29,12 @@ function linksPorEstado(perfil: PerfilUsuario | null): LinkNav[] {
 export function SiteHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const [sessao, setSessao] = useState<Sessao | null>(() => lerSessao());
+  // Antes de ler o localStorage (e no servidor) aparece como visitante.
+  const { sessao } = useSessao();
   const links = linksPorEstado(sessao?.perfil ?? null);
 
   function sair() {
     limparSessao();
-    setSessao(null);
     router.push("/login");
   }
 

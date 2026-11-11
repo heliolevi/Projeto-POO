@@ -1,19 +1,25 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { lerSessao, type Sessao } from "./sessao";
+import { useEffect } from "react";
+import type { Sessao } from "./sessao";
+import { useSessao } from "./use-sessao";
 
-// Sem sessão (ou com token inválido/expirado), manda para o login e guarda a
-// rota de origem em ?next= para voltar depois de autenticar.
-export function useGuardaRota(): Sessao | null {
+type EstadoGuarda = { sessao: Sessao | null; carregando: boolean };
+
+// Só redireciona depois de ler a sessão (carregando = false). Sem sessão, ou com token
+// inválido/expirado, manda para o login e guarda a rota de origem em ?next= para voltar
+// depois de autenticar.
+export function useGuardaRota(): EstadoGuarda {
   const router = useRouter();
   const pathname = usePathname();
-  const [sessao] = useState<Sessao | null>(() => lerSessao());
+  const estado = useSessao();
 
   useEffect(() => {
-    if (!sessao) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-  }, [sessao, router, pathname]);
+    if (!estado.carregando && !estado.sessao) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [estado.carregando, estado.sessao, router, pathname]);
 
-  return sessao;
+  return estado;
 }
