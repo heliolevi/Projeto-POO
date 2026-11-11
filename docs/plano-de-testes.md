@@ -210,12 +210,12 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-REC-12 | P0 | `inicio` ou `fim` sem fuso horário | Recusado (sem fuso, a hora seria lida em UTC na Vercel) | Auto | Em revisão (PR #14) |
 | CT-REC-13 | P1 | `inicio` "agora", com até 5 minutos de atraso | Aceito pela folga de 5 minutos; mais que isso no passado é recusado | Auto | Em revisão (PR #14) |
 | CT-REC-14 | P1 | Trocar a atividade na busca | Vale a atividade da busca, não a do perfil | Auto | Em revisão (PR #14) |
-| CT-REC-15 | P0 | `GET /api/recomendacao` sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para quem não é cliente | Integração | Aguarda rota |
-| CT-REC-16 | P0 | Período menor que 1 hora ou maior que 7 dias | 400 com `details.fim` | Integração | Aguarda rota |
-| CT-REC-17 | P0 | Nenhuma bicicleta livre no período | 200 com `resultados: []` (não é erro) | Integração | Aguarda rota |
-| CT-REC-18 | P0 | Tipo cuja única unidade tem reserva sobreposta | Não aparece; volta a aparecer depois de cancelar a reserva | Integração | Aguarda rota |
-| CT-REC-19 | P1 | Mais de 60 buscas por minuto do mesmo IP | 429 | Integração | Aguarda rota |
-| CT-REC-20 | P0 | Tipo cuja única unidade tem reserva `PENDENTE_PAGAMENTO` já vencida, que ninguém listou | O tipo aparece como livre: a rota ignora ou expira as pendentes vencidas, porque a exclusion constraint só as libera quando o status muda | Integração | Aguarda rota |
+| CT-REC-15 | P0 | `GET /api/recomendacao` sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para quem não é cliente | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-REC-16 | P0 | Período menor que 1 hora ou maior que 7 dias | 400 com `details.fim` | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-REC-17 | P0 | Nenhuma bicicleta livre no período | 200 com `resultados: []` (não é erro) | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-REC-18 | P0 | Tipo cuja única unidade tem reserva sobreposta | Não aparece; volta a aparecer depois de cancelar a reserva | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-REC-19 | P1 | Mais de 60 buscas por minuto do mesmo IP | 429 | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-REC-20 | P0 | Tipo cuja única unidade tem reserva `PENDENTE_PAGAMENTO` já vencida, que ninguém listou | O tipo aparece como livre: a rota ignora ou expira as pendentes vencidas, porque a exclusion constraint só as libera quando o status muda | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 
 ### 4.9 Reservas (rotas 12 a 15)
 

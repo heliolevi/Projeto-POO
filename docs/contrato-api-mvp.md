@@ -104,7 +104,7 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 8 | `POST /api/conta/desativar` | Logado | existe (PR do Renan) | Renan | Luis |
 | 9 | `GET /api/empresa` | Visitante | novo | Hélio | Renan |
 | 10 | `GET /api/catalogo/tipos` | Visitante | novo | Hélio | Renan |
-| 11 | `GET /api/recomendacao` | CLIENTE | novo | Hélio | Renan |
+| 11 | `GET /api/recomendacao` | CLIENTE | existe | Hélio | Renan |
 | 12 | `POST /api/reservas` | CLIENTE | novo | Luis | Renan |
 | 13 | `GET /api/reservas` | CLIENTE | novo | Luis | Renan |
 | 14 | `GET /api/reservas/{id}` | CLIENTE | novo | Luis | Renan |
@@ -305,7 +305,7 @@ Lista dos tipos de bicicleta ativos. **Novo.**
 
 ### 11. `GET /api/recomendacao`
 
-Os tipos com unidade livre no período, ordenados pela adequação ao cliente. **Novo.**
+Os tipos com unidade livre no período, ordenados pela adequação ao cliente. **Existe.**
 
 | | |
 |---|---|
@@ -336,6 +336,13 @@ Ordem: mais `pontos` primeiro; empate pelo menor preço por dia. Só entram tipo
 unidade livre (sem reserva ativa sobreposta) e que servem na altura do cliente (se ele não informou a
 altura, nenhum tipo sai por altura). `pontos` vai de 0 a 100 (altura 50, atividade 30, experiência 20).
 Lista vazia (`resultados: []`) **não é erro**: significa que nenhuma bicicleta está livre no período.
+
+"Unidade livre" é uma bicicleta `DISPONIVEL`, de um tipo ativo e de um ponto ativo, **sem reserva ativa
+sobreposta** ao período. Conta como ativa a reserva `CONFIRMADA`, a `EM_ANDAMENTO` e a
+`PENDENTE_PAGAMENTO` criada há menos de 15 minutos: a pendente vencida já não segura a bicicleta, mesmo
+que ninguém a tenha listado ainda. O período é `[início, fim)`: uma reserva que termina no minuto em que
+a busca começa (ou que começa quando ela termina) não conflita. O valor segue a regra de preço de
+`src/modules/reservas` (24 h = uma diária; as horas que sobram custam o preço por hora, até uma diária).
 
 **Erros:** `400` (`details`: `inicio`, `fim`, `atividade`), `401`, `403` (não é cliente), `429`.
 
