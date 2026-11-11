@@ -99,3 +99,24 @@ export async function criarPagamento(client, reservaId, overrides = {}) {
   );
   return pagamento.id;
 }
+
+export async function criarOperador(client, email = 'teste-operador@bikeilha.test') {
+  const { rows: [operador] } = await client.query(
+    `INSERT INTO usuario (perfil, nome, email, senha_hash)
+     VALUES ('OPERADOR', 'Operador de teste', $1, 'hash')
+     RETURNING id`,
+    [email],
+  );
+  return operador.id;
+}
+
+export async function criarMovimentacao(client, reservaId, operadorId, overrides = {}) {
+  const { tipo = 'RETIRADA', checklist = [], observacoes = null } = overrides;
+  const { rows: [movimentacao] } = await client.query(
+    `INSERT INTO movimentacao (reserva_id, operador_id, tipo, checklist, observacoes)
+     VALUES ($1, $2, $3, $4::jsonb, $5)
+     RETURNING id`,
+    [reservaId, operadorId, tipo, JSON.stringify(checklist), observacoes],
+  );
+  return movimentacao.id;
+}
