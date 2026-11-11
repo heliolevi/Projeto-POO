@@ -113,14 +113,11 @@ test("PUT sem nenhuma das três chaves responde 400 e não apaga o perfil (corpo
   assert.deepEqual((await servico.consultarConta(CLIENTE)).ciclista, perfil, "o perfil continua igual");
 });
 
-test("para apagar tudo de propósito, as três chaves vêm como null", async () => {
+// (apagar tudo de propósito, com as três chaves null, já é coberto pelo teste "PUT substitui os três
+// campos", acima)
+test("basta uma chave presente para o corpo valer; as ausentes continuam sendo apagadas", async () => {
   const { servico } = cenario();
   await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" });
-  assert.deepEqual(
-    await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: null, experiencia: null, atividade: null }),
-    { alturaCm: null, experiencia: null, atividade: null },
-  );
-  // basta uma chave presente para o corpo valer; as ausentes continuam sendo apagadas
   assert.deepEqual(await servico.atualizarPerfilCiclista(CLIENTE, { experiencia: "AVANCADO" }), {
     alturaCm: null,
     experiencia: "AVANCADO",
