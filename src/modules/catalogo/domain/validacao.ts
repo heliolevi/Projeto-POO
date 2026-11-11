@@ -56,16 +56,18 @@ function centavos(valor: unknown): valor is number {
 // ---------------------------------------------------------------------------
 export type DadosTipo = {
   nome: string;
-  descricao: string | null;
   atividades: Atividade[];
   alturaMinCm: number;
   alturaMaxCm: number;
-  nivelRecomendado: Experiencia;
   precoHoraCentavos: number;
   precoDiaCentavos: number;
-  valorCaucaoCentavos: number;
-  // null = não informado (no PUT o tipo mantém o que já tinha; no POST nasce ativo)
-  ativo: boolean | null;
+  // Opcionais: undefined = não veio no corpo. No POST valem os padrões (descrição vazia,
+  // INICIANTE, caução 0 e ativo); no PUT o tipo MANTÉM o valor que já tinha, para quem só quer
+  // mudar o preço não zerar a caução sem querer. `descricao: null` apaga a descrição de propósito.
+  descricao?: string | null;
+  nivelRecomendado?: Experiencia;
+  valorCaucaoCentavos?: number;
+  ativo?: boolean;
 };
 
 export function validarTipo(
@@ -78,8 +80,12 @@ export function validarTipo(
   const nome = typeof corpo.nome === "string" ? corpo.nome.trim().replace(/\s+/g, " ") : "";
   if (nome.length < 2 || nome.length > 80) erros.nome = "Informe o nome do tipo (2 a 80 caracteres).";
 
-  const descricao = textoOpcional(corpo.descricao, 500, "A descrição pode ter até 500 caracteres.");
-  if ("erro" in descricao) erros.descricao = descricao.erro;
+  let descricao: string | null | undefined;
+  if (corpo.descricao !== undefined) {
+    const lida = textoOpcional(corpo.descricao, 500, "A descrição pode ter até 500 caracteres.");
+    if ("erro" in lida) erros.descricao = lida.erro;
+    else descricao = lida.valor;
+  }
 
   const atividades: Atividade[] = [];
   if (!Array.isArray(corpo.atividades) || corpo.atividades.length === 0) {
@@ -104,7 +110,7 @@ export function validarTipo(
     erros.alturaMaxCm = "A altura máxima precisa ser maior ou igual à mínima.";
   }
 
-  let nivelRecomendado: Experiencia = "INICIANTE";
+  let nivelRecomendado: Experiencia | undefined;
   if (corpo.nivelRecomendado !== undefined && corpo.nivelRecomendado !== null) {
     if (ehExperiencia(corpo.nivelRecomendado)) nivelRecomendado = corpo.nivelRecomendado;
     else erros.nivelRecomendado = `Nível inválido. Use um destes valores: ${EXPERIENCIAS.join(", ")}.`;
@@ -113,13 +119,13 @@ export function validarTipo(
   const mensagemPreco = "Informe o valor em centavos, como inteiro maior ou igual a zero (ex.: 5000 é R$ 50,00).";
   if (!centavos(corpo.precoHoraCentavos)) erros.precoHoraCentavos = mensagemPreco;
   if (!centavos(corpo.precoDiaCentavos)) erros.precoDiaCentavos = mensagemPreco;
-  let valorCaucaoCentavos = 0;
+  let valorCaucaoCentavos: number | undefined;
   if (corpo.valorCaucaoCentavos !== undefined && corpo.valorCaucaoCentavos !== null) {
     if (centavos(corpo.valorCaucaoCentavos)) valorCaucaoCentavos = corpo.valorCaucaoCentavos;
     else erros.valorCaucaoCentavos = mensagemPreco;
   }
 
-  let ativo: boolean | null = null;
+  let ativo: boolean | undefined;
   if (corpo.ativo !== undefined && corpo.ativo !== null) {
     if (typeof corpo.ativo === "boolean") ativo = corpo.ativo;
     else erros.ativo = "ativo precisa ser true ou false.";
@@ -129,7 +135,7 @@ export function validarTipo(
   return {
     dados: {
       nome,
-      descricao: (descricao as { valor: string | null }).valor,
+      descricao,
       atividades,
       alturaMinCm: corpo.alturaMinCm as number,
       alturaMaxCm: corpo.alturaMaxCm as number,

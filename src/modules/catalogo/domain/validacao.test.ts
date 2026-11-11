@@ -48,10 +48,12 @@ test("campos opcionais ficam com os padrões do banco", () => {
   for (const campo of ["nivelRecomendado", "valorCaucaoCentavos", "ativo", "descricao"]) delete minimo[campo];
   const r = validarTipo(minimo);
   assert.ok("dados" in r);
-  assert.equal(r.dados.nivelRecomendado, "INICIANTE");
-  assert.equal(r.dados.valorCaucaoCentavos, 0);
-  assert.equal(r.dados.descricao, null);
-  assert.equal(r.dados.ativo, null, "ativo não informado: o PUT mantém o que o tipo já tinha");
+  // opcionais que não vieram ficam como "não informado": o POST aplica os padrões do banco
+  // (INICIANTE, caução 0, sem descrição, ativo) e o PUT mantém o valor que o tipo já tinha
+  assert.equal(r.dados.nivelRecomendado, undefined);
+  assert.equal(r.dados.valorCaucaoCentavos, undefined);
+  assert.equal(r.dados.descricao, undefined);
+  assert.equal(r.dados.ativo, undefined);
 });
 
 test("nome: obrigatório, de 2 a 80 caracteres, espaços repetidos viram um", () => {
