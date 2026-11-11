@@ -26,7 +26,6 @@ function tipo(parcial: Partial<TipoCandidato> & Pick<TipoCandidato, "id" | "nome
     precoHoraCentavos: 1000,
     precoDiaCentavos: 5000,
     valorCaucaoCentavos: 15000,
-    ativo: true,
     unidadesLivres: 2,
     ...parcial,
   };
@@ -127,8 +126,8 @@ test("sem altura no perfil, nenhum tipo sai por altura", async () => {
   assert.equal(r.resultados.length, 3);
 });
 
-test("tipo sem unidade livre ou inativo não aparece; nada livre devolve lista vazia, não erro", async () => {
-  const { buscar } = montar({ tipos: [{ ...PASSEIO, unidadesLivres: 0 }, { ...MTB, ativo: false }] });
+test("tipo sem unidade livre não aparece; nada livre devolve lista vazia, não erro", async () => {
+  const { buscar } = montar({ tipos: [{ ...PASSEIO, unidadesLivres: 0 }, { ...MTB, unidadesLivres: 0 }] });
   assert.deepEqual((await buscar(CLIENTE, BUSCA)).resultados, []);
   const vazio = await montar({ tipos: [] }).buscar(CLIENTE, BUSCA);
   assert.deepEqual(vazio.resultados, []);

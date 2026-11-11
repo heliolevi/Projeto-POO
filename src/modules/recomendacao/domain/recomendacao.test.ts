@@ -19,7 +19,6 @@ function tipo(parcial: Partial<TipoCandidato> & Pick<TipoCandidato, "id" | "nome
     precoHoraCentavos: 1000,
     precoDiaCentavos: 5000,
     valorCaucaoCentavos: 15000,
-    ativo: true,
     unidadesLivres: 2,
     ...parcial,
   };
@@ -99,9 +98,9 @@ test("sem altura informada, nenhum tipo sai por altura e ninguém ganha os ponto
   assert.ok(r.every((x) => x.motivos.length === 0));
 });
 
-test("tipos inativos ou sem unidade livre não aparecem", () => {
+test("tipos sem unidade livre não aparecem (os inativos nem chegam: a consulta já os filtra)", () => {
   const tipos = [
-    { ...URBANA, ativo: false },
+    { ...URBANA, unidadesLivres: 0 },
     { ...PASSEIO, unidadesLivres: 0 },
     MTB,
   ];

@@ -13,7 +13,6 @@ type LinhaTipo = {
   preco_hora_centavos: number;
   preco_dia_centavos: number;
   valor_caucao_centavos: number;
-  ativo: boolean;
   unidades_livres: number;
 };
 
@@ -36,7 +35,7 @@ const BUSCAR_TIPOS = `
   SELECT * FROM (
     SELECT t.id, t.nome, t.descricao, t.atividades::text[] AS atividades, t.altura_min_cm,
            t.altura_max_cm, t.nivel_recomendado, t.preco_hora_centavos, t.preco_dia_centavos,
-           t.valor_caucao_centavos, t.ativo,
+           t.valor_caucao_centavos,
            sum(u.unidades_livres)::int AS unidades_livres
       FROM tipo_bicicleta t
       JOIN ponto p ON p.ativo
@@ -71,7 +70,6 @@ export async function buscarTiposComUnidadesLivres(
       precoHoraCentavos: l.preco_hora_centavos,
       precoDiaCentavos: l.preco_dia_centavos,
       valorCaucaoCentavos: l.valor_caucao_centavos,
-      ativo: l.ativo,
       unidadesLivres: l.unidades_livres,
     }));
   });

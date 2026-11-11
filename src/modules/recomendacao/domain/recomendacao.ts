@@ -18,13 +18,15 @@ import {
 // a mesma que a reserva usa. Quem chama monta o período e entrega a função pronta, e assim a
 // vitrine nunca diverge da cobrança.
 //
-// 1. Filtro: tipos ativos, com unidade livre e cuja faixa de altura inclui a do cliente
+// 1. Filtro: tipos com unidade livre e cuja faixa de altura inclui a do cliente
 //    (sem altura informada, nenhum tipo sai por altura).
 // 2. Pontuação de 0 a 100, com os pesos iniciais abaixo (a calibrar com a locadora).
 // 3. Ordem: mais pontos primeiro; empate pelo menor preço por dia, depois pelo nome.
 
 export const PESOS = { altura: 50, atividade: 30, experiencia: 20 } as const;
 
+// Quem chama entrega só tipos ATIVOS (a consulta já filtra `WHERE t.ativo`); por isso o tipo não
+// carrega o campo `ativo`.
 export type TipoCandidato = {
   id: string;
   nome: string;
@@ -36,7 +38,6 @@ export type TipoCandidato = {
   precoHoraCentavos: number;
   precoDiaCentavos: number;
   valorCaucaoCentavos: number;
-  ativo: boolean;
   // unidades DISPONIVEL sem reserva ativa que se sobreponha ao período da busca
   unidadesLivres: number;
 };
@@ -118,7 +119,6 @@ export function recomendar(
 ): Recomendacao[] {
   const candidatos = tipos.filter(
     (tipo) =>
-      tipo.ativo &&
       tipo.unidadesLivres > 0 &&
       (perfil.alturaCm === null || cabeNaAltura(perfil.alturaCm, tipo)),
   );
