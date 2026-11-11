@@ -341,8 +341,8 @@ Lista vazia (`resultados: []`) **não é erro**: significa que nenhuma bicicleta
 
 "Unidade livre" é uma bicicleta `DISPONIVEL`, de um tipo ativo e de um ponto ativo, **sem reserva ativa
 sobreposta** ao período. Conta como ativa a reserva `CONFIRMADA`, a `EM_ANDAMENTO` e a
-`PENDENTE_PAGAMENTO` criada há menos de 15 minutos: a pendente vencida já não segura a bicicleta, mesmo
-que ninguém a tenha listado ainda. O período é `[início, fim)`: uma reserva que termina no minuto em que
+`PENDENTE_PAGAMENTO` criada há menos de 15 minutos: antes de contar, a busca marca como `EXPIRADA` as
+pendentes vencidas (`expirar_reservas_vencidas()`), então ninguém precisa ter listado a reserva antes. O período é `[início, fim)`: uma reserva que termina no minuto em que
 a busca começa (ou que começa quando ela termina) não conflita. O valor segue a regra de preço de
 `src/modules/reservas` (24 h = uma diária; as horas que sobram custam o preço por hora, até uma diária).
 

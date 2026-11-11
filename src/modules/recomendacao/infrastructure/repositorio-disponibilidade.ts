@@ -17,36 +17,33 @@ type LinhaTipo = {
   unidades_livres: number;
 };
 
-// Tipos ativos com a contagem de unidades livres no período. Uma unidade está livre quando:
-// - está DISPONIVEL e é de um tipo ativo, em um ponto ativo (view bicicleta_livre, mais o ponto);
-// - e NÃO EXISTE reserva ativa cujo período se sobreponha ao buscado.
+// Disponibilidade vem de duas funções do banco (migrations 0008 e 0009), ambas SECURITY DEFINER:
+// a RLS de reserva só mostra a cada cliente as próprias reservas, e uma consulta direta daria
+// "livre" para uma bicicleta ocupada por outra pessoa.
 //
-// O NOT EXISTS lê a view bicicleta_ocupada (migration 0007), e não a tabela reserva: a RLS de
-// reserva só mostra a cada cliente as próprias reservas, e a consulta daria "livre" para uma
-// bicicleta ocupada por outra pessoa. A view já descarta a pendente de pagamento vencida (mais de
-// 15 minutos), que a exclusion constraint só libera quando alguém muda o status dela.
+// 1. expirar_reservas_vencidas() marca como EXPIRADA a pendente de pagamento criada há 15 minutos
+//    ou mais. Sem isso, a pendente vencida ainda seguraria a bicicleta: a exclusion constraint só
+//    a libera quando o status muda (CT-REC-20).
+// 2. unidades_livres_por_tipo(inicio, fim, ponto) devolve só contagens por tipo: unidade DISPONIVEL
+//    de tipo ativo, sem reserva pendente, confirmada ou em andamento que se sobreponha ao período
+//    [início, fim). A função é chamada por PONTO ATIVO: bicicleta de ponto inativo não é
+//    oferecida, e a função, sem o ponto, contaria a frota toda.
 //
-// O período é [início, fim): uma reserva que termina no minuto em que a busca começa não conflita.
 // Datas vão como parâmetros (ISO), nunca dentro do texto SQL.
+const EXPIRAR_VENCIDAS = `SELECT expirar_reservas_vencidas()`;
+
 const BUSCAR_TIPOS = `
   SELECT * FROM (
     SELECT t.id, t.nome, t.descricao, t.atividades::text[] AS atividades, t.altura_min_cm,
            t.altura_max_cm, t.nivel_recomendado, t.preco_hora_centavos, t.preco_dia_centavos,
            t.valor_caucao_centavos, t.ativo,
-           (
-             SELECT count(*)::int
-               FROM bicicleta_livre b
-              WHERE b.tipo_id = t.id
-                AND EXISTS (SELECT 1 FROM ponto p WHERE p.id = b.ponto_id AND p.ativo)
-                AND NOT EXISTS (
-                  SELECT 1
-                    FROM bicicleta_ocupada o
-                   WHERE o.bicicleta_id = b.id
-                     AND o.periodo && tstzrange($1::timestamptz, $2::timestamptz, '[)')
-                )
-           ) AS unidades_livres
+           sum(u.unidades_livres)::int AS unidades_livres
       FROM tipo_bicicleta t
+      JOIN ponto p ON p.ativo
+     CROSS JOIN LATERAL unidades_livres_por_tipo($1::timestamptz, $2::timestamptz, p.id) u
      WHERE t.ativo
+       AND u.tipo_id = t.id
+     GROUP BY t.id
   ) x
   WHERE x.unidades_livres > 0
   ORDER BY x.nome
@@ -58,6 +55,7 @@ export async function buscarTiposComUnidadesLivres(
   fim: Date,
 ): Promise<TipoCandidato[]> {
   return comSessao(sessao, async (client) => {
+    await client.query(EXPIRAR_VENCIDAS);
     const { rows } = await client.query<LinhaTipo>(BUSCAR_TIPOS, [
       inicio.toISOString(),
       fim.toISOString(),

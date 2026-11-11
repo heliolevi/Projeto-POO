@@ -57,7 +57,7 @@ as políticas valerem. A rota repassa a sessão do `exigirSessao` direto
 > modelo atual: tabela `empresa` com uma linha só, perfis `CLIENTE`, `OPERADOR` e `ADMIN`, sem
 > `locadora_id`. A segurança por linha passa a olhar o perfil e o usuário da sessão
 > (`sessao_perfil()` e `sessao_usuario_id()`), que o `comSessao` do app declara
-> (`app.perfil` e `app.usuario_id`). A `0005` cria o catálogo (`tipo_bicicleta` e `bicicleta`) e a `0007` cria a view `bicicleta_ocupada`, que a busca de disponibilidade lê no lugar da tabela `reserva`.
+> (`app.perfil` e `app.usuario_id`). A `0005` cria o catálogo (`tipo_bicicleta` e `bicicleta`).
 
 ## Dados de exemplo (seed)
 

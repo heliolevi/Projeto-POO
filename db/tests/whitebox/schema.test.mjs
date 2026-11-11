@@ -187,7 +187,8 @@ await rodarSuite('whitebox/schema', async (executor, client) => {
       SELECT indexname FROM pg_indexes WHERE tablename IN ('reserva', 'pagamento')
     `);
     const nomes = rows.map((r) => r.indexname);
-    for (const esperado of ['reserva_cliente_idx', 'reserva_ponto_idx', 'pagamento_reserva_idx']) {
+    // reserva_cliente_status_idx (0008) substituiu reserva_cliente_idx (0006)
+    for (const esperado of ['reserva_cliente_status_idx', 'reserva_ponto_idx', 'pagamento_reserva_idx']) {
       assert(nomes.includes(esperado), `faltou o índice ${esperado}`);
     }
   });
