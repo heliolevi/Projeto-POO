@@ -106,6 +106,12 @@ limitador agora é aguardada, em vez de rodar solta.
   `limite_tentativas` e `schema_migrations`; views `locadora_catalogo` e `locadora_equipe`; RLS em
   `locadora` e `ponto`. Detalhes em `docs/modelo-de-dados.md`.
 - **Testes:** 8 na `dev` antes do PR de validação e 59 com ele, além do roteiro de migrations na CI.
+- **Reservas no banco (migrations 0005 a 0009, revisão de 10/11/2026):** catálogo (`tipo_bicicleta`,
+  `bicicleta`), `reserva` e `pagamento`, com a exclusion constraint contra reservas sobrepostas. A
+  revisão da 0006 gerou a 0008 (período finito, `atualizado_em`, índice `(cliente_id, status)`,
+  `expirar_reservas_vencidas()`) e a 0009 (`unidades_livres_por_tipo()`, que corrige a disponibilidade
+  distorcida pela RLS). A consulta de disponibilidade roda em cerca de 0,25 ms com 200 bicicletas e
+  2.000 reservas (`cd db && npm run perf:recomendacao`, banco local descartável). 70 testes de banco.
 
 ## Pendências
 
@@ -117,6 +123,9 @@ limitador agora é aguardada, em vez de rodar solta.
 | Decidir idade mínima para alugar, confirmação de e-mail e a mensagem de e-mail ou CPF já cadastrado | Equipe | Achado 8 do relatório |
 | ~~Combinar o que o operador pode ver das finanças da locadora~~ | Cancelada | Deixa de existir com uma única locadora (sem comissão nem repasse) |
 | Usar `exigirSessao` e `comSessao` nas rotas dos próximos módulos | Hélio e demais desenvolvedores | Já estão prontos, mas ainda nenhuma rota os usa |
+| Chamar `expirar_reservas_vencidas()` antes de listar reservas e agendar uma chamada periódica | Hélio e demais desenvolvedores | Sem isso, reservas pendentes só expiram quando alguém consulta |
+| Calcular `unidadesLivres` da recomendação com `unidades_livres_por_tipo()` e não com consulta direta | Hélio e demais desenvolvedores | A consulta direta fica errada para o cliente por causa da RLS |
+| Conferir no Neon `dev`, antes de aplicar a 0008: `SELECT count(*) FROM reserva WHERE upper_inf(periodo) OR lower_inf(periodo)` | Tech lead | Se der mais que 0, corrigir essas linhas antes; a constraint `reserva_periodo_finito` as recusaria |
 | Nova validação quando reservas, pagamentos e catálogo existirem | William | A regra de reservas sobrepostas, o isolamento entre clientes (RLS por cliente) e o Mercado Pago ainda não foram validados |
 | Executar o plano do novo escopo (fases 1 a 6) | Equipe | Veja `docs/mudanca-de-escopo.md`; a fase 1 simplifica o banco e o código |
 | Confirmar com a locadora o número de pontos, os dados da empresa e os critérios da recomendação | Equipe | Decisões em aberto em `docs/mudanca-de-escopo.md` |
