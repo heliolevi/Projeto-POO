@@ -178,15 +178,15 @@ blackbox), que a CI roda com `npm run teste:reserva-e-pagamento`.
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
 | CT-CAT-01 | P0 | `GET /api/empresa` sem login | 200 só com pontos ativos; nunca CNPJ, razão social, conta de recebimento nem campos de controle | Integração | Aguarda rota |
-| CT-CAT-02 | P0 | `GET /api/catalogo/tipos` sem login | 200 só com tipos ativos, com preços em centavos | Integração | Aguarda rota |
-| CT-CAT-03 | P1 | Inativar um tipo | Some do catálogo e das buscas; reservas já feitas continuam visíveis | Integração | Aguarda rota |
-| CT-ADM-01 | P0 | Rotas `/api/admin/tipos` e `/api/admin/bicicletas` com `CLIENTE`, `OPERADOR` e sem login | 403 para `CLIENTE` e `OPERADOR`; 401 sem login | Integração | Aguarda rota |
-| CT-ADM-02 | P0 | `POST /api/admin/tipos` com dados válidos | 201 com o tipo criado | Integração | Aguarda rota |
-| CT-ADM-03 | P1 | `POST /api/admin/tipos` com nome repetido, sem atividade, altura mínima maior que a máxima, altura fora de 100 a 250, preço negativo ou decimal | 409 para nome repetido; 400 com `details` nos demais | Integração | Aguarda rota |
-| CT-ADM-04 | P1 | `PUT /api/admin/tipos/{id}` com `ativo: false` | O tipo sai do catálogo; não existe exclusão | Integração | Aguarda rota |
-| CT-ADM-05 | P0 | `POST /api/admin/bicicletas` válida, com código repetido e com tipo ou ponto inexistente | 201 com status `DISPONIVEL`; 409 para código repetido; 404 para tipo ou ponto inexistente | Integração | Aguarda rota |
-| CT-ADM-06 | P1 | `PATCH /api/admin/bicicletas/{id}` com `MANUTENCAO`, e com corpo vazio | A bicicleta deixa de ser reservável; corpo vazio recebe 400 | Integração | Aguarda rota |
-| CT-ADM-07 | P1 | `GET /api/admin/bicicletas` com filtros `tipoId` e `status` | Filtra; status inválido recebe 400 | Integração | Aguarda rota |
+| CT-CAT-02 | P0 | `GET /api/catalogo/tipos` sem login | 200 só com tipos ativos, com preços em centavos | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-CAT-03 | P1 | Inativar um tipo | Some do catálogo e das buscas; reservas já feitas continuam visíveis | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-01 | P0 | Rotas `/api/admin/tipos` e `/api/admin/bicicletas` com `CLIENTE`, `OPERADOR` e sem login | 403 para `CLIENTE` e `OPERADOR`; 401 sem login | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-02 | P0 | `POST /api/admin/tipos` com dados válidos | 201 com o tipo criado | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-03 | P1 | `POST /api/admin/tipos` com nome repetido, sem atividade, altura mínima maior que a máxima, altura fora de 100 a 250, preço negativo ou decimal | 409 para nome repetido; 400 com `details` nos demais | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-04 | P1 | `PUT /api/admin/tipos/{id}` com `ativo: false` | O tipo sai do catálogo; não existe exclusão | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-05 | P0 | `POST /api/admin/bicicletas` válida, com código repetido e com tipo ou ponto inexistente | 201 com status `DISPONIVEL`; 409 para código repetido; 404 para tipo ou ponto inexistente | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-06 | P1 | `PATCH /api/admin/bicicletas/{id}` com `MANUTENCAO`, e com corpo vazio | A bicicleta deixa de ser reservável; corpo vazio recebe 400 | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-07 | P1 | `GET /api/admin/bicicletas` com filtros `tipoId` e `status` | Filtra; status inválido recebe 400 | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-08 | P0 | `GET /api/admin/reservas` por `OPERADOR` e `ADMIN`, com filtros `status` e `data` (fuso de São Luís); por `CLIENTE` | Equipe recebe a lista com cliente e unidade; `CLIENTE` recebe 403 | Integração | Aguarda rota |
 
 ### 4.8 Recomendação (rota 11)

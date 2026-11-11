@@ -103,7 +103,7 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 7 | `POST /api/conta/termos` | CLIENTE | existe (PR do Renan) | Renan | Luis |
 | 8 | `POST /api/conta/desativar` | Logado | existe (PR do Renan) | Renan | Luis |
 | 9 | `GET /api/empresa` | Visitante | novo | Hélio | Renan |
-| 10 | `GET /api/catalogo/tipos` | Visitante | novo | Hélio | Renan |
+| 10 | `GET /api/catalogo/tipos` | Visitante | existe | Hélio | Renan |
 | 11 | `GET /api/recomendacao` | CLIENTE | novo | Hélio | Renan |
 | 12 | `POST /api/reservas` | CLIENTE | novo | Luis | Renan |
 | 13 | `GET /api/reservas` | CLIENTE | novo | Luis | Renan |
@@ -112,12 +112,12 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 16 | `POST /api/pagamentos` | CLIENTE | novo | Hélio | Renan |
 | 17 | `GET /api/pagamentos/{reservaId}/status` | CLIENTE | novo | Hélio | Renan |
 | 18 | `POST /api/pagamentos/webhook` | Mercado Pago | novo | Hélio | Mercado Pago |
-| 19 | `GET /api/admin/tipos` | ADMIN | novo | Hélio | Hélio |
-| 20 | `POST /api/admin/tipos` | ADMIN | novo | Hélio | Hélio |
-| 21 | `PUT /api/admin/tipos/{id}` | ADMIN | novo | Hélio | Hélio |
-| 22 | `GET /api/admin/bicicletas` | ADMIN | novo | Hélio | Hélio |
-| 23 | `POST /api/admin/bicicletas` | ADMIN | novo | Hélio | Hélio |
-| 24 | `PATCH /api/admin/bicicletas/{id}` | ADMIN | novo | Hélio | Hélio |
+| 19 | `GET /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
+| 20 | `POST /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
+| 21 | `PUT /api/admin/tipos/{id}` | ADMIN | existe | Hélio | Hélio |
+| 22 | `GET /api/admin/bicicletas` | ADMIN | existe | Hélio | Hélio |
+| 23 | `POST /api/admin/bicicletas` | ADMIN | existe | Hélio | Hélio |
+| 24 | `PATCH /api/admin/bicicletas/{id}` | ADMIN | existe | Hélio | Hélio |
 | 25 | `GET /api/admin/reservas` | OPERADOR, ADMIN | novo | Hélio | Luis |
 | 26 | `POST /api/operacao/reservas/{id}/retirada` | OPERADOR, ADMIN | novo | Hélio | Luis |
 | 27 | `POST /api/operacao/reservas/{id}/devolucao` | OPERADOR, ADMIN | novo | Hélio | Luis |
@@ -496,14 +496,18 @@ Todos os tipos, inclusive inativos. **Quem:** ADMIN. **Sucesso `200`:** lista co
 ```
 
 Regras: `nome` único; `atividades` com ao menos um valor; altura entre 100 e 250, com `alturaMinCm <=
-alturaMaxCm`; preços e caução inteiros, maiores ou iguais a zero (centavos).
+alturaMaxCm`; preços e caução inteiros, maiores ou iguais a zero (centavos), até 2.147.483.647.
+Obrigatórios: `nome`, `atividades`, `alturaMinCm`, `alturaMaxCm`, `precoHoraCentavos` e `precoDiaCentavos`.
+Se ausentes: `nivelRecomendado` vale `INICIANTE`, `valorCaucaoCentavos` vale `0`, `descricao` fica vazia e
+`ativo` vale `true`. Atividades repetidas viram uma só, e o nome perde os espaços repetidos.
 
 **Sucesso `201`:** o tipo criado. **Erros:** `400` (`details` por campo), `401`, `403`, `409` (nome repetido), `413`.
 
 ### 21. `PUT /api/admin/tipos/{id}`
 
-Substitui os dados do tipo (mesmo corpo da rota 20). Para tirar um tipo do catálogo, envie `"ativo": false`
-(não há exclusão). **Quem:** ADMIN. **Sucesso `200`:** o tipo atualizado.
+Substitui os dados do tipo (mesmo corpo e mesmas regras da rota 20). Para tirar um tipo do catálogo, envie
+`"ativo": false` (não há exclusão). Se `ativo` não vier no corpo, o tipo **mantém** o estado que já tinha:
+um PUT esquecido não reativa um tipo inativo. Um `id` que não é UUID recebe `404`. **Quem:** ADMIN. **Sucesso `200`:** o tipo atualizado.
 **Erros:** `400`, `401`, `403`, `404`, `409`, `413`.
 
 ### 22. `GET /api/admin/bicicletas`
@@ -526,7 +530,9 @@ Substitui os dados do tipo (mesmo corpo da rota 20). Para tirar um tipo do catá
 
 **Corpo:** `{ "tipoId": "uuid", "pontoId": "uuid", "codigo": "BIC-015", "numeroSerie": "SN999", "tamanhoQuadro": "M", "observacoes": null }`
 
-`codigo` é o número colado na bicicleta e é único. O `status` nasce `DISPONIVEL`.
+`codigo` é o número colado na bicicleta e é único: vai para maiúsculas e perde os espaços das pontas, então
+`bic-015` e `BIC-015` são o mesmo código (até 40 caracteres: letras, números, espaço e `. _ - /`). O
+`status` nasce `DISPONIVEL`. `numeroSerie`, `tamanhoQuadro` e `observacoes` são opcionais.
 
 **Sucesso `201`:** a bicicleta criada. **Erros:** `400`, `401`, `403`, `404` (tipo ou ponto inexistente), `409` (código repetido), `413`.
 
