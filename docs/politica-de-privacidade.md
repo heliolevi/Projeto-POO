@@ -25,7 +25,7 @@ seus direitos, de acordo com a Lei Geral de Proteção de Dados (LGPD, Lei 13.70
 | Retirada e devolução (checklist e observações do atendente) | Sim, ao retirar | Registrar a entrega e a devolução da bicicleta | Execução do contrato |
 | Aceite dos termos (data e versão) | Sim | Comprovar que você aceitou os termos | Execução do contrato e legítimo interesse (comprovar o aceite) |
 | Código de sessão no navegador | Sim, ao entrar | Manter você conectado | Execução do contrato |
-| Endereço IP e uma versão irreversível (hash) do e-mail | Sim, ao tentar entrar | Proteger o login contra tentativas em excesso | Legítimo interesse (segurança) |
+| Endereço IP e uma versão irreversível (hash) do e-mail | Sim, ao entrar, cadastrar ou trocar a senha | Proteger o login, o cadastro e a troca de senha contra tentativas em excesso | Legítimo interesse (segurança) |
 
 Não guardamos sua senha: guardamos só uma versão irreversível dela (hash). Não guardamos dados de cartão, porque
 o MVP aceita só Pix. Não coletamos fotos nem a sua localização.
@@ -48,7 +48,7 @@ Prazos **assumidos para o MVP**; a locadora real define os definitivos:
   pedido por e-mail na seção 5.
 - **Reservas e pagamentos:** até **5 anos**, por obrigações legais e contábeis.
 - **Aceite dos termos:** pelo mesmo prazo das reservas.
-- **IP e hash do e-mail do login:** só pelo tempo necessário para limitar tentativas em excesso.
+- **IP e hash do e-mail (login, cadastro e troca de senha):** até **1 dia**, para limitar tentativas em excesso.
 
 O MVP **ainda não tem rotina automática** de eliminação ou anonimização. Até ela existir, os dados são
 eliminados ou anonimizados quando você pede por e-mail (seção 5) e, depois do prazo acima, por iniciativa da

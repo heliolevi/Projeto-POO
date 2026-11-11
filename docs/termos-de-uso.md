@@ -53,7 +53,7 @@ R$ 60,00; 25 horas custam R$ 72,00 (uma diária mais uma hora).
 ## 7. Devolução e atraso
 - Devolva a bicicleta no **mesmo ponto** em que retirou, no horário final da reserva.
 - O ponto funciona de segunda a sexta, das **08h às 18h**; aos sábados, das **08h às 16h**; e aos domingos,
-  das **08h às 14h**. A retirada só pode ser feita nesses horários, e o app recusa uma retirada fora deles.
+  das **08h às 14h**. A retirada só pode ser feita nesses horários, e o app deve recusar uma retirada fora deles.
 - Se o horário final da reserva cair com o ponto fechado, devolva assim que ele abrir. O atraso passa a contar
   a partir da abertura. (Regra assumida para o MVP; a locadora real define a definitiva.)
 - Há **15 minutos de tolerância**. Depois disso, cada hora extra de atraso é cobrada pelo preço por hora do

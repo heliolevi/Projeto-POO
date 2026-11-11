@@ -101,6 +101,7 @@ As senhas **não ficam no Git**: vêm de `SEED_ADMIN_SENHA` e `SEED_OPERADOR_SEN
 | Pagamento | Pix cobra só o aluguel; a reserva sem pagamento expira em 15 minutos | Contrato |
 | Retirada | A partir de 30 minutos antes do início da reserva | Contrato |
 | Atraso na devolução | Tolerância de 15 minutos; depois, cada hora extra pelo preço por hora do tipo. Hora iniciada conta como hora cheia e, a cada 24 horas de atraso, o valor não passa de uma diária | ASSUMIDO |
+| Devolução com o ponto fechado | Se o horário final da reserva cair com o ponto fechado, a devolução é na abertura seguinte e o atraso conta a partir da abertura | ASSUMIDO |
 | Dano ou perda da bicicleta | O custo do conserto ou da reposição é descontado da caução e, se passar dela, cobrado do cliente | ASSUMIDO |
 | Caução | Combinada e paga no balcão na retirada; devolvida na devolução sem problemas | ASSUMIDO |
 
