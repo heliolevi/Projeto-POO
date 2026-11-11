@@ -1,3 +1,4 @@
+import type { SessaoBanco } from "../../../shared/db/sessao.ts";
 import { ValidationError } from "../../../shared/http/errors.ts";
 import { validarBusca } from "../domain/periodo.ts";
 import type { Atividade, Experiencia } from "../domain/perfil.ts";
@@ -13,10 +14,15 @@ export type PerfilDoCliente = {
   atividade: Atividade | null;
 };
 
+// Quem faz a busca: o cliente logado, como o exigirPerfil devolve. A mesma sessão vai para o
+// comSessao, então as políticas de RLS valem. Por isso o caso de uso recebe a sessão a cada busca
+// e pode ser criado uma vez só, no escopo do módulo.
+export type SessaoCliente = SessaoBanco & { perfil: "CLIENTE"; usuarioId: string };
+
 export type DependenciasBusca = {
   buscarPerfil: (usuarioId: string) => Promise<PerfilDoCliente>;
   // tipos ativos com a contagem de unidades livres no período (sem reserva ativa sobreposta)
-  buscarTipos: (inicio: Date, fim: Date) => Promise<TipoCandidato[]>;
+  buscarTipos: (sessao: SessaoCliente, inicio: Date, fim: Date) => Promise<TipoCandidato[]>;
   // a regra de preço mora em src/modules/reservas e é a mesma da criação da reserva
   calcularValorAluguel: (periodo: Periodo, precos: Precos) => number;
   horasCobradas: (periodo: Periodo) => number;
@@ -32,7 +38,7 @@ export type RespostaRecomendacao = {
 // adequado ao cliente. Lista vazia não é erro: significa que nada está livre no período.
 export function criarBuscarRecomendacoes(deps: DependenciasBusca) {
   return async function buscarRecomendacoes(
-    usuarioId: string,
+    sessao: SessaoCliente,
     parametros: { inicio?: unknown; fim?: unknown; atividade?: unknown },
   ): Promise<RespostaRecomendacao> {
     // valida antes de gastar consultas: um pedido inválido não toca o banco
@@ -41,8 +47,8 @@ export function criarBuscarRecomendacoes(deps: DependenciasBusca) {
     const { inicio, fim, atividade } = validado.dados;
     const periodo = { inicio, fim };
 
-    const perfil = await deps.buscarPerfil(usuarioId);
-    const tipos = await deps.buscarTipos(inicio, fim);
+    const perfil = await deps.buscarPerfil(sessao.usuarioId);
+    const tipos = await deps.buscarTipos(sessao, inicio, fim);
     const resultados = recomendar(
       {
         alturaCm: perfil.alturaCm,

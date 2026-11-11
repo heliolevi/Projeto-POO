@@ -9,7 +9,9 @@ import {
   type Precos,
 } from "./buscar-recomendacoes.ts";
 
-const CLIENTE = "3f2b8c1e-5d4a-4b6f-9c7e-1a2b3c4d5e6f";
+const ID_CLIENTE = "3f2b8c1e-5d4a-4b6f-9c7e-1a2b3c4d5e6f";
+// a sessão do cliente logado, como o exigirPerfil a entrega
+const CLIENTE = { perfil: "CLIENTE", usuarioId: ID_CLIENTE } as const;
 // "agora" fixo: 14/11/2026, 08:00 em São Luís
 const AGORA = new Date("2026-11-14T11:00:00.000Z");
 const BUSCA = { inicio: "2026-11-14T09:00:00-03:00", fim: "2026-11-14T13:00:00-03:00" };
@@ -38,13 +40,14 @@ type Opcoes = { perfil?: PerfilDoCliente; tipos?: TipoCandidato[]; agora?: Date 
 
 // Dependências de mentira que anotam o que foi pedido, para provar o que a busca consultou.
 function montar({ perfil, tipos = [PASSEIO, MTB, INFANTIL], agora = AGORA }: Opcoes = {}) {
-  const chamadas = { perfil: 0, tipos: [] as { inicio: Date; fim: Date }[], precos: [] as { periodo: Periodo; precos: Precos }[] };
+  const chamadas = { perfil: [] as string[], sessoes: [] as unknown[], tipos: [] as { inicio: Date; fim: Date }[], precos: [] as { periodo: Periodo; precos: Precos }[] };
   const buscar = criarBuscarRecomendacoes({
-    buscarPerfil: async () => {
-      chamadas.perfil++;
+    buscarPerfil: async (usuarioId) => {
+      chamadas.perfil.push(usuarioId);
       return perfil ?? { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" };
     },
-    buscarTipos: async (inicio, fim) => {
+    buscarTipos: async (sessao, inicio, fim) => {
+      chamadas.sessoes.push(sessao);
       chamadas.tipos.push({ inicio, fim });
       return tipos;
     },
@@ -142,6 +145,21 @@ test("o valor do aluguel vem da função de preço de reservas, com o período e
   assert.equal(r.resultados[0].valorAluguelCentavos, 4800);
 });
 
+test("a sessão do cliente vai para a busca de unidades livres (é ela que o comSessao usa para a RLS)", async () => {
+  const { buscar, chamadas } = montar();
+  await buscar(CLIENTE, BUSCA);
+  assert.deepEqual(chamadas.perfil, [ID_CLIENTE], "o perfil lido é o do usuário da sessão");
+  assert.deepEqual(chamadas.sessoes, [CLIENTE]);
+});
+
+test("o mesmo caso de uso atende clientes diferentes, sem misturar a sessão de um com a de outro", async () => {
+  const { buscar, chamadas } = montar();
+  const outro = { perfil: "CLIENTE", usuarioId: "aaaaaaaa-0000-4000-8000-000000000001" } as const;
+  await Promise.all([buscar(CLIENTE, BUSCA), buscar(outro, BUSCA)]);
+  assert.deepEqual(chamadas.perfil.sort(), [ID_CLIENTE, outro.usuarioId].sort());
+  assert.equal(chamadas.sessoes.length, 2);
+});
+
 test("a busca de unidades livres recebe exatamente o período pedido", async () => {
   const { buscar, chamadas } = montar();
   await buscar(CLIENTE, BUSCA);
@@ -168,7 +186,7 @@ test("parâmetros inválidos respondem 400 com details e não tocam o banco", as
       assert.deepEqual(Object.keys(erro.details as object).sort(), campos, nome);
       return true;
     });
-    assert.equal(chamadas.perfil, 0, `${nome}: não deveria ler o perfil`);
+    assert.equal(chamadas.perfil.length, 0, `${nome}: não deveria ler o perfil`);
     assert.equal(chamadas.tipos.length, 0, `${nome}: não deveria consultar o banco`);
   }
 });
