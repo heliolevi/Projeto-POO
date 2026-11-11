@@ -96,8 +96,8 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 |---|---|---|---|---|---|
 | 1 | `POST /api/auth/cadastro` | Visitante | existe | Hélio | Renan |
 | 2 | `POST /api/auth/login` | Visitante | existe | Hélio | Renan |
-| 3 | `GET /api/conta/me` | Logado | novo | Hélio | Renan |
-| 4 | `PUT /api/conta/perfil-ciclista` | CLIENTE | novo | Hélio | Renan |
+| 3 | `GET /api/conta/me` | Logado | existe | Hélio | Renan |
+| 4 | `PUT /api/conta/perfil-ciclista` | CLIENTE | existe | Hélio | Renan |
 | 5 | `POST /api/conta/senha` | Logado | existe (PR do Renan) | Renan | Luis |
 | 6 | `POST /api/conta/altura` | CLIENTE | existe (PR do Renan) | Renan | Luis |
 | 7 | `POST /api/conta/termos` | CLIENTE | existe (PR do Renan) | Renan | Luis |
@@ -179,7 +179,7 @@ máscara) e `aceiteTermos` (precisa ser o booleano `true`). Opcionais: `telefone
 
 ### 3. `GET /api/conta/me`
 
-Dados da conta logada e, para cliente, os dados usados na recomendação. **Novo.**
+Dados da conta logada e, para cliente, os dados usados na recomendação. **Existe.**
 
 | | |
 |---|---|
@@ -199,7 +199,7 @@ Dados da conta logada e, para cliente, os dados usados na recomendação. **Novo
 
 ### 4. `PUT /api/conta/perfil-ciclista`
 
-Grava os dados da recomendação. Substitui os três campos de uma vez. **Novo.**
+Grava os dados da recomendação. Substitui os três campos de uma vez. **Existe.**
 
 | | |
 |---|---|
