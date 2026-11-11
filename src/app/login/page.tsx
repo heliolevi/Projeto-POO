@@ -29,7 +29,7 @@ export default function LoginPage() {
     try {
       const sessao = await postJson<ResultadoSessao>("/api/auth/login", { email, senha });
       localStorage.setItem("bik_token", sessao.token);
-      router.push("/");
+      router.push("/app");
     } catch (erro) {
       if (erro instanceof ApiError) {
         if (erro.details) setErros(erro.details);

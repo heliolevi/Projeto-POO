@@ -9,8 +9,70 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# A CI só lê o código; não precisa de permissão de escrita.
+permissions:
+  contents: read
+
+# Cada checagem é um job separado: rodam em paralelo e, quando uma falha, o nome do check
+# já diz qual foi. Os nomes (lint, typecheck, test, build, banco) são os que a proteção da
+# branch dev exige; se mudar um nome, avise o dono do repositório.
 jobs:
-  verificar:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+
+  banco:
+    name: banco
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Banco descartável só para validar as migrations, com a mesma extensão PostGIS do Neon.
@@ -27,25 +89,12 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v4
-      - name: Verifica se já existe o app
-        id: app
-        run: |
-          if [ -f package.json ]; then echo "existe=true" >> "$GITHUB_OUTPUT"; else echo "existe=false" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/setup-node@v4
-        if: steps.app.outputs.existe == 'true'
         with:
           node-version: 22
           cache: npm
-      - if: steps.app.outputs.existe == 'true'
-        run: npm ci
-      - if: steps.app.outputs.existe == 'true'
-        run: npm run lint
-      - if: steps.app.outputs.existe == 'true'
-        run: npm run typecheck
-      - if: steps.app.outputs.existe == 'true'
-        run: npm test
+          cache-dependency-path: db/package-lock.json
       - name: Migrations (simula, aplica, reverte tudo e aplica de novo)
-        if: steps.app.outputs.existe == 'true'
         working-directory: db
         env:
           DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/postgres
@@ -56,12 +105,7 @@ jobs:
           while node migrar.mjs status | grep '^aplicada' > /dev/null; do npm run migrar:reverter; done
           npm run migrar
       - name: Testes de banco (constraints, políticas de RLS e cenários de uso)
-        if: steps.app.outputs.existe == 'true'
         working-directory: db
         env:
           DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/postgres
         run: npm run teste:reserva-e-pagamento
-      - if: steps.app.outputs.existe == 'true'
-        run: npm run build
-        env:
-          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder

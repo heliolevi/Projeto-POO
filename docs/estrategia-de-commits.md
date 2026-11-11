@@ -142,8 +142,14 @@ revisado rápido e tem menos risco.
 | **William (DevOps e QA)** | Cuida da CI e valida o backend a cada marco. Avisa se um PR deixar o pipeline vermelho |
 | **Luis (tech lead)** | Decide quando a `dev` vai para a `main`, cuida das migrations e do banco e revisa mudanças de segurança |
 
-**Para ser mesclado, o PR precisa de:** a CI verde (lint, typecheck, testes, migrations e build) e ao
-menos uma aprovação.
+**Para ser mesclado, o PR precisa de:** a CI verde e ao menos uma aprovação. A CI tem 5 checks, que
+rodam em paralelo: `lint`, `typecheck`, `test`, `build` e `banco` (migrations e testes de banco). Se
+um deles ficar vermelho, abra o job com esse nome para ver o log.
+
+**Proteção da `dev` (ruleset "Proteger dev"):** hoje exige PR com 1 aprovação e bloqueia push direto,
+force push e a exclusão da branch. Os 5 checks acima passam a ser exigidos depois do merge do PR da T14
+(a ativação é feita pelo Hélio, dono do repositório). Quem renomear um job avisa o Hélio, porque o nome
+do job é o nome do check exigido.
 
 ### Checklist de quem revisa
 

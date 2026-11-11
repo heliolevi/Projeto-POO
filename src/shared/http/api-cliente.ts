@@ -2,7 +2,7 @@ export type ErrosPorCampo = Record<string, string>;
 
 export type UsuarioAutenticado = {
   id: string;
-  perfil: "CLIENTE" | "OPERADOR" | "GERENTE_LOCADORA" | "ADMIN_PLATAFORMA";
+  perfil: "CLIENTE" | "OPERADOR" | "ADMIN";
   nome: string;
   email: string;
 };
