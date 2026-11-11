@@ -127,6 +127,11 @@ export default function ReservaDetalhePage() {
           )}
 
           <div className={styles.acoes}>
+            {estado.reserva.status === "PENDENTE_PAGAMENTO" && (
+              <Link href={`/app/reservas/${id}/pagamento`} className={styles.botaoPrimario}>
+                Pagar com Pix
+              </Link>
+            )}
             {podeCancelar(estado.reserva.status) && (
               <button
                 type="button"

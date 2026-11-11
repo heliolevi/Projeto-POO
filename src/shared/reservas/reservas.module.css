@@ -133,6 +133,17 @@
   gap: var(--space-12);
 }
 
+.botaoPrimario {
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-surface);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+  text-decoration: none;
+}
+
 .botaoSecundario {
   padding: var(--space-12) var(--space-16);
   border-radius: var(--radius-pill);
