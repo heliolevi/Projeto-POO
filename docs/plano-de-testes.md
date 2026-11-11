@@ -109,12 +109,12 @@ PR ou issue do defeito.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
-| CT-CTA-01 | P0 | `GET /api/conta/me` como `CLIENTE` | 200 com dados da conta e `ciclista` (altura, experiência, atividade); campos vazios vêm `null` | Integração | Aguarda rota |
-| CT-CTA-02 | P1 | `GET /api/conta/me` como `OPERADOR` ou `ADMIN` | 200 sem o campo `ciclista` | Integração | Aguarda rota |
-| CT-CTA-03 | P0 | `PUT /api/conta/perfil-ciclista` com altura, experiência e atividade válidas | 200 com os três campos gravados | Integração | Aguarda rota |
-| CT-CTA-04 | P1 | `PUT` com campo `null` ou ausente, e com `id` no corpo | O campo é apagado; o `id` é ignorado e vale a conta do token | Integração | Aguarda rota |
-| CT-CTA-05 | P1 | `PUT` com altura fora de 100 a 250 ou valores fora das enumerações | 400 com `details` do campo | Auto | Aguarda rota |
-| CT-CTA-06 | P0 | `PUT perfil-ciclista` por `OPERADOR` ou `ADMIN` | 403 | Integração | Aguarda rota |
+| CT-CTA-01 | P0 | `GET /api/conta/me` como `CLIENTE` | 200 com dados da conta e `ciclista` (altura, experiência, atividade); campos vazios vêm `null` | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-CTA-02 | P1 | `GET /api/conta/me` como `OPERADOR` ou `ADMIN` | 200 sem o campo `ciclista` | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-CTA-03 | P0 | `PUT /api/conta/perfil-ciclista` com altura, experiência e atividade válidas | 200 com os três campos gravados | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-CTA-04 | P1 | `PUT` com campo `null` ou ausente, e com `id` no corpo | O campo é apagado; o `id` é ignorado e vale a conta do token | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-CTA-05 | P1 | `PUT` com altura fora de 100 a 250 ou valores fora das enumerações | 400 com `details` do campo | Auto | Automatizado (`perfil-ciclista.test.ts`) |
+| CT-CTA-06 | P0 | `PUT perfil-ciclista` por `OPERADOR` ou `ADMIN` | 403 | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-CTA-07 | P0 | `POST /api/conta/senha` com senha atual correta e nova válida | 204 e a senha é trocada | Auto | Automatizado (`alterar-senha.test.ts`) |
 | CT-CTA-08 | P0 | `POST /api/conta/senha` com senha atual incorreta | 401 e nada é trocado | Auto | Automatizado (`alterar-senha.test.ts`) |
 | CT-CTA-09 | P1 | Várias tentativas de senha com a senha atual errada | 429 até a janela passar; acertar zera a contagem; o limite é por usuário | Auto | Automatizado (`alterar-senha.test.ts`) |

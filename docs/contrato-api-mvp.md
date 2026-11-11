@@ -96,8 +96,8 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 |---|---|---|---|---|---|
 | 1 | `POST /api/auth/cadastro` | Visitante | existe | Hélio | Renan |
 | 2 | `POST /api/auth/login` | Visitante | existe | Hélio | Renan |
-| 3 | `GET /api/conta/me` | Logado | novo | Hélio | Renan |
-| 4 | `PUT /api/conta/perfil-ciclista` | CLIENTE | novo | Hélio | Renan |
+| 3 | `GET /api/conta/me` | Logado | existe | Hélio | Renan |
+| 4 | `PUT /api/conta/perfil-ciclista` | CLIENTE | existe | Hélio | Renan |
 | 5 | `POST /api/conta/senha` | Logado | existe (PR do Renan) | Renan | Luis |
 | 6 | `POST /api/conta/altura` | CLIENTE | existe (PR do Renan) | Renan | Luis |
 | 7 | `POST /api/conta/termos` | CLIENTE | existe (PR do Renan) | Renan | Luis |
@@ -179,7 +179,7 @@ máscara) e `aceiteTermos` (precisa ser o booleano `true`). Opcionais: `telefone
 
 ### 3. `GET /api/conta/me`
 
-Dados da conta logada e, para cliente, os dados usados na recomendação. **Novo.**
+Dados da conta logada e, para cliente, os dados usados na recomendação. **Existe.**
 
 | | |
 |---|---|
@@ -199,7 +199,7 @@ Dados da conta logada e, para cliente, os dados usados na recomendação. **Novo
 
 ### 4. `PUT /api/conta/perfil-ciclista`
 
-Grava os dados da recomendação. Substitui os três campos de uma vez. **Novo.**
+Grava os dados da recomendação. Substitui os três campos de uma vez. **Existe.**
 
 | | |
 |---|---|
@@ -234,8 +234,10 @@ Cada campo pode ser `null` (ou ausente) para apagar o dado. `alturaCm`: inteiro 
 **Corpo:** `{ "alturaCm": 172 }` (inteiro de 100 a 250). **Quem:** CLIENTE.
 **Sucesso `204`.** **Erros:** `400` (`details.alturaCm`), `401`, `413`.
 
-> Depois do `PUT /api/conta/perfil-ciclista`, a tela de perfil usa a rota 4; esta continua para a tela
-> "Minha conta".
+> **Qual rota de altura usar.** As rotas 4 e 6 gravam a mesma coluna (`altura_cm`). A **oficial para a
+> tela do perfil de ciclista é a rota 4** (`PUT /api/conta/perfil-ciclista`), que grava altura, experiência
+> e atividade juntas. Esta rota 6 só altera a altura isolada e fica para a tela "Minha conta". Quem
+> grava o perfil inteiro não precisa chamar a rota 6 antes nem depois.
 
 ### 7. `POST /api/conta/termos`
 
