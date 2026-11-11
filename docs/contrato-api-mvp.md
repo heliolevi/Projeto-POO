@@ -312,7 +312,7 @@ Os tipos com unidade livre no período, ordenados pela adequação ao cliente. *
 | | |
 |---|---|
 | **Quem** | CLIENTE |
-| **Limite** | 60 por minuto por IP |
+| **Limite** | 60 por minuto por **usuário** (e 300 por minuto por IP, mais folgado por causa de várias pessoas atrás do mesmo NAT); excedeu: `429` |
 
 **Parâmetros (query):**
 
