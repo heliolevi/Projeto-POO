@@ -1,6 +1,6 @@
 # Termos de uso
 
-**Versão:** 2026-10
+**Versão:** 2026-11
 **Vigência:** a partir de 11/11/2026
 
 > **Aviso do MVP:** o Bike Ilha Club é um projeto acadêmico em fase de demonstração. A locadora, os preços,
@@ -16,7 +16,8 @@ para a sua altura, o seu nível de experiência e a atividade que você quer faz
 
 ## 2. Sua conta
 - Você informa nome, e-mail, CPF e senha. Telefone e data de nascimento são opcionais.
-- Para alugar, é preciso ter **18 anos ou mais**. A bicicleta infantil é alugada por um adulto responsável.
+- Ao se cadastrar, você **declara ter 18 anos ou mais**. O app não confere a idade. A bicicleta infantil é
+  alugada por um adulto responsável.
 - Guarde sua senha. O que for feito com a sua conta é de sua responsabilidade.
 - Você pode desativar a conta em "Minha conta". A conta desativada não entra mais, e os dados são tratados
   como diz a [Política de privacidade](politica-de-privacidade.md).
@@ -43,15 +44,21 @@ R$ 60,00; 25 horas custam R$ 72,00 (uma diária mais uma hora).
 
 ## 6. Cancelamento
 - Você pode cancelar pelo app enquanto a bicicleta **não foi retirada**.
-- Cancelando **até 24 horas antes** do início, não há custo.
-- Cancelando com **menos de 24 horas** de antecedência, o valor já pago **não é devolvido automaticamente**; a
-  locadora decide no balcão.
-- A devolução de um pagamento já aprovado é tratada **no balcão**. O app ainda não faz estorno.
+- Cancelando **até 24 horas antes** do início, a locadora **não cobra taxa de cancelamento**. Se você já
+  pagou, o valor é devolvido **no balcão**, porque o app ainda não faz estorno.
+- Cancelando com **menos de 24 horas** de antecedência, a decisão sobre o valor já pago é da **locadora**, no
+  balcão. A taxa para esse caso **ainda não está definida**.
+- O app ainda não aplica o prazo de 24 horas: ele é combinado no balcão.
 
 ## 7. Devolução e atraso
 - Devolva a bicicleta no **mesmo ponto** em que retirou, no horário final da reserva.
-- Há **15 minutos de tolerância**. Depois disso, cada hora extra é cobrada pelo preço por hora do tipo, e a hora
-  iniciada conta como hora cheia.
+- O ponto funciona de segunda a sexta, das **08h às 18h**; aos sábados, das **08h às 16h**; e aos domingos,
+  das **08h às 14h**. A retirada só pode ser feita nesses horários, e o app recusa uma retirada fora deles.
+- Se o horário final da reserva cair com o ponto fechado, devolva assim que ele abrir. O atraso passa a contar
+  a partir da abertura. (Regra assumida para o MVP; a locadora real define a definitiva.)
+- Há **15 minutos de tolerância**. Depois disso, cada hora extra de atraso é cobrada pelo preço por hora do
+  tipo, e a hora iniciada conta como hora cheia. A cada 24 horas de atraso, o valor cobrado **não passa de uma
+  diária**.
 
 ## 8. Dano, perda e uso correto
 - Use a bicicleta com cuidado e respeite as regras de trânsito.

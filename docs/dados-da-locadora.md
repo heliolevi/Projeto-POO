@@ -97,10 +97,10 @@ As senhas **não ficam no Git**: vêm de `SEED_ADMIN_SENHA` e `SEED_OPERADOR_SEN
 |---|---|---|
 | Cancelamento | O cliente cancela pelo app enquanto a bicicleta não foi retirada (`POST /api/reservas/{id}/cancelar`) | Contrato |
 | Estorno de reserva paga | Fora do MVP: o cancelamento de reserva já paga é tratado no balcão | Contrato |
-| Prazo para cancelar sem custo | Até 24 horas antes do início (combinado no balcão; o app ainda não aplica esse prazo). Depois do prazo, a taxa ainda **não está definida**: fica para os Termos de uso (T42) | ASSUMIDO |
+| Prazo para cancelar sem custo | Até 24 horas antes do início, sem taxa; reserva já paga é devolvida no balcão (o app ainda não aplica esse prazo nem faz estorno). Com menos de 24 horas, a locadora decide e a taxa **não está definida** | ASSUMIDO |
 | Pagamento | Pix cobra só o aluguel; a reserva sem pagamento expira em 15 minutos | Contrato |
 | Retirada | A partir de 30 minutos antes do início da reserva | Contrato |
-| Atraso na devolução | Tolerância de 15 minutos; depois, cada hora extra pelo preço por hora do tipo. Hora iniciada conta como hora cheia e não há teto por enquanto (a confirmar na T42) | ASSUMIDO |
+| Atraso na devolução | Tolerância de 15 minutos; depois, cada hora extra pelo preço por hora do tipo. Hora iniciada conta como hora cheia e, a cada 24 horas de atraso, o valor não passa de uma diária | ASSUMIDO |
 | Dano ou perda da bicicleta | O custo do conserto ou da reposição é descontado da caução e, se passar dela, cobrado do cliente | ASSUMIDO |
 | Caução | Combinada e paga no balcão na retirada; devolvida na devolução sem problemas | ASSUMIDO |
 
