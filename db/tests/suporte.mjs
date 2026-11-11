@@ -41,7 +41,20 @@ export async function conectar() {
 
   const client = new pg.Client({ connectionString: url });
   await client.connect();
+  await garantirSetRole(client);
   return client;
+}
+
+// No Postgres 16+, quem cria um papel recebe só ADMIN OPTION sobre ele, sem permissão de
+// SET ROLE. Os testes de RLS precisam fazer SET ROLE app_backend, então concedemos o SET
+// ao usuário de teste (idempotente; o papel é NOLOGIN, então não abre nenhum acesso novo).
+async function garantirSetRole(client) {
+  const { rows } = await client.query(
+    `SELECT current_setting('server_version_num')::int >= 160000 AS pg16,
+            EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_backend') AS existe`,
+  );
+  if (!rows[0].pg16 || !rows[0].existe) return;
+  await client.query('GRANT app_backend TO CURRENT_USER WITH SET TRUE');
 }
 
 // Runner mínimo: registra o resultado de cada teste() e decide o código de saída no final.
