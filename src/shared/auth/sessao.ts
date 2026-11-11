@@ -26,6 +26,11 @@ export function lerSessao(): Sessao | null {
   }
 }
 
+export function salvarSessao(token: string): void {
+  // MVP: ver ticket de hardening
+  window.localStorage.setItem(CHAVE_TOKEN, token);
+}
+
 export function limparSessao(): void {
   window.localStorage.removeItem(CHAVE_TOKEN);
 }

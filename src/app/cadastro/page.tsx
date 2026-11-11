@@ -12,6 +12,7 @@ import styles from "@/shared/ui/form.module.css";
 import authStyles from "@/shared/ui/AuthLayout.module.css";
 import { ApiError, postJson, type ResultadoSessao } from "@/shared/http/api-cliente";
 import { cpfValido, maskCpf, somenteDigitos } from "@/shared/format/cpf";
+import { salvarSessao } from "@/shared/auth/sessao";
 
 export default function CadastroPage() {
   const router = useRouter();
@@ -57,7 +58,7 @@ export default function CadastroPage() {
         senha,
         aceiteTermos,
       });
-      localStorage.setItem("bik_token", sessao.token);
+      salvarSessao(sessao.token);
       router.push("/app");
     } catch (erro) {
       if (erro instanceof ApiError) {
