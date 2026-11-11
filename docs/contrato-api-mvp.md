@@ -212,11 +212,14 @@ Grava os dados da recomendação. Substitui os três campos de uma vez. **Existe
 { "alturaCm": 172, "experiencia": "INICIANTE", "atividade": "PASSEIO" }
 ```
 
-Cada campo pode ser `null` (ou ausente) para apagar o dado. `alturaCm`: inteiro de 100 a 250.
+Cada campo pode ser `null` (ou ausente) para apagar o dado. `alturaCm`: inteiro de 100 a 250. O corpo
+precisa trazer **ao menos uma** das três chaves: um corpo `{}`, ou com um nome de campo errado (ex.:
+`"altura"`), recebe `400` em vez de apagar o perfil em silêncio. Para apagar tudo de propósito, envie as
+três chaves como `null`.
 
 **Sucesso `200`:** `{ "data": { "alturaCm": 172, "experiencia": "INICIANTE", "atividade": "PASSEIO" } }`
 
-**Erros:** `400` (`details`: `alturaCm`, `experiencia` ou `atividade`), `401`, `403` (não é cliente), `413`.
+**Erros:** `400` (`details`: `alturaCm`, `experiencia`, `atividade` ou `corpo`), `401`, `403` (não é cliente), `413`.
 
 ### 5. `POST /api/conta/senha`
 

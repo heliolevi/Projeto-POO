@@ -120,6 +120,7 @@ PR ou issue do defeito.
 | CT-CTA-09 | P1 | Várias tentativas de senha com a senha atual errada | 429 até a janela passar; acertar zera a contagem; o limite é por usuário | Auto | Automatizado (`alterar-senha.test.ts`) |
 | CT-CTA-10 | P1 | Nova senha fraca, fora de 8 a 128 ou igual à atual | 400 (a regra "igual à atual" não está no contrato) | Auto | Automatizado (`validacao.test.ts`) |
 | CT-CTA-11 | P0 | `POST /api/conta/altura` como `CLIENTE`, com 172 e com 99 | 204 com 172; 400 com `details.alturaCm` com 99 | Integração | Pendente (o validador de altura já tem teste) |
+| CT-CTA-12 | P1 | `PUT /api/conta/perfil-ciclista` com corpo `{}` ou só com campos que não são do perfil (ex.: `"altura"`) | 400 com `details.corpo`; o perfil não é apagado. Para apagar de propósito, as três chaves vão como `null` | Auto | Automatizado (`perfil-ciclista.test.ts`) |
 | CT-CTA-12 | P0 | `OPERADOR` ou `ADMIN` em `altura` ou `termos` | 403 e nada gravado (antes respondia 204 sem gravar) | Integração | Em revisão (PR #15) |
 | CT-CTA-13 | P0 | `POST /api/conta/termos` com a versão vigente (`2026-11`) e com versão diferente, vazia ou grande demais | 204 com a vigente; 400 nos outros | Integração | Pendente (o validador da versão dos termos já tem teste) |
 | CT-CTA-14 | P0 | `POST /api/conta/desativar` | 204; a conta fica inativa (não é apagada) e o login seguinte recebe 401 | Integração | Pendente |

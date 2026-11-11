@@ -168,6 +168,10 @@ export type DadosPerfilCiclista = {
 
 // PUT /api/conta/perfil-ciclista substitui os três campos de uma vez. Cada um pode vir ausente
 // ou null, e então o dado é apagado. A altura passa pelo mesmo validador da rota de altura.
+// Mas o corpo precisa trazer ao menos uma das três chaves: um `{}` ou um nome de campo errado
+// (ex.: "altura" em vez de "alturaCm") apagaria o perfil inteiro em silêncio, então é 400. Para
+// apagar tudo de propósito, envie as três chaves como null.
+const CAMPOS_DO_PERFIL = ["alturaCm", "experiencia", "atividade"] as const;
 export function validarPerfilCiclista(
   entrada: unknown,
 ): { dados: DadosPerfilCiclista } | { erros: ErrosPorCampo } {
@@ -175,6 +179,13 @@ export function validarPerfilCiclista(
     return { erros: { corpo: "Envie um objeto JSON com alturaCm, experiencia e atividade." } };
   }
   const corpo = entrada as Record<string, unknown>;
+  if (!CAMPOS_DO_PERFIL.some((campo) => campo in corpo)) {
+    return {
+      erros: {
+        corpo: "Envie ao menos um destes campos: alturaCm, experiencia ou atividade (null apaga o dado).",
+      },
+    };
+  }
   const erros: ErrosPorCampo = {};
 
   let alturaCm: number | null = null;
