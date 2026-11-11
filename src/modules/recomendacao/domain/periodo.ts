@@ -1,12 +1,10 @@
 import { ATIVIDADES, ehAtividade, type Atividade } from "./perfil.ts";
-import { horasCobradas } from "./preco.ts";
 
 export type ErrosPorCampo = Record<string, string>;
 
 export type BuscaValidada = {
   inicio: Date;
   fim: Date;
-  horas: number;
   // null quando a query não trouxe: aí vale a atividade preferida do perfil
   atividade: Atividade | null;
 };
@@ -61,5 +59,5 @@ export function validarBusca(
   }
 
   if (Object.keys(erros).length > 0 || !inicio || !fim) return { erros };
-  return { dados: { inicio, fim, horas: horasCobradas(inicio, fim), atividade } };
+  return { dados: { inicio, fim, atividade } };
 }

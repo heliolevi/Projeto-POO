@@ -5,4 +5,9 @@
  * outros módulos ou pelos Route Handlers em src/app/api.
  * Camadas internas: domain → application → infrastructure / http.
  */
-export {};
+export {
+  calcularValorAluguel,
+  horasCobradas,
+  type Periodo,
+  type Precos,
+} from "./domain/preco";

@@ -15,10 +15,10 @@ export {
   type PerfilCiclista,
 } from "./domain/perfil";
 export { validarBusca, type BuscaValidada } from "./domain/periodo";
-export { horasCobradas, valorAluguelCentavos, type Precos } from "./domain/preco";
 export {
   PESOS,
   recomendar,
+  type CalcularValorAluguel,
   type Recomendacao,
   type TipoCandidato,
 } from "./domain/recomendacao";
