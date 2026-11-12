@@ -30,7 +30,7 @@
   background: var(--color-surface-soft);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-text-support);
+  color: var(--color-text-secondary);
 }
 
 .tabela tbody tr + tr td {

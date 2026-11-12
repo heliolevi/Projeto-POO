@@ -9,7 +9,7 @@
 }
 
 .dialogo::backdrop {
-  background: rgba(19, 24, 46, 0.5);
+  background: var(--color-overlay);
 }
 
 .conteudo {
