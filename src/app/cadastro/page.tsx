@@ -160,8 +160,15 @@ export default function CadastroPage() {
               onChange={(e) => setAceiteTermos(e.target.checked)}
             />
             <span className={styles.checkboxLabel}>
-              Li e aceito os <Link href="/termos-de-uso">Termos de Uso</Link> e a{" "}
-              <Link href="/politica-de-privacidade">Política de Privacidade</Link>.
+              Li e concordo com os{" "}
+              <Link href="/termos" target="_blank" rel="noopener noreferrer">
+                Termos de Uso
+              </Link>{" "}
+              e a{" "}
+              <Link href="/privacidade" target="_blank" rel="noopener noreferrer">
+                Política de Privacidade
+              </Link>
+              .
             </span>
           </label>
           {erros.aceiteTermos && (
