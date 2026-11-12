@@ -91,9 +91,36 @@ test("PUT substitui os três campos: o que vem ausente ou null é apagado", asyn
     await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: null, experiencia: null, atividade: null }),
     { alturaCm: null, experiencia: null, atividade: null },
   );
-  assert.deepEqual(await servico.atualizarPerfilCiclista(CLIENTE, {}), {
+});
+
+test("PUT sem nenhuma das três chaves responde 400 e não apaga o perfil (corpo vazio ou campo errado)", async () => {
+  const { servico, gravacoes } = cenario();
+  const perfil = { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" };
+  await servico.atualizarPerfilCiclista(CLIENTE, perfil);
+  const antes = gravacoes.length;
+  // {} e um nome de campo errado ("altura" em vez de "alturaCm") não trazem nenhuma chave do perfil
+  for (const corpo of [{}, { altura: 180 }, { id: CLIENTE }, { Atividade: "TRILHA" }]) {
+    await assert.rejects(
+      servico.atualizarPerfilCiclista(CLIENTE, corpo),
+      (erro: unknown) => {
+        assert.ok(erro instanceof ValidationError, JSON.stringify(corpo));
+        assert.ok((erro.details as Record<string, string>).corpo, JSON.stringify(corpo));
+        return true;
+      },
+    );
+  }
+  assert.equal(gravacoes.length, antes, "nada foi gravado");
+  assert.deepEqual((await servico.consultarConta(CLIENTE)).ciclista, perfil, "o perfil continua igual");
+});
+
+// (apagar tudo de propósito, com as três chaves null, já é coberto pelo teste "PUT substitui os três
+// campos", acima)
+test("basta uma chave presente para o corpo valer; as ausentes continuam sendo apagadas", async () => {
+  const { servico } = cenario();
+  await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" });
+  assert.deepEqual(await servico.atualizarPerfilCiclista(CLIENTE, { experiencia: "AVANCADO" }), {
     alturaCm: null,
-    experiencia: null,
+    experiencia: "AVANCADO",
     atividade: null,
   });
 });
@@ -160,18 +187,67 @@ test("PUT de conta que não é de cliente responde 403 e não grava", async () =
   );
 });
 
-test("campos extras como id e perfil no corpo são ignorados: o alvo é o id do token", async () => {
+test("chave desconhecida ao lado de um campo certo responde 400 e não grava nada (typo não apaga o dado)", async () => {
   const { servico, gravacoes } = cenario();
-  await servico.atualizarPerfilCiclista(CLIENTE, {
-    alturaCm: 170,
-    id: ADMIN,
-    usuarioId: ADMIN,
-    perfil: "ADMIN",
-    nome: "Outro nome",
-  });
+  const perfil = { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" };
+  await servico.atualizarPerfilCiclista(CLIENTE, perfil);
+  const antes = gravacoes.length;
+  // o caso do review do PR #35: "atividde" (typo) junto de um campo certo apagaria a atividade
+  await assert.rejects(
+    servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 180, atividde: "TRILHA" }),
+    (erro: unknown) => {
+      assert.ok(erro instanceof ValidationError);
+      const msg = (erro.details as Record<string, string>).corpo;
+      assert.match(msg, /atividde/, "a mensagem diz qual campo não existe");
+      assert.match(msg, /alturaCm, experiencia e atividade/, "e quais existem");
+      return true;
+    },
+  );
+  assert.equal(gravacoes.length, antes, "nada foi gravado");
+  assert.deepEqual((await servico.consultarConta(CLIENTE)).ciclista, perfil, "o perfil continua igual");
+});
+
+test("id, usuarioId e perfil no corpo também são chaves desconhecidas: 400, e o alvo é sempre o token", async () => {
+  const { servico, gravacoes } = cenario();
+  for (const extra of [{ id: ADMIN }, { usuarioId: ADMIN }, { perfil: "ADMIN" }, { nome: "Outro nome" }]) {
+    await assert.rejects(
+      servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 170, ...extra }),
+      ValidationError,
+      JSON.stringify(extra),
+    );
+  }
+  assert.equal(gravacoes.length, 0, "nada foi gravado, nem na conta do token nem na do id enviado");
+  // sem a chave extra, o mesmo corpo é aceito e grava na conta do token
+  await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 170 });
   assert.equal(gravacoes.length, 1);
   assert.equal(gravacoes[0].id, CLIENTE);
-  assert.deepEqual(Object.keys(gravacoes[0].dados).sort(), ["alturaCm", "atividade", "experiencia"]);
+});
+
+test("o corte do nome da chave não parte um emoji ao meio", async () => {
+  const { servico } = cenario();
+  // 39 letras + 2 emojis: o corte em 40 caracteres cai no meio do segundo emoji se for por unidade UTF-16
+  const chave = "x".repeat(39) + "😀😀";
+  await assert.rejects(servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 170, [chave]: 1 }), (erro: unknown) => {
+    assert.ok(erro instanceof ValidationError);
+    const msg = (erro.details as Record<string, string>).corpo;
+    assert.ok(msg.isWellFormed(), "a mensagem tem um caractere quebrado (surrogate solto)");
+    assert.ok(msg.includes("x".repeat(39) + "😀"), "o primeiro emoji cabe inteiro");
+    assert.ok(!msg.includes("😀😀"), "o segundo passa de 40 caracteres e fica de fora");
+    return true;
+  });
+});
+
+test("a mensagem lista poucas chaves e curtas, mesmo com um corpo cheio de campos desconhecidos", async () => {
+  const { servico } = cenario();
+  const corpo: Record<string, unknown> = { alturaCm: 170 };
+  for (let i = 0; i < 50; i++) corpo[`${"x".repeat(100)}${i}`] = 1;
+  await assert.rejects(servico.atualizarPerfilCiclista(CLIENTE, corpo), (erro: unknown) => {
+    assert.ok(erro instanceof ValidationError);
+    const msg = (erro.details as Record<string, string>).corpo;
+    assert.ok(msg.length < 400, `mensagem grande demais: ${msg.length}`);
+    assert.match(msg, /\.\.\./);
+    return true;
+  });
 });
 
 test("consultarPerfilCiclista devolve só os três dados, e é 403 para quem não é cliente", async () => {
