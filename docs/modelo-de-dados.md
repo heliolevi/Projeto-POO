@@ -293,6 +293,19 @@ que a busca e a recomendação devem calcular `unidadesLivres`, e não por uma c
 livre uma bicicleta já reservada (medido: 190 livres contra 120 reais). A função roda com os direitos
 do dono (`SECURITY DEFINER`) e devolve só contagens, nunca quem reservou.
 
+A função `escolher_unidade_para_reserva(tipo_id, inicio, fim, excluir)` (migration 0010) é o que o
+`POST /api/reservas` usa para escolher a unidade: devolve no máximo uma unidade `DISPONIVEL` do tipo, de
+tipo e ponto ativos, sem reserva ativa sobreposta, fora das unidades de `excluir`, ordenada pelo
+código e com `FOR UPDATE SKIP LOCKED` (a unidade fica travada até o fim da transação, e uma transação
+concorrente pula as travadas). Roda com os direitos do dono (`SECURITY DEFINER`) porque o cliente não
+lê `bicicleta` e não vê as reservas dos outros; sem sessão, não devolve nada. Se duas reservas ainda
+chegarem à mesma unidade, a exclusion constraint recusa (`23P01`) e o backend repete com a unidade em
+`excluir`.
+
+A view `reserva_detalhada` (migration 0010) monta o objeto `reserva` da API (tipo, ponto e último
+pagamento) e é filtrada pela sessão como a política de `reserva`: o cliente vê as próprias, a equipe
+todas, o visitante nenhuma. Não mostra a unidade (o código da bicicleta é só da equipe).
+
 ### `pagamento`
 
 Pix ou cartão pelo Mercado Pago, em centavos. `mp_payment_id` é único, para o mesmo aviso do Mercado
