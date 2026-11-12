@@ -206,7 +206,7 @@ Grava os dados da recomendação. Substitui os três campos de uma vez. **Existe
 | | |
 |---|---|
 | **Quem** | CLIENTE |
-| **Alvo** | sempre a conta do token (um `id` no corpo é ignorado) |
+| **Alvo** | sempre a conta do token (um `id` no corpo não é aceito: veja abaixo) |
 
 **Corpo:**
 
@@ -215,9 +215,12 @@ Grava os dados da recomendação. Substitui os três campos de uma vez. **Existe
 ```
 
 Cada campo pode ser `null` (ou ausente) para apagar o dado. `alturaCm`: inteiro de 100 a 250. O corpo
-precisa trazer **ao menos uma** das três chaves: um corpo `{}`, ou com um nome de campo errado (ex.:
-`"altura"`), recebe `400` em vez de apagar o perfil em silêncio. Para apagar tudo de propósito, envie as
-três chaves como `null`.
+precisa trazer **ao menos uma** das três chaves, e **só elas**: um corpo `{}` ou com um nome de campo
+errado (ex.: `"altura"`), e também um campo certo ao lado de um errado (ex.: `{"alturaCm": 180,
+"atividde": "TRILHA"}`, em que o typo apagaria a atividade), recebem `400` com `details.corpo` dizendo qual
+campo não existe, em vez de apagar o perfil em silêncio. Isso vale para qualquer chave fora das três,
+inclusive `id` e `perfil`: o alvo é sempre a conta do token. Para apagar tudo de propósito, envie as três
+chaves como `null`. Quem consome a rota deve mostrar `details.corpo` quando vier.
 
 **Sucesso `200`:** `{ "data": { "alturaCm": 172, "experiencia": "INICIANTE", "atividade": "PASSEIO" } }`
 
