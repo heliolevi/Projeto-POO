@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
 import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
 import { podeCancelar, type Reserva, type ReservaDetalhada } from "@/shared/reservas/reserva";
+import { ContagemRegressiva } from "@/shared/reservas/ContagemRegressiva";
 import { SeloStatus } from "@/shared/reservas/SeloStatus";
 import styles from "@/shared/reservas/reservas.module.css";
 
@@ -33,6 +34,9 @@ export default function ReservaDetalhePage() {
   const [estado, setEstado] = useState<Estado>({ tipo: "carregando" });
   const [cancelando, setCancelando] = useState(false);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [versao, setVersao] = useState(0);
+  // Prazo de pagamento acabou: busca a reserva de novo para mostrar o status atual (Expirada).
+  const recarregar = useCallback(() => setVersao((atual) => atual + 1), []);
 
   useEffect(() => {
     let ativo = true;
@@ -48,11 +52,15 @@ export default function ReservaDetalhePage() {
     return () => {
       ativo = false;
     };
-  }, [id]);
+  }, [id, versao]);
 
   async function cancelar() {
     if (estado.tipo !== "pronto") return;
-    if (!window.confirm("Tem certeza de que deseja cancelar esta reserva?")) return;
+    const aviso =
+      estado.reserva.status === "CONFIRMADA"
+        ? "Tem certeza de que deseja cancelar esta reserva? O estorno do pagamento não é automático: ele é combinado no balcão da locadora."
+        : "Tem certeza de que deseja cancelar esta reserva?";
+    if (!window.confirm(aviso)) return;
 
     setCancelando(true);
     setErroAcao(null);
@@ -87,7 +95,17 @@ export default function ReservaDetalhePage() {
             <SeloStatus status={estado.reserva.status} />
           </p>
 
-          <p className={styles.aviso}>{MENSAGEM_POR_STATUS[estado.reserva.status]}</p>
+          <p className={styles.aviso}>
+            {MENSAGEM_POR_STATUS[estado.reserva.status]}
+            {estado.reserva.status === "PENDENTE_PAGAMENTO" && (
+              <>
+                <br />
+                <strong>
+                  <ContagemRegressiva expiraEm={estado.reserva.expiraEm} aoExpirar={recarregar} />
+                </strong>
+              </>
+            )}
+          </p>
 
           <dl className={styles.detalhes}>
             <div>
