@@ -48,9 +48,12 @@
 }
 
 .nav {
+  position: sticky;
+  bottom: 0;
   display: flex;
   border-top: 1px solid var(--color-surface-border);
   background: var(--color-surface);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .navItem {
@@ -68,4 +71,10 @@
 
 .navItemActive {
   color: var(--color-primary);
+}
+
+@media (min-width: 768px) {
+  .screen {
+    max-width: 640px;
+  }
 }

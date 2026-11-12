@@ -116,3 +116,29 @@ button {
 input {
   font-family: inherit;
 }
+
+/* Acabamento: foco visível para quem usa teclado, respeito a quem pede menos movimento e
+   campos com 16px no celular (abaixo disso o iOS dá zoom ao focar). */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
