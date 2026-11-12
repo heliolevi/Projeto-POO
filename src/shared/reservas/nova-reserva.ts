@@ -13,8 +13,17 @@ export function linkDaReserva(pedido: PedidoDeReserva): string {
   return `${CAMINHO}?${parametros.toString()}`;
 }
 
+// ISO 8601 completo e com fuso (Z ou ±hh:mm), como a API espera. Data solta ou número não valem.
+const ISO_COM_FUSO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+
 function instanteValido(valor: string): boolean {
-  return !Number.isNaN(new Date(valor).getTime());
+  return ISO_COM_FUSO.test(valor) && !Number.isNaN(new Date(valor).getTime());
+}
+
+/** Primeiro motivo de campo devolvido pela API (`details`), ou a mensagem geral se não houver. */
+export function motivoDoErro(erro: { message: string; details?: Record<string, string> }): string {
+  const primeiro = erro.details ? Object.values(erro.details).find(Boolean) : undefined;
+  return primeiro ?? erro.message;
 }
 
 /** Lê e confere o pedido da URL. `null` se faltar algo ou o período não fizer sentido. */

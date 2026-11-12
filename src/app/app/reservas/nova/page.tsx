@@ -9,6 +9,7 @@ import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cli
 import {
   enderecoDoPonto,
   lerPedidoDaReserva,
+  motivoDoErro,
   type Empresa,
   type PedidoDeReserva,
   type PontoDaEmpresa,
@@ -22,8 +23,8 @@ import { Card } from "@/shared/ui/Card";
 type Estado =
   | { tipo: "carregando" }
   | { tipo: "invalido" }
-  | { tipo: "indisponivel" }
-  | { tipo: "erro"; mensagem: string }
+  | { tipo: "indisponivel"; motivo: "conflito" | "ausente" }
+  | { tipo: "erro"; mensagem: string; trocarHorario: boolean }
   | { tipo: "pronto"; item: Recomendacao; ponto: PontoDaEmpresa | null };
 
 export default function NovaReservaPage() {
@@ -62,7 +63,7 @@ function ResumoDaReserva() {
         setEstado(
           item
             ? { tipo: "pronto", item, ponto: empresa?.pontos[0] ?? null }
-            : { tipo: "indisponivel" },
+            : { tipo: "indisponivel", motivo: "ausente" },
         );
       })
       .catch((erro) => {
@@ -71,8 +72,10 @@ function ResumoDaReserva() {
           tipo: "erro",
           mensagem:
             erro instanceof ApiError
-              ? erro.message
+              ? motivoDoErro(erro)
               : "Não foi possível montar o resumo agora. Tente novamente.",
+          // Erro de campo (ex.: o início já passou): tentar de novo não resolve, só outro horário.
+          trocarHorario: erro instanceof ApiError && Boolean(erro.details),
         });
       });
     return () => {
@@ -85,11 +88,16 @@ function ResumoDaReserva() {
     setErroEnvio(null);
     try {
       const reserva = await postAutenticado<Reserva>("/api/reservas", dados);
-      router.push(`/app/reservas/${reserva.id}/pagamento`);
+      // replace, não push: ao voltar do Pix, o resumo não reaparece com o botão ativo
+      // (um segundo clique criaria outra reserva pendente).
+      router.replace(`/app/reservas/${reserva.id}/pagamento`);
     } catch (erro) {
       if (erro instanceof ApiError && erro.code === "CONFLICT") {
         // Alguém reservou a última unidade enquanto o cliente olhava o resumo.
-        setEstado({ tipo: "indisponivel" });
+        setEstado({ tipo: "indisponivel", motivo: "conflito" });
+      } else if (erro instanceof ApiError && erro.details) {
+        // 400 com motivo de campo (ex.: o início já passou): mostra o motivo e oferece outro horário.
+        setEstado({ tipo: "erro", mensagem: motivoDoErro(erro), trocarHorario: true });
       } else {
         setErroEnvio(
           erro instanceof ApiError
@@ -123,18 +131,37 @@ function ResumoDaReserva() {
       {estado.tipo === "indisponivel" && (
         <Alert
           variant="aviso"
-          title="Essa bicicleta acabou de ser reservada"
+          title={
+            estado.motivo === "conflito"
+              ? "Essa bicicleta acabou de ser reservada"
+              : "Essa bicicleta não está mais disponível nesse período"
+          }
           action={
             <Link href="/app/buscar" className={styles.botaoSecundario}>
               Escolher outra opção
             </Link>
           }
         >
-          Outra pessoa foi mais rápida. Veja as demais bicicletas livres nesse período.
+          {estado.motivo === "conflito"
+            ? "Outra pessoa foi mais rápida. Veja as demais bicicletas livres nesse período."
+            : "Veja as demais bicicletas livres ou escolha outro horário."}
         </Alert>
       )}
 
-      {estado.tipo === "erro" && <Alert variant="erro">{estado.mensagem}</Alert>}
+      {estado.tipo === "erro" && (
+        <Alert
+          variant="erro"
+          action={
+            estado.trocarHorario ? (
+              <Link href="/app/buscar" className={styles.botaoSecundario}>
+                Escolher outro horário
+              </Link>
+            ) : undefined
+          }
+        >
+          {estado.mensagem}
+        </Alert>
+      )}
 
       {estado.tipo === "pronto" && pedido && (
         <>
