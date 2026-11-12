@@ -137,10 +137,13 @@ for (const rota of ROTAS) {
   });
 }
 
-test("o 401 vem antes do 403: sem sessão nem se chega a olhar o perfil", async () => {
+// Quem prova a ORDEM (o 401 antes do 403) são os testes de cima: sem token o resultado é 401, não
+// 403, e o catálogo não é chamado. Este só prova que a sessão é consultada, uma vez por requisição,
+// em todas as rotas do painel (e não, por exemplo, duas vezes ou nenhuma).
+test("cada rota do painel consulta a sessão exatamente uma vez por requisição", async () => {
   const { handlers, consultas } = montar();
   for (const rota of ROTAS) await rota.chamar(handlers, pedido(rota.metodo));
-  assert.equal(consultas(), ROTAS.length, "cada rota do painel consulta a sessão exatamente uma vez");
+  assert.equal(consultas(), ROTAS.length, "uma consulta de sessão por rota, sem repetir nem pular");
 });
 
 test("o id da URL chega ao caso de uso (PUT de tipo e PATCH de bicicleta)", async () => {
