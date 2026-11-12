@@ -1,0 +1,26 @@
+.vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-32) var(--space-16);
+  text-align: center;
+}
+
+.titulo {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.texto {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--color-text-support);
+}
+
+.acao {
+  margin-top: var(--space-8);
+}

@@ -49,7 +49,7 @@ PR ou issue do defeito.
 | Instalação | `npm ci` (nunca `npm install` para validar) |
 | Checagens | `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` |
 | Testes do app | `npm test` na raiz roda só `src/**/*.test.ts` |
-| Testes de banco | `cd db && npm run teste:reserva-e-pagamento`, com PostgreSQL com PostGIS. Rodam na CI (serviço de banco do workflow); localmente precisam de `DATABASE_URL_UNPOOLED`, e o teste de RLS precisa que o dono do banco consiga assumir o papel `app_backend` |
+| Testes de banco | `cd db && npm run teste:banco`, com PostgreSQL com PostGIS. Rodam na CI (serviço de banco do workflow); localmente precisam de `DATABASE_URL_UNPOOLED`, e o teste de RLS precisa que o dono do banco consiga assumir o papel `app_backend` |
 | Banco de desenvolvimento | Branch `dev` do Neon, populado por `db/seeds/dev.sql`. **Nunca** testar no branch `production` fora do combinado com o tech lead |
 | Migrations | `cd db && npm run migrar:simular` antes de aplicar qualquer migration |
 | Pagamentos | Conta de teste (sandbox) do Mercado Pago, ou `PAGAMENTO_MODO=simulado` em desenvolvimento e na demo. Nenhum pagamento real |
@@ -145,7 +145,7 @@ PR ou issue do defeito.
 ### 4.6 Banco de dados, migrations e RLS
 
 Os casos CT-BD-06 a CT-BD-17 e CT-BD-22 a CT-BD-28 correspondem aos testes de `db/tests` (unit, whitebox e
-blackbox), que a CI roda com `npm run teste:reserva-e-pagamento`.
+blackbox), que a CI roda com `npm run teste:banco`.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
@@ -185,7 +185,7 @@ blackbox), que a CI roda com `npm run teste:reserva-e-pagamento`.
 | CT-CAT-01 | P0 | `GET /api/empresa` sem login | 200 só com pontos ativos; nunca CNPJ, razão social, conta de recebimento nem campos de controle | Integração | Aguarda rota |
 | CT-CAT-02 | P0 | `GET /api/catalogo/tipos` sem login | 200 só com tipos ativos, com preços em centavos | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-CAT-03 | P1 | Inativar um tipo | Some do catálogo e das buscas; reservas já feitas continuam visíveis | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
-| CT-ADM-01 | P0 | Rotas `/api/admin/tipos` e `/api/admin/bicicletas` com `CLIENTE`, `OPERADOR` e sem login | 403 para `CLIENTE` e `OPERADOR`; 401 sem login | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-01 | P0 | Rotas `/api/admin/tipos` e `/api/admin/bicicletas` com `CLIENTE`, `OPERADOR` e sem login | 403 para `CLIENTE` e `OPERADOR`; 401 sem login | Integração | Automatizado (`fabrica-handlers.test.ts`, que prova as 6 rotas do painel com o `exigirPerfil` de verdade) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-02 | P0 | `POST /api/admin/tipos` com dados válidos | 201 com o tipo criado | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-03 | P1 | `POST /api/admin/tipos` com nome repetido, sem atividade, altura mínima maior que a máxima, altura fora de 100 a 250, preço negativo ou decimal | 409 para nome repetido; 400 com `details` nos demais | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-04 | P1 | `PUT /api/admin/tipos/{id}` com `ativo: false`, e só com os campos obrigatórios (sem caução, nível, descrição e `ativo`) | O tipo sai do catálogo; não existe exclusão. Sem os opcionais, o PUT mantém os valores atuais (não zera a caução) | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
@@ -242,7 +242,7 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-RES-14 | P0 | Cancelar reserva já retirada, concluída, cancelada ou expirada | 409 | Integração | Aguarda rota |
 | CT-RES-15 | P1 | Mais de 20 reservas por hora do mesmo usuário | 429 | Integração | Aguarda rota |
 | CT-RES-16 | P0 | Rotas de reserva sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para a equipe | Integração | Aguarda rota |
-| CT-RES-17 | P0 | Reservar o mesmo período depois que uma reserva pendente venceu e ninguém a listou | 201 para a nova reserva, sem 409 falso; a pendente vencida vira `EXPIRADA` (`POST /api/reservas` expira ou ignora as vencidas antes de reservar) | Integração | Aguarda rota |
+| CT-RES-17 | P0 | Reservar o mesmo período depois que uma reserva pendente venceu e ninguém a listou | 201 para a nova reserva, sem 409 falso; a pendente vencida vira `EXPIRADA` (`POST /api/reservas` chama `expirar_reservas_vencidas()` antes de reservar: é pré-requisito da task de reservas; a busca de recomendação já faz isso) | Integração | Aguarda rota |
 
 ### 4.10 Pagamentos por Pix (rotas 16 a 18)
 
