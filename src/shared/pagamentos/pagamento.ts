@@ -19,16 +19,22 @@ export type StatusDoPagamento = {
   statusReserva: StatusReserva;
 };
 
-export type SituacaoDoPix = "aguardando" | "confirmado" | "encerrado";
+export type SituacaoDoPix = "aguardando" | "confirmado" | "encerrado" | "pago_sem_reserva";
 
 // Decide o que a tela do Pix faz a cada consulta de status (a cada 3 s).
 export function situacaoDoPix(status: StatusDoPagamento): SituacaoDoPix {
+  const reservaPerdida = status.statusReserva === "EXPIRADA" || status.statusReserva === "CANCELADA";
+
+  // Pagamento tardio: o Pix foi aprovado, mas a reserva já não está ativa. Não é sucesso
+  // (a pessoa não tem bicicleta garantida) nem um simples "prazo terminou" (houve cobrança).
+  // O contrato ainda não diz como a API trata esse caso; confirmar com o back-end.
+  if (status.statusPagamento === "APROVADO" && reservaPerdida) return "pago_sem_reserva";
+
   if (status.statusReserva === "CONFIRMADA" || status.statusPagamento === "APROVADO") {
     return "confirmado";
   }
   if (
-    status.statusReserva === "EXPIRADA" ||
-    status.statusReserva === "CANCELADA" ||
+    reservaPerdida ||
     status.statusPagamento === "RECUSADO" ||
     status.statusPagamento === "EXPIRADO"
   ) {

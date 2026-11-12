@@ -21,6 +21,15 @@ test("confirma quando a reserva fica confirmada ou o pagamento é aprovado", () 
   assert.equal(situacaoDoPix({ ...base, statusPagamento: "APROVADO" }), "confirmado");
 });
 
+test("pagamento aprovado com reserva expirada ou cancelada não é sucesso nem simples encerramento", () => {
+  for (const statusReserva of ["EXPIRADA", "CANCELADA"] as const) {
+    assert.equal(
+      situacaoDoPix({ ...base, statusPagamento: "APROVADO", statusReserva }),
+      "pago_sem_reserva",
+    );
+  }
+});
+
 test("encerra quando a reserva expira ou é cancelada, ou o Pix é recusado ou expira", () => {
   assert.equal(situacaoDoPix({ ...base, statusReserva: "EXPIRADA" }), "encerrado");
   assert.equal(situacaoDoPix({ ...base, statusReserva: "CANCELADA" }), "encerrado");
