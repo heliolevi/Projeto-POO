@@ -124,6 +124,7 @@ PR ou issue do defeito.
 | CT-CTA-13 | P0 | `POST /api/conta/termos` com a versão vigente (`2026-11`) e com versão diferente, vazia ou grande demais | 204 com a vigente; 400 nos outros | Integração | Pendente (o validador da versão dos termos já tem teste) |
 | CT-CTA-14 | P0 | `POST /api/conta/desativar` | 204; a conta fica inativa (não é apagada) e o login seguinte recebe 401 | Integração | Pendente |
 | CT-CTA-15 | P1 | `perfil` e `id` enviados no corpo de altura ou termos | Ignorados | Integração | Em revisão (PR #15) |
+| CT-CTA-16 | P1 | `PUT /api/conta/perfil-ciclista` com corpo `{}` ou só com campos que não são do perfil (ex.: `"altura"`) | 400 com `details.corpo`; o perfil não é apagado. Para apagar de propósito, as três chaves vão como `null` | Auto | Automatizado (`perfil-ciclista.test.ts`) |
 
 ### 4.5 Segurança e infraestrutura
 

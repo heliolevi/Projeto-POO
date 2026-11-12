@@ -91,9 +91,36 @@ test("PUT substitui os três campos: o que vem ausente ou null é apagado", asyn
     await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: null, experiencia: null, atividade: null }),
     { alturaCm: null, experiencia: null, atividade: null },
   );
-  assert.deepEqual(await servico.atualizarPerfilCiclista(CLIENTE, {}), {
+});
+
+test("PUT sem nenhuma das três chaves responde 400 e não apaga o perfil (corpo vazio ou campo errado)", async () => {
+  const { servico, gravacoes } = cenario();
+  const perfil = { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" };
+  await servico.atualizarPerfilCiclista(CLIENTE, perfil);
+  const antes = gravacoes.length;
+  // {} e um nome de campo errado ("altura" em vez de "alturaCm") não trazem nenhuma chave do perfil
+  for (const corpo of [{}, { altura: 180 }, { id: CLIENTE }, { Atividade: "TRILHA" }]) {
+    await assert.rejects(
+      servico.atualizarPerfilCiclista(CLIENTE, corpo),
+      (erro: unknown) => {
+        assert.ok(erro instanceof ValidationError, JSON.stringify(corpo));
+        assert.ok((erro.details as Record<string, string>).corpo, JSON.stringify(corpo));
+        return true;
+      },
+    );
+  }
+  assert.equal(gravacoes.length, antes, "nada foi gravado");
+  assert.deepEqual((await servico.consultarConta(CLIENTE)).ciclista, perfil, "o perfil continua igual");
+});
+
+// (apagar tudo de propósito, com as três chaves null, já é coberto pelo teste "PUT substitui os três
+// campos", acima)
+test("basta uma chave presente para o corpo valer; as ausentes continuam sendo apagadas", async () => {
+  const { servico } = cenario();
+  await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" });
+  assert.deepEqual(await servico.atualizarPerfilCiclista(CLIENTE, { experiencia: "AVANCADO" }), {
     alturaCm: null,
-    experiencia: null,
+    experiencia: "AVANCADO",
     atividade: null,
   });
 });
