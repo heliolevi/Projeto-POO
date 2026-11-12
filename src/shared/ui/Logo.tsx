@@ -26,13 +26,13 @@ export function LogoMark({ size = 32 }: LogoProps) {
   );
 }
 
-type LogoProps = {
+type LogoCompletoProps = {
   withSubtitle?: boolean;
   /** Tag do nome da marca. O padrão é h1; use "span" quando a página já tem o próprio h1. */
   as?: "h1" | "span";
 };
 
-export function Logo({ withSubtitle = false, as: Nome = "h1" }: LogoProps) {
+export function Logo({ withSubtitle = false, as: Nome = "h1" }: LogoCompletoProps) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "var(--space-10)" }}>
       <LogoMark />
