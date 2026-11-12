@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, type FormEvent, useState } from "react";
 import { Button } from "@/shared/ui/Button";
 import { PasswordField } from "@/shared/ui/PasswordField";
 import { TextField } from "@/shared/ui/TextField";
@@ -11,9 +11,20 @@ import { MailIcon } from "@/shared/ui/icons";
 import styles from "@/shared/ui/form.module.css";
 import authStyles from "@/shared/ui/AuthLayout.module.css";
 import { ApiError, postJson, type ResultadoSessao } from "@/shared/http/api-cliente";
+import { destinoSeguro } from "@/shared/auth/destino-seguro";
+import { salvarSessao } from "@/shared/auth/sessao";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const parametros = useSearchParams();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [senhaVisivel, setSenhaVisivel] = useState(false);
@@ -28,8 +39,8 @@ export default function LoginPage() {
     setEnviando(true);
     try {
       const sessao = await postJson<ResultadoSessao>("/api/auth/login", { email, senha });
-      localStorage.setItem("bik_token", sessao.token);
-      router.push("/app");
+      salvarSessao(sessao.token);
+      router.push(destinoSeguro(parametros.get("next")));
     } catch (erro) {
       if (erro instanceof ApiError) {
         if (erro.details) setErros(erro.details);
