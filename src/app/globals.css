@@ -33,6 +33,9 @@
 
   /* Feedback */
   --color-danger: #c0392b;
+  --color-danger-soft: #fdecea;
+  --color-info-soft: #e6f1f8;
+  --color-info-border: #b3d4e8;
 
   /* Tipografia: famílias */
   --font-heading: var(--font-space-grotesk), "Space Grotesk", sans-serif;
