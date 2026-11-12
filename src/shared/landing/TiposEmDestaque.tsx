@@ -74,7 +74,7 @@ export function TiposEmDestaque() {
     <ul className={`${styles.grade} ${styles.grade3}`}>
       {estado.tipos.map((tipo) => (
         <li key={tipo.id}>
-          <Card title={tipo.nome} action={<Badge variant="sucesso">{formatarReais(tipo.precoDiaCentavos)}/dia</Badge>}>
+          <Card className={styles.cartaoDaLista} title={tipo.nome} action={<Badge variant="sucesso">{formatarReais(tipo.precoDiaCentavos)}/dia</Badge>}>
             {tipo.descricao && <p style={{ margin: 0 }}>{tipo.descricao}</p>}
             <p className={styles.precoCartao}>
               <strong>{formatarReais(tipo.precoHoraCentavos)}</strong> por hora

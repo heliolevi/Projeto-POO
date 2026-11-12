@@ -12,7 +12,7 @@ export function LandingHeader() {
   return (
     <header className={styles.cabecalho}>
       <Link href="/" className={styles.logoLink} aria-label="Bike Ilha Club, página inicial">
-        <Logo />
+        <Logo as="span" />
       </Link>
       <nav className={styles.acoesCabecalho} aria-label="Acesso">
         {sessao ? (
