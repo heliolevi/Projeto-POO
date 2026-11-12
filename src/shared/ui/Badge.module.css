@@ -1,0 +1,33 @@
+.badge {
+  display: inline-block;
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.neutro {
+  background: var(--color-surface-lavender);
+  color: var(--color-text);
+}
+
+.sucesso {
+  background: var(--color-mint-badge);
+  color: var(--color-text-on-mint);
+}
+
+.aviso {
+  background: var(--color-surface-sand);
+  color: var(--color-text);
+}
+
+.perigo {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.info {
+  background: var(--color-info-soft);
+  color: var(--color-link-blue);
+}
