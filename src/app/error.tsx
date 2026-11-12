@@ -1,7 +1,7 @@
 "use client";
 
 import { EmptyState } from "@/shared/ui/EmptyState";
-import { Logo } from "@/shared/ui/Logo";
+import { LogoMark } from "@/shared/ui/Logo";
 
 // Rede de segurança: qualquer erro inesperado ao desenhar uma tela cai aqui, em vez da página
 // em branco. A mensagem técnica não é mostrada à pessoa.
@@ -17,9 +17,10 @@ export default function ErroInesperado({ reset }: { error: Error; reset: () => v
       }}
     >
       <div style={{ display: "grid", gap: "var(--space-8)", justifyItems: "center" }}>
-        <Logo />
+        <LogoMark size={40} />
         <EmptyState
           title="Algo deu errado"
+          as="h1"
           action={
             <button
               type="button"

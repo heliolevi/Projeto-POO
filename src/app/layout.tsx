@@ -26,6 +26,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#005F49",
+  // Sem isso o env(safe-area-inset-*) vale sempre 0 e a barra do app não respeita a área
+  // segura do iPhone (a barra de navegação e o cabeçalho usam essas medidas).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
