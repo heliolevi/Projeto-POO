@@ -36,6 +36,12 @@ export function podeCancelar(status: StatusReserva): boolean {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Identificador de reserva vindo da URL. Um texto que não é UUID não pode chegar ao banco (daria
+// erro 22P02 e um 500): para a API ele é só mais uma reserva que não existe, e responde 404.
+export function ehUuid(valor: unknown): valor is string {
+  return typeof valor === "string" && UUID.test(valor);
+}
+
 export type NovaReserva = { tipoId: string; inicio: Date; fim: Date };
 
 // Valida o corpo de POST /api/reservas. Só lê tipoId, inicio e fim: o valor e a unidade são do

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   calcularExpiraEm,
+  ehUuid,
   ehStatusReserva,
   gerarCodigoReserva,
   PRAZO_PAGAMENTO_MS,
@@ -126,4 +127,12 @@ test("sem viés: bytes altos são descartados e todos os 31 caracteres podem sai
   let posicao = 0;
   const codigo = gerarCodigoReserva((n) => Uint8Array.from({ length: n }, () => bytes[posicao++ % bytes.length]));
   assert.equal(codigo, "BIC-" + "23456789".slice(0, 6));
+});
+
+test("ehUuid aceita UUID (qualquer caixa) e recusa o resto", () => {
+  assert.equal(ehUuid(TIPO), true);
+  assert.equal(ehUuid(TIPO.toUpperCase()), true);
+  for (const v of ["", "abc", `${TIPO} `, `${TIPO}0`, null, undefined, 1, {}, [TIPO]]) {
+    assert.equal(ehUuid(v), false, String(v));
+  }
 });
