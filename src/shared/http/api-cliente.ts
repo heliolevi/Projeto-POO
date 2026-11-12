@@ -57,7 +57,9 @@ function cabecalhoAutenticado(): Record<string, string> {
 function sessaoRecusada(): void {
   window.localStorage.removeItem("bik_token");
   const origem = window.location.pathname + window.location.search;
-  window.location.assign(`${window.location.origin}/login?next=${encodeURIComponent(origem)}`);
+  const login = new URL("/login", window.location.origin);
+  login.searchParams.set("next", origem);
+  window.location.assign(login.href);
 }
 
 async function enviarAutenticado<T>(url: string, init: RequestInit): Promise<T> {
