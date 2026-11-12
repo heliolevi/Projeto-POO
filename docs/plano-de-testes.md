@@ -49,7 +49,7 @@ PR ou issue do defeito.
 | Instalação | `npm ci` (nunca `npm install` para validar) |
 | Checagens | `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` |
 | Testes do app | `npm test` na raiz roda só `src/**/*.test.ts` |
-| Testes de banco | `cd db && npm run teste:reserva-e-pagamento`, com PostgreSQL com PostGIS. Rodam na CI (serviço de banco do workflow); localmente precisam de `DATABASE_URL_UNPOOLED`, e o teste de RLS precisa que o dono do banco consiga assumir o papel `app_backend` |
+| Testes de banco | `cd db && npm run teste:banco`, com PostgreSQL com PostGIS. Rodam na CI (serviço de banco do workflow); localmente precisam de `DATABASE_URL_UNPOOLED`, e o teste de RLS precisa que o dono do banco consiga assumir o papel `app_backend` |
 | Banco de desenvolvimento | Branch `dev` do Neon, populado por `db/seeds/dev.sql`. **Nunca** testar no branch `production` fora do combinado com o tech lead |
 | Migrations | `cd db && npm run migrar:simular` antes de aplicar qualquer migration |
 | Pagamentos | Conta de teste (sandbox) do Mercado Pago, ou `PAGAMENTO_MODO=simulado` em desenvolvimento e na demo. Nenhum pagamento real |
@@ -145,7 +145,7 @@ PR ou issue do defeito.
 ### 4.6 Banco de dados, migrations e RLS
 
 Os casos CT-BD-06 a CT-BD-17 e CT-BD-22 a CT-BD-28 correspondem aos testes de `db/tests` (unit, whitebox e
-blackbox), que a CI roda com `npm run teste:reserva-e-pagamento`.
+blackbox), que a CI roda com `npm run teste:banco`.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|

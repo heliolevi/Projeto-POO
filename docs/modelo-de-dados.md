@@ -301,7 +301,12 @@ Pago (webhook) não confirmar um pagamento duas vezes. Não há tabela de plano,
 ### `movimentacao`, `ocorrencia`, `arquivo`, `notificacao` e `auditoria_log`
 
 - **`movimentacao`:** cada retirada e devolução, com o operador, o checklist (lista em `jsonb`) e as
-  fotos. Uma reserva tem no máximo uma retirada e uma devolução.
+  fotos. Uma reserva tem no máximo uma retirada e uma devolução (`UNIQUE (reserva_id, tipo)`).
+  Segurança por linha: só operador e administrador acessam a tabela (leem e escrevem). O cliente
+  não a lê, porque as `observacoes` são anotações internas do atendente; ele lê pela view
+  `movimentacao_cliente`, com as movimentações das próprias reservas, sem `observacoes` nem `operador_id`.
+  **Decisão do MVP:** a disponibilidade da bicicleta vem das reservas (a exclusion constraint). O
+  `bicicleta.status` só marca `MANUTENCAO` ou `BLOQUEADA`; registrar uma movimentação não o altera.
 - **`ocorrencia`:** dano, atraso, furto ou acidente ligados a uma reserva e a uma bicicleta, com o
   valor cobrado se houver.
 - **`arquivo`:** guarda só a chave do arquivo no armazenamento privado; o conteúdo é aberto por URL

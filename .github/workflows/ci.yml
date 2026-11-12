@@ -108,4 +108,4 @@ jobs:
         working-directory: db
         env:
           DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/postgres
-        run: npm run teste:reserva-e-pagamento
+        run: npm run teste:banco
