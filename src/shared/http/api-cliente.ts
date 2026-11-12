@@ -52,12 +52,31 @@ function cabecalhoAutenticado(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// Token recusado pela API (revogado, conta inativa ou expirado): apaga a sessão e leva para o
+// login, guardando a tela atual em ?next= para voltar depois de entrar de novo.
+function sessaoRecusada(): void {
+  window.localStorage.removeItem("bik_token");
+  const origem = window.location.pathname + window.location.search;
+  const login = new URL("/login", window.location.origin);
+  login.searchParams.set("next", origem);
+  window.location.assign(login.href);
+}
+
+async function enviarAutenticado<T>(url: string, init: RequestInit): Promise<T> {
+  try {
+    return await enviar<T>(url, init);
+  } catch (erro) {
+    if (erro instanceof ApiError && erro.code === "UNAUTHORIZED") sessaoRecusada();
+    throw erro;
+  }
+}
+
 export function getAutenticado<T>(url: string): Promise<T> {
-  return enviar<T>(url, { headers: cabecalhoAutenticado() });
+  return enviarAutenticado<T>(url, { headers: cabecalhoAutenticado() });
 }
 
 export function postAutenticado<T>(url: string, corpo: unknown = {}): Promise<T> {
-  return enviar<T>(url, {
+  return enviarAutenticado<T>(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...cabecalhoAutenticado() },
     body: JSON.stringify(corpo),

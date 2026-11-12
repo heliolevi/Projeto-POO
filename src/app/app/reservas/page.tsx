@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
 import { ApiError, getAutenticado } from "@/shared/http/api-cliente";
 import type { Reserva } from "@/shared/reservas/reserva";
+import { ContagemRegressiva } from "@/shared/reservas/ContagemRegressiva";
 import { SeloStatus } from "@/shared/reservas/SeloStatus";
 import styles from "@/shared/reservas/reservas.module.css";
 
@@ -64,6 +65,13 @@ export default function MinhasReservasPage() {
                 </p>
                 <p className={styles.linha}>{reserva.ponto.nome}</p>
                 <p className={styles.linha}>{formatarReais(reserva.valorAluguelCentavos)}</p>
+                {reserva.status === "PENDENTE_PAGAMENTO" && (
+                  <p className={styles.linha}>
+                    <strong>
+                      <ContagemRegressiva expiraEm={reserva.expiraEm} />
+                    </strong>
+                  </p>
+                )}
               </Link>
             </li>
           ))}
