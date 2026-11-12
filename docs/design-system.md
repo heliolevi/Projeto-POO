@@ -148,6 +148,7 @@ props seguem o que o projeto já usa nos componentes de formulário.
 | `Table` | Tabela tipada, com legenda para leitores de tela e rolagem horizontal | `legenda`, `colunas`, `linhas`, `chaveDaLinha`, `vazio` |
 | `Modal` | Janela de diálogo sobre a página (usa o `<dialog>` nativo) | `aberto`, `onFechar`, `titulo`, `rodape` |
 | `EmptyState` | Tela ou lista sem conteúdo, com uma ação sugerida | `title`, `action` |
+| `Documento` | Mostra um texto em Markdown (termos, política) com `Alert` e `Table`; nunca usa HTML cru | `markdown` |
 
 Acessibilidade: `Alert` usa `role="alert"` para erro e aviso e `role="status"` para informação e
 sucesso; `Select` liga o erro ao campo com `aria-describedby`; `Modal` herda foco e camada do

@@ -1,0 +1,38 @@
+.documento {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  line-height: 1.55;
+}
+
+.documento a {
+  color: var(--color-link-blue);
+}
+
+.titulo {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.secao {
+  margin: var(--space-12) 0 0;
+  font-family: var(--font-heading);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.paragrafo {
+  margin: 0;
+}
+
+.lista {
+  margin: 0;
+  padding-left: var(--space-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
