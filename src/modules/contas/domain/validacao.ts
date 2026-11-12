@@ -175,9 +175,11 @@ export type DadosPerfilCiclista = {
 // três chaves como null.
 const CAMPOS_DO_PERFIL = ["alturaCm", "experiencia", "atividade"] as const;
 
-// Os nomes voltam na mensagem de erro; poucos e curtos, para um corpo grande não virar eco.
+// Os nomes voltam na mensagem de erro; poucos e curtos, para um corpo grande não virar eco. O corte
+// é por caractere inteiro (Array.from), e não por unidade UTF-16 (slice): cortar com slice pode partir
+// um emoji ao meio e deixar um caractere quebrado na mensagem.
 function listarChaves(chaves: string[]): string {
-  const nomes = chaves.slice(0, 5).map((c) => c.slice(0, 40));
+  const nomes = chaves.slice(0, 5).map((c) => Array.from(c).slice(0, 40).join(""));
   return nomes.join(", ") + (chaves.length > nomes.length ? ", ..." : "");
 }
 

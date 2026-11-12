@@ -223,6 +223,20 @@ test("id, usuarioId e perfil no corpo também são chaves desconhecidas: 400, e 
   assert.equal(gravacoes[0].id, CLIENTE);
 });
 
+test("o corte do nome da chave não parte um emoji ao meio", async () => {
+  const { servico } = cenario();
+  // 39 letras + 2 emojis: o corte em 40 caracteres cai no meio do segundo emoji se for por unidade UTF-16
+  const chave = "x".repeat(39) + "😀😀";
+  await assert.rejects(servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 170, [chave]: 1 }), (erro: unknown) => {
+    assert.ok(erro instanceof ValidationError);
+    const msg = (erro.details as Record<string, string>).corpo;
+    assert.ok(msg.isWellFormed(), "a mensagem tem um caractere quebrado (surrogate solto)");
+    assert.ok(msg.includes("x".repeat(39) + "😀"), "o primeiro emoji cabe inteiro");
+    assert.ok(!msg.includes("😀😀"), "o segundo passa de 40 caracteres e fica de fora");
+    return true;
+  });
+});
+
 test("a mensagem lista poucas chaves e curtas, mesmo com um corpo cheio de campos desconhecidos", async () => {
   const { servico } = cenario();
   const corpo: Record<string, unknown> = { alturaCm: 170 };
