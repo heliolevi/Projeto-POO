@@ -75,6 +75,14 @@ export function getAutenticado<T>(url: string): Promise<T> {
   return enviarAutenticado<T>(url, { headers: cabecalhoAutenticado() });
 }
 
+export function putAutenticado<T>(url: string, corpo: unknown): Promise<T> {
+  return enviarAutenticado<T>(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...cabecalhoAutenticado() },
+    body: JSON.stringify(corpo),
+  });
+}
+
 export function postAutenticado<T>(url: string, corpo: unknown = {}): Promise<T> {
   return enviarAutenticado<T>(url, {
     method: "POST",
