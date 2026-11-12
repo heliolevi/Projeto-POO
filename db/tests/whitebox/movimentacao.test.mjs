@@ -46,7 +46,7 @@ await rodarSuite('whitebox/movimentacao', async (executor, client) => {
     assert(t.relrowsecurity === true, 'movimentacao deveria ter ROW LEVEL SECURITY habilitada');
   });
 
-  await teste('as políticas: equipe escreve, cliente só lê pela reserva', async () => {
+  await teste('as políticas: só a equipe acessa a tabela (o cliente lê pela view)', async () => {
     const { rows } = await client.query(
       `SELECT policyname, cmd, qual FROM pg_policies WHERE tablename = 'movimentacao'`,
     );
@@ -56,16 +56,27 @@ await rodarSuite('whitebox/movimentacao', async (executor, client) => {
       porNome.movimentacao_equipe.qual.includes('OPERADOR') && porNome.movimentacao_equipe.qual.includes('ADMIN'),
       `movimentacao_equipe deveria liberar OPERADOR e ADMIN: ${porNome.movimentacao_equipe.qual}`,
     );
-    assert(porNome.movimentacao_cliente_le, 'faltou a política movimentacao_cliente_le');
-    assert(
-      porNome.movimentacao_cliente_le.cmd === 'SELECT',
-      `movimentacao_cliente_le deveria ser só de leitura, é ${porNome.movimentacao_cliente_le.cmd}`,
+    assert(rows.length === 1, `só a política da equipe deveria existir, há: ${rows.map((r) => r.policyname)}`);
+  });
+
+  await teste('a view movimentacao_cliente não expõe observacoes nem operador_id', async () => {
+    const { rows } = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'movimentacao_cliente'`,
     );
+    const colunas = rows.map((r) => r.column_name).sort();
     assert(
-      porNome.movimentacao_cliente_le.qual.includes('reserva') &&
-        porNome.movimentacao_cliente_le.qual.includes('sessao_usuario_id'),
-      `movimentacao_cliente_le deveria olhar a reserva ligada: ${porNome.movimentacao_cliente_le.qual}`,
+      colunas.join(',') === 'checklist,data_hora,id,reserva_id,tipo',
+      `colunas inesperadas na view: ${colunas}`,
     );
+  });
+
+  await teste('app_backend só tem SELECT em movimentacao_cliente', async () => {
+    const { rows } = await client.query(
+      `SELECT privilege_type FROM information_schema.role_table_grants
+       WHERE grantee = 'app_backend' AND table_name = 'movimentacao_cliente'`,
+    );
+    const privilegios = rows.map((r) => r.privilege_type);
+    assert(privilegios.length === 1 && privilegios[0] === 'SELECT', `privilégios inesperados: ${privilegios}`);
   });
 
   await teste('app_backend tem SELECT/INSERT/UPDATE, sem DELETE, em movimentacao', async () => {

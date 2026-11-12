@@ -32,8 +32,11 @@ COMMENT ON COLUMN movimentacao.checklist IS 'Lista (jsonb array) com os itens co
 -- ---------------------------------------------------------------------------
 -- Segurança por linha
 --
--- Operador e administrador: leem e escrevem tudo. Cliente: só lê as movimentações das
--- próprias reservas (movimentacao não tem cliente_id) e nunca escreve.
+-- Operador e administrador: leem e escrevem tudo na tabela. O cliente NÃO acessa a tabela: as
+-- observacoes são anotações internas do atendente. Ele lê só pela view movimentacao_cliente
+-- (abaixo), com as movimentações das próprias reservas, sem observacoes nem operador_id, e
+-- nunca escreve. O app usa o mesmo papel (app_backend) para todos os perfis, então esconder uma
+-- coluna só do cliente não cabe em GRANT por coluna; por isso a view.
 -- ---------------------------------------------------------------------------
 ALTER TABLE movimentacao ENABLE ROW LEVEL SECURITY;
 
@@ -41,18 +44,26 @@ CREATE POLICY movimentacao_equipe ON movimentacao
   USING (sessao_perfil() IN ('OPERADOR', 'ADMIN'))
   WITH CHECK (sessao_perfil() IN ('OPERADOR', 'ADMIN'));
 
-CREATE POLICY movimentacao_cliente_le ON movimentacao FOR SELECT
-  USING (
-    sessao_perfil() = 'CLIENTE'
-    AND EXISTS (SELECT 1 FROM reserva r WHERE r.id = movimentacao.reserva_id AND r.cliente_id = sessao_usuario_id())
-  );
+-- Leitura do cliente. A view roda com os direitos do dono (passa por cima da RLS da tabela), e o
+-- próprio WHERE limita às movimentações das reservas da sessão. Sem sessão de CLIENTE, 0 linhas.
+CREATE VIEW movimentacao_cliente AS
+  SELECT m.id, m.reserva_id, m.tipo, m.data_hora, m.checklist
+  FROM movimentacao m
+  JOIN reserva r ON r.id = m.reserva_id
+  WHERE sessao_perfil() = 'CLIENTE'
+    AND r.cliente_id = sessao_usuario_id();
+
+COMMENT ON VIEW movimentacao_cliente IS 'Movimentações das reservas do cliente da sessão, sem observacoes (internas) nem operador_id.';
 
 -- Sem DELETE: uma movimentação registrada não é apagada.
 GRANT SELECT, INSERT, UPDATE ON movimentacao TO app_backend;
+GRANT SELECT ON movimentacao_cliente TO app_backend;
 
 -- migrate:down
 
+REVOKE SELECT ON movimentacao_cliente FROM app_backend;
 REVOKE SELECT, INSERT, UPDATE ON movimentacao FROM app_backend;
 
+DROP VIEW IF EXISTS movimentacao_cliente;
 DROP TABLE IF EXISTS movimentacao;
 DROP TYPE IF EXISTS tipo_movimentacao;

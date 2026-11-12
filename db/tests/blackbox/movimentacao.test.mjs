@@ -19,7 +19,7 @@ await rodarSuite('blackbox/movimentacao', async (executor, client) => {
   const reservaB = await criarReserva(client, ctx, {
     clienteId: ctx.clienteBId, inicio: '2026-06-02T10:00:00Z', fim: '2026-06-02T12:00:00Z',
   });
-  const movA = await criarMovimentacao(client, reservaA, operadorId);
+  const movA = await criarMovimentacao(client, reservaA, operadorId, { observacoes: 'nota interna do atendente' });
   const movB = await criarMovimentacao(client, reservaB, operadorId);
 
   try {
@@ -45,19 +45,52 @@ await rodarSuite('blackbox/movimentacao', async (executor, client) => {
     }
   }
 
-  const ver = async () => {
-    const { rows } = await client.query('SELECT id FROM movimentacao WHERE id IN ($1, $2)', [movA, movB]);
+  const ver = async (fonte = 'movimentacao') => {
+    const { rows } = await client.query(`SELECT id FROM ${fonte} WHERE id IN ($1, $2)`, [movA, movB]);
     return rows.map((r) => r.id);
   };
+  const verPelaView = () => ver('movimentacao_cliente');
 
-  await teste('o cliente A vê só a movimentação da própria reserva', async () => {
-    const vistas = await como('CLIENTE', ctx.clienteAId, ver);
+  await teste('o cliente A vê só a movimentação da própria reserva (pela view)', async () => {
+    const vistas = await como('CLIENTE', ctx.clienteAId, verPelaView);
     assert(vistas.length === 1 && vistas[0] === movA, 'o cliente A deveria ver só a própria movimentação');
   });
 
-  await teste('o cliente B vê só a movimentação da própria reserva', async () => {
-    const vistas = await como('CLIENTE', ctx.clienteBId, ver);
+  await teste('o cliente B vê só a movimentação da própria reserva (pela view)', async () => {
+    const vistas = await como('CLIENTE', ctx.clienteBId, verPelaView);
     assert(vistas.length === 1 && vistas[0] === movB, 'o cliente B deveria ver só a própria movimentação');
+  });
+
+  await teste('o cliente não lê a tabela movimentacao (observacoes são internas)', async () => {
+    const vistas = await como('CLIENTE', ctx.clienteAId, () => ver());
+    assert(vistas.length === 0, 'o cliente não deveria ver nenhuma linha da tabela movimentacao');
+  });
+
+  await teste('a view do cliente não tem observacoes nem operador_id', () =>
+    como('CLIENTE', ctx.clienteAId, async () => {
+      for (const coluna of ['observacoes', 'operador_id']) {
+        await comSavepoint(() => esperarErro(
+          () => client.query(`SELECT ${coluna} FROM movimentacao_cliente`),
+          '42703',
+        ));
+      }
+    }));
+
+  // A view tem JOIN, então o PostgreSQL já a trata como não atualizável (55000); o whitebox
+  // confirma que app_backend também não tem UPDATE nela.
+  await teste('o cliente não escreve pela view', () =>
+    como('CLIENTE', ctx.clienteAId, () =>
+      comSavepoint(() => esperarErro(
+        () => client.query(`UPDATE movimentacao_cliente SET tipo = 'DEVOLUCAO' WHERE id = $1`, [movA]),
+        '55000',
+      ))));
+
+  await teste('operador e admin leem as observacoes na tabela', async () => {
+    for (const perfil of ['OPERADOR', 'ADMIN']) {
+      const { rows } = await como(perfil, operadorId, () =>
+        client.query('SELECT observacoes FROM movimentacao WHERE id = $1', [movA]));
+      assert(rows[0]?.observacoes === 'nota interna do atendente', `${perfil} deveria ler as observacoes`);
+    }
   });
 
   await teste('operador e admin veem todas as movimentações', async () => {
@@ -68,8 +101,10 @@ await rodarSuite('blackbox/movimentacao', async (executor, client) => {
   });
 
   await teste('visitante não vê movimentações', async () => {
-    const vistas = await como('VISITANTE', null, ver);
-    assert(vistas.length === 0, 'visitante não deveria ver nenhuma movimentação');
+    for (const fonte of ['movimentacao', 'movimentacao_cliente']) {
+      const vistas = await como('VISITANTE', null, () => ver(fonte));
+      assert(vistas.length === 0, `visitante não deveria ver nada em ${fonte}`);
+    }
   });
 
   await teste('o cliente não consegue registrar uma movimentação', () =>
