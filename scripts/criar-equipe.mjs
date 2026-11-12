@@ -7,7 +7,8 @@
 // do app (scrypt), então o login aceita a senha. Nada disso é impresso nem gravado em arquivo.
 //
 // Lê do ambiente, do .env.local ou do .env na raiz do projeto:
-//   DATABASE_URL_UNPOOLED   conexão direta com o banco (a mesma das migrations)
+//   DATABASE_URL_UNPOOLED   conexão direta com o banco (a mesma das migrations). Só esta variável:
+//                           o script nunca usa DATABASE_URL, para não gravar num banco por engano.
 //
 // O script mostra o host do banco e pede uma confirmação antes de gravar: confira se é o banco certo.
 // Em production, só rode com a autorização do tech lead.
@@ -27,7 +28,8 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const SENHA_MIN = 8;
 const SENHA_MAX = 128;
 
-// As regras abaixo são as mesmas do cadastro (src/modules/contas/domain/validacao.ts).
+// As regras abaixo são as mesmas do cadastro (src/modules/contas/domain/validacao.ts). Lá elas ficam
+// dentro de validarCadastro, que exige CPF e aceite de termos, por isso são repetidas aqui.
 
 export function validarPerfil(entrada) {
   const perfil = entrada.trim().toUpperCase();
@@ -74,8 +76,11 @@ function carregarEnv(caminho) {
 }
 
 // Pergunta no terminal. No modo oculto, o que é digitado não aparece na tela.
+class Cancelado extends Error {}
+
 function criarPerguntador() {
   let oculto = false;
+  let rejeitarPendente = null;
   const saida = new Writable({
     write(trecho, codificacao, pronto) {
       if (!oculto) process.stdout.write(trecho, codificacao);
@@ -83,18 +88,32 @@ function criarPerguntador() {
     },
   });
   const leitor = createInterface({ input: process.stdin, output: saida, terminal: true });
+  // Ctrl+C e Ctrl+D fecham o leitor no meio da pergunta; sem isto a promessa ficaria pendente e o
+  // processo sairia sem dizer nada.
+  leitor.on('SIGINT', () => leitor.close());
+  leitor.on('close', () => rejeitarPendente?.(new Cancelado()));
+  const ler = (texto) =>
+    new Promise((resolve, reject) => {
+      rejeitarPendente = reject;
+      leitor.question(texto).then(resolve, reject);
+    }).finally(() => {
+      rejeitarPendente = null;
+    });
   return {
     async perguntar(texto) {
       oculto = false;
-      return leitor.question(texto);
+      return ler(texto);
     },
     async perguntarOculto(texto) {
       process.stdout.write(texto);
       oculto = true;
-      const resposta = await leitor.question('');
-      oculto = false;
-      process.stdout.write('\n');
-      return resposta;
+      try {
+        const resposta = await ler('');
+        process.stdout.write('\n');
+        return resposta;
+      } finally {
+        oculto = false;
+      }
     },
     fechar() {
       leitor.close();
@@ -130,7 +149,7 @@ async function main() {
   carregarEnv(join(raiz, '.env.local'));
   carregarEnv(join(raiz, '.env'));
 
-  const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
+  const url = process.env.DATABASE_URL_UNPOOLED;
   if (!url) {
     console.error('Defina DATABASE_URL_UNPOOLED no .env.local ou no .env.');
     process.exit(1);
@@ -187,6 +206,12 @@ async function main() {
     if (perfil === 'OPERADOR') {
       const { rows } = await client.query('SELECT id FROM ponto WHERE ativo');
       if (rows.length === 1) pontoId = rows[0].id;
+      else {
+        console.log(
+          `Aviso: há ${rows.length} pontos de retirada ativos, então o operador será criado SEM ponto. ` +
+            'Ligue-o a um ponto antes de ele usar a operação de retirada.',
+        );
+      }
     }
     const { rows } = await client.query(
       `INSERT INTO usuario (perfil, nome, email, senha_hash, ativo, ponto_id)
@@ -210,6 +235,10 @@ async function main() {
 // Só roda quando chamado direto (npm run criar-equipe), para os validadores poderem ser importados.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((erro) => {
+    if (erro instanceof Cancelado) {
+      console.error('\nCancelado. Nada foi gravado.');
+      process.exit(1);
+    }
     // só a mensagem: nada de pilha de chamadas com valores digitados
     console.error('Falhou, nada foi gravado:', erro.message);
     process.exit(1);
