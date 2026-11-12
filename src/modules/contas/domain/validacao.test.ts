@@ -106,13 +106,13 @@ test("validarAlterarSenha limita o tamanho da senha atual", () => {
 });
 
 test("validarAceiteTermos exige a versão vigente", () => {
-  assert.ok("erros" in validarAceiteTermos({}, "2026-10"));
-  assert.ok("erros" in validarAceiteTermos({ versao: "   " }, "2026-10"));
-  assert.ok("erros" in validarAceiteTermos({ versao: "x".repeat(10_000) }, "2026-10"));
-  const antiga = validarAceiteTermos({ versao: "2025-01" }, "2026-10");
+  assert.ok("erros" in validarAceiteTermos({}, "2026-11"));
+  assert.ok("erros" in validarAceiteTermos({ versao: "   " }, "2026-11"));
+  assert.ok("erros" in validarAceiteTermos({ versao: "x".repeat(10_000) }, "2026-11"));
+  const antiga = validarAceiteTermos({ versao: "2025-01" }, "2026-11");
   assert.ok("erros" in antiga);
-  assert.match(antiga.erros.versao, /2026-10/);
-  const r = validarAceiteTermos({ versao: " 2026-10 " }, "2026-10");
+  assert.match(antiga.erros.versao, /2026-11/);
+  const r = validarAceiteTermos({ versao: " 2026-11 " }, "2026-11");
   assert.ok("dados" in r);
-  assert.equal(r.dados, "2026-10");
+  assert.equal(r.dados, "2026-11");
 });

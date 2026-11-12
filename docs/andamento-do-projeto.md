@@ -123,7 +123,7 @@ limitador agora é aguardada, em vez de rodar solta.
 | Decidir idade mínima para alugar, confirmação de e-mail e a mensagem de e-mail ou CPF já cadastrado | Equipe | Achado 8 do relatório |
 | ~~Combinar o que o operador pode ver das finanças da locadora~~ | Cancelada | Deixa de existir com uma única locadora (sem comissão nem repasse) |
 | Usar `exigirSessao` e `comSessao` nas rotas dos próximos módulos | Hélio e demais desenvolvedores | Já estão prontos, mas ainda nenhuma rota os usa |
-| Chamar `expirar_reservas_vencidas()` antes de listar reservas e agendar uma chamada periódica | Hélio e demais desenvolvedores | Sem isso, reservas pendentes só expiram quando alguém consulta |
+| Chamar `expirar_reservas_vencidas()` antes de **criar** e de listar reservas e agendar uma chamada periódica | Hélio e demais desenvolvedores | **Pré-requisito da task de reservas** (CT-RES-17): a exclusion constraint só libera a pendente vencida quando o status muda, então sem isso `POST /api/reservas` daria 409 falso. A busca de recomendação (`GET /api/recomendacao`) já a chama antes de contar as unidades livres |
 | Calcular `unidadesLivres` da recomendação com `unidades_livres_por_tipo()` e não com consulta direta | Hélio e demais desenvolvedores | A consulta direta fica errada para o cliente por causa da RLS |
 | Conferir no Neon `dev`, antes de aplicar a 0008: `SELECT count(*) FROM reserva WHERE upper_inf(periodo) OR lower_inf(periodo)` | Tech lead | Se der mais que 0, corrigir essas linhas antes; a constraint `reserva_periodo_finito` as recusaria |
 | Nova validação quando reservas, pagamentos e catálogo existirem | William | A regra de reservas sobrepostas, o isolamento entre clientes (RLS por cliente) e o Mercado Pago ainda não foram validados |

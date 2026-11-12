@@ -104,7 +104,7 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 8 | `POST /api/conta/desativar` | Logado | existe (PR do Renan) | Renan | Luis |
 | 9 | `GET /api/empresa` | Visitante | novo | Hélio | Renan |
 | 10 | `GET /api/catalogo/tipos` | Visitante | existe | Hélio | Renan |
-| 11 | `GET /api/recomendacao` | CLIENTE | novo | Hélio | Renan |
+| 11 | `GET /api/recomendacao` | CLIENTE | existe | Hélio | Renan |
 | 12 | `POST /api/reservas` | CLIENTE | novo | Luis | Renan |
 | 13 | `GET /api/reservas` | CLIENTE | novo | Luis | Renan |
 | 14 | `GET /api/reservas/{id}` | CLIENTE | novo | Luis | Renan |
@@ -204,7 +204,7 @@ Grava os dados da recomendação. Substitui os três campos de uma vez. **Existe
 | | |
 |---|---|
 | **Quem** | CLIENTE |
-| **Alvo** | sempre a conta do token (um `id` no corpo é ignorado) |
+| **Alvo** | sempre a conta do token (um `id` no corpo não é aceito: veja abaixo) |
 
 **Corpo:**
 
@@ -212,11 +212,17 @@ Grava os dados da recomendação. Substitui os três campos de uma vez. **Existe
 { "alturaCm": 172, "experiencia": "INICIANTE", "atividade": "PASSEIO" }
 ```
 
-Cada campo pode ser `null` (ou ausente) para apagar o dado. `alturaCm`: inteiro de 100 a 250.
+Cada campo pode ser `null` (ou ausente) para apagar o dado. `alturaCm`: inteiro de 100 a 250. O corpo
+precisa trazer **ao menos uma** das três chaves, e **só elas**: um corpo `{}` ou com um nome de campo
+errado (ex.: `"altura"`), e também um campo certo ao lado de um errado (ex.: `{"alturaCm": 180,
+"atividde": "TRILHA"}`, em que o typo apagaria a atividade), recebem `400` com `details.corpo` dizendo qual
+campo não existe, em vez de apagar o perfil em silêncio. Isso vale para qualquer chave fora das três,
+inclusive `id` e `perfil`: o alvo é sempre a conta do token. Para apagar tudo de propósito, envie as três
+chaves como `null`. Quem consome a rota deve mostrar `details.corpo` quando vier.
 
 **Sucesso `200`:** `{ "data": { "alturaCm": 172, "experiencia": "INICIANTE", "atividade": "PASSEIO" } }`
 
-**Erros:** `400` (`details`: `alturaCm`, `experiencia` ou `atividade`), `401`, `403` (não é cliente), `413`.
+**Erros:** `400` (`details`: `alturaCm`, `experiencia`, `atividade` ou `corpo`), `401`, `403` (não é cliente), `413`.
 
 ### 5. `POST /api/conta/senha`
 
@@ -517,7 +523,9 @@ fica vazia e `ativo` vale `true`. Atividades repetidas viram uma só, e o nome p
 Substitui os dados do tipo (mesmo corpo e mesmas regras da rota 20). Os campos obrigatórios são
 substituídos; os **opcionais que não vierem no corpo** (`descricao`, `nivelRecomendado`,
 `valorCaucaoCentavos` e `ativo`) **mantêm o valor atual**, então quem só quer mudar o preço não zera a
-caução nem reativa um tipo inativo sem querer. Para apagar a descrição, envie `"descricao": null`. Para
+caução nem reativa um tipo inativo sem querer. Para apagar a descrição, envie `"descricao": null`. Em
+`nivelRecomendado` e `valorCaucaoCentavos`, `null` e ausente têm o mesmo efeito (mantêm o valor atual),
+porque esses dois campos não aceitam vazio. Para
 tirar um tipo do catálogo, envie `"ativo": false` (não há exclusão). Um `id` que não é UUID recebe `404`. **Quem:** ADMIN. **Sucesso `200`:** o tipo atualizado.
 **Erros:** `400`, `401`, `403`, `404`, `409`, `413`.
 
