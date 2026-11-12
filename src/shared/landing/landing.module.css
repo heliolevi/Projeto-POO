@@ -1,0 +1,212 @@
+.pagina {
+  min-height: 100dvh;
+  background: var(--color-bg-lavender);
+  color: var(--color-text);
+}
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-24);
+}
+
+.logoLink {
+  text-decoration: none;
+}
+
+.acoesCabecalho {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.linkTexto {
+  color: var(--color-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.linkTexto:hover {
+  text-decoration: underline;
+}
+
+.botao {
+  display: inline-block;
+  padding: var(--space-12) var(--space-20);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-surface);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+  text-decoration: none;
+}
+
+.botao:hover {
+  opacity: 0.92;
+}
+
+.botaoSecundario {
+  display: inline-block;
+  padding: var(--space-12) var(--space-20);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+  text-decoration: none;
+}
+
+.botaoSecundario:hover {
+  background: var(--color-surface-soft);
+}
+
+.heroi {
+  background: linear-gradient(135deg, var(--color-surface-sand), var(--color-surface-lavender));
+}
+
+.heroiConteudo {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: var(--space-48) var(--space-24);
+  display: grid;
+  gap: var(--space-16);
+}
+
+.selo {
+  justify-self: start;
+  padding: var(--space-4) var(--space-12);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-orange-dark);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.titulo {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 32px;
+  line-height: 1.15;
+  font-weight: var(--font-weight-bold);
+  max-width: 18ch;
+}
+
+.subtitulo {
+  margin: 0;
+  max-width: 52ch;
+  font-size: var(--font-size-lg);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.chamadas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  margin-top: var(--space-8);
+}
+
+.preco {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+}
+
+.secao {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: var(--space-32) var(--space-24);
+}
+
+.secaoTitulo {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-heading);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.secaoTexto {
+  margin: 0 0 var(--space-20);
+  color: var(--color-text-support);
+  font-size: var(--font-size-md);
+}
+
+.grade {
+  display: grid;
+  gap: var(--space-16);
+  grid-template-columns: 1fr;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--color-mint-badge);
+  color: var(--color-text-on-mint);
+  font-weight: var(--font-weight-bold);
+}
+
+.etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin-top: var(--space-8);
+}
+
+.precoCartao {
+  margin: var(--space-8) 0 0;
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+}
+
+.listaSimples {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.rodape {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: var(--space-24);
+  border-top: 1px solid var(--color-surface-border);
+  color: var(--color-text-support);
+  font-size: var(--font-size-sm);
+}
+
+@media (min-width: 720px) {
+  .titulo {
+    font-size: 44px;
+  }
+
+  .heroiConteudo {
+    padding: 80px var(--space-24);
+  }
+
+  .grade3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .grade2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
