@@ -187,18 +187,53 @@ test("PUT de conta que não é de cliente responde 403 e não grava", async () =
   );
 });
 
-test("campos extras como id e perfil no corpo são ignorados: o alvo é o id do token", async () => {
+test("chave desconhecida ao lado de um campo certo responde 400 e não grava nada (typo não apaga o dado)", async () => {
   const { servico, gravacoes } = cenario();
-  await servico.atualizarPerfilCiclista(CLIENTE, {
-    alturaCm: 170,
-    id: ADMIN,
-    usuarioId: ADMIN,
-    perfil: "ADMIN",
-    nome: "Outro nome",
-  });
+  const perfil = { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" };
+  await servico.atualizarPerfilCiclista(CLIENTE, perfil);
+  const antes = gravacoes.length;
+  // o caso do review do PR #35: "atividde" (typo) junto de um campo certo apagaria a atividade
+  await assert.rejects(
+    servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 180, atividde: "TRILHA" }),
+    (erro: unknown) => {
+      assert.ok(erro instanceof ValidationError);
+      const msg = (erro.details as Record<string, string>).corpo;
+      assert.match(msg, /atividde/, "a mensagem diz qual campo não existe");
+      assert.match(msg, /alturaCm, experiencia e atividade/, "e quais existem");
+      return true;
+    },
+  );
+  assert.equal(gravacoes.length, antes, "nada foi gravado");
+  assert.deepEqual((await servico.consultarConta(CLIENTE)).ciclista, perfil, "o perfil continua igual");
+});
+
+test("id, usuarioId e perfil no corpo também são chaves desconhecidas: 400, e o alvo é sempre o token", async () => {
+  const { servico, gravacoes } = cenario();
+  for (const extra of [{ id: ADMIN }, { usuarioId: ADMIN }, { perfil: "ADMIN" }, { nome: "Outro nome" }]) {
+    await assert.rejects(
+      servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 170, ...extra }),
+      ValidationError,
+      JSON.stringify(extra),
+    );
+  }
+  assert.equal(gravacoes.length, 0, "nada foi gravado, nem na conta do token nem na do id enviado");
+  // sem a chave extra, o mesmo corpo é aceito e grava na conta do token
+  await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 170 });
   assert.equal(gravacoes.length, 1);
   assert.equal(gravacoes[0].id, CLIENTE);
-  assert.deepEqual(Object.keys(gravacoes[0].dados).sort(), ["alturaCm", "atividade", "experiencia"]);
+});
+
+test("a mensagem lista poucas chaves e curtas, mesmo com um corpo cheio de campos desconhecidos", async () => {
+  const { servico } = cenario();
+  const corpo: Record<string, unknown> = { alturaCm: 170 };
+  for (let i = 0; i < 50; i++) corpo[`${"x".repeat(100)}${i}`] = 1;
+  await assert.rejects(servico.atualizarPerfilCiclista(CLIENTE, corpo), (erro: unknown) => {
+    assert.ok(erro instanceof ValidationError);
+    const msg = (erro.details as Record<string, string>).corpo;
+    assert.ok(msg.length < 400, `mensagem grande demais: ${msg.length}`);
+    assert.match(msg, /\.\.\./);
+    return true;
+  });
 });
 
 test("consultarPerfilCiclista devolve só os três dados, e é 403 para quem não é cliente", async () => {

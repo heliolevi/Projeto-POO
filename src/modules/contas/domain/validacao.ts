@@ -168,10 +168,19 @@ export type DadosPerfilCiclista = {
 
 // PUT /api/conta/perfil-ciclista substitui os três campos de uma vez. Cada um pode vir ausente
 // ou null, e então o dado é apagado. A altura passa pelo mesmo validador da rota de altura.
-// Mas o corpo precisa trazer ao menos uma das três chaves: um `{}` ou um nome de campo errado
-// (ex.: "altura" em vez de "alturaCm") apagaria o perfil inteiro em silêncio, então é 400. Para
-// apagar tudo de propósito, envie as três chaves como null.
+// Mas o corpo precisa trazer ao menos uma das três chaves, e SÓ elas: um `{}` ou um nome de campo
+// errado (ex.: "altura" em vez de "alturaCm", ou "atividde" ao lado de um campo certo) apagaria o
+// dado em silêncio, então é 400. Qualquer chave desconhecida também é 400, inclusive `id` e `perfil`:
+// o alvo é sempre a conta do token e nada do corpo o muda. Para apagar tudo de propósito, envie as
+// três chaves como null.
 const CAMPOS_DO_PERFIL = ["alturaCm", "experiencia", "atividade"] as const;
+
+// Os nomes voltam na mensagem de erro; poucos e curtos, para um corpo grande não virar eco.
+function listarChaves(chaves: string[]): string {
+  const nomes = chaves.slice(0, 5).map((c) => c.slice(0, 40));
+  return nomes.join(", ") + (chaves.length > nomes.length ? ", ..." : "");
+}
+
 export function validarPerfilCiclista(
   entrada: unknown,
 ): { dados: DadosPerfilCiclista } | { erros: ErrosPorCampo } {
@@ -179,6 +188,16 @@ export function validarPerfilCiclista(
     return { erros: { corpo: "Envie um objeto JSON com alturaCm, experiencia e atividade." } };
   }
   const corpo = entrada as Record<string, unknown>;
+  const desconhecidas = Object.keys(corpo).filter(
+    (chave) => !(CAMPOS_DO_PERFIL as readonly string[]).includes(chave),
+  );
+  if (desconhecidas.length > 0) {
+    return {
+      erros: {
+        corpo: `Campo desconhecido: ${listarChaves(desconhecidas)}. Use apenas alturaCm, experiencia e atividade.`,
+      },
+    };
+  }
   if (!CAMPOS_DO_PERFIL.some((campo) => campo in corpo)) {
     return {
       erros: {
