@@ -145,7 +145,7 @@ PR ou issue do defeito.
 ### 4.6 Banco de dados, migrations e RLS
 
 Os casos CT-BD-06 a CT-BD-17 e CT-BD-22 a CT-BD-28 correspondem aos testes de `db/tests` (unit, whitebox e
-blackbox), que a CI roda com `npm run teste:banco`. Os da movimentação (0010) estão em `movimentacao.test.mjs` de cada pasta.
+blackbox), que a CI roda com `npm run teste:banco`.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
