@@ -82,11 +82,17 @@ export default function BuscarPage() {
       setResultado({ tipo: "pronto", resposta });
     } catch (erro) {
       if (erro instanceof ApiError && erro.details) {
-        setErros({
+        const doServidor: ErrosBusca = {
           data: erro.details.inicio,
           duracao: erro.details.fim,
           atividade: erro.details.atividade,
-        });
+        };
+        // Com erro de campo conhecido, mostra só o erro no campo (sem o alerta genérico).
+        if (Object.values(doServidor).some(Boolean)) {
+          setErros(doServidor);
+          setResultado({ tipo: "inicial" });
+          return;
+        }
       }
       setResultado({
         tipo: "erro",
@@ -147,7 +153,12 @@ export default function BuscarPage() {
             onChange={(e) => alterar("atividade", e.target.value)}
             error={erros.atividade}
           />
-          <Button type="submit" loading={resultado.tipo === "buscando"} showArrow={false}>
+          <Button
+            type="submit"
+            loading={resultado.tipo === "buscando"}
+            loadingText="Buscando..."
+            showArrow={false}
+          >
             Buscar
           </Button>
         </form>
