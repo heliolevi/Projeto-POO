@@ -29,6 +29,10 @@ type LinhaTipo = {
 //    [início, fim). A função é chamada por PONTO ATIVO: bicicleta de ponto inativo não é
 //    oferecida, e a função, sem o ponto, contaria a frota toda.
 //
+// A consulta parte do PONTO e junta o tipo depois: a função roda uma vez por ponto ativo (e cada
+// chamada já devolve todos os tipos do ponto). Partir do tipo faria o plano poder chamá-la
+// tipos x pontos vezes.
+//
 // Datas vão como parâmetros (ISO), nunca dentro do texto SQL.
 const EXPIRAR_VENCIDAS = `SELECT expirar_reservas_vencidas()`;
 
@@ -38,11 +42,11 @@ const BUSCAR_TIPOS = `
            t.altura_max_cm, t.nivel_recomendado, t.preco_hora_centavos, t.preco_dia_centavos,
            t.valor_caucao_centavos, t.ativo,
            sum(u.unidades_livres)::int AS unidades_livres
-      FROM tipo_bicicleta t
-      JOIN ponto p ON p.ativo
+      FROM ponto p
      CROSS JOIN LATERAL unidades_livres_por_tipo($1::timestamptz, $2::timestamptz, p.id) u
-     WHERE t.ativo
-       AND u.tipo_id = t.id
+      JOIN tipo_bicicleta t ON t.id = u.tipo_id
+     WHERE p.ativo
+       AND t.ativo
      GROUP BY t.id
   ) x
   WHERE x.unidades_livres > 0
