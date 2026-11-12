@@ -1,4 +1,4 @@
-// Testes de caixa-preta da migration 0007: o que cada perfil consegue ler e escrever em
+// Testes de caixa-preta da migration 0010: o que cada perfil consegue ler e escrever em
 // movimentacao, com a sessão declarada como o comSessao do app faz.
 //
 // node tests/blackbox/movimentacao.test.mjs

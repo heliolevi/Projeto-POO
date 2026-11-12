@@ -1,4 +1,4 @@
-// Testes unitários da migration 0007 (movimentacao): cada teste viola (ou confirma que não
+// Testes unitários da migration 0010 (movimentacao): cada teste viola (ou confirma que não
 // viola) exatamente UMA regra, conferindo o SQLSTATE e o nome da constraint.
 //
 // node tests/unit/movimentacao.test.mjs

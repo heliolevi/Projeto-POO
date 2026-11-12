@@ -1,4 +1,4 @@
-// Testes de caixa-branca da migration 0007: inspecionam o catálogo do PostgreSQL (RLS, políticas,
+// Testes de caixa-branca da migration 0010: inspecionam o catálogo do PostgreSQL (RLS, políticas,
 // permissões, índices e tipos) em vez de exercitar o comportamento.
 //
 // node tests/whitebox/movimentacao.test.mjs
