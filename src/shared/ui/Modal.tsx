@@ -12,7 +12,9 @@ type ModalProps = {
   rodape?: ReactNode;
 };
 
-// Usa o <dialog> nativo: o navegador cuida do foco, da camada acima da página e do Esc.
+// Usa o <dialog> nativo (foco, camada acima da página e Esc). Quem manda é sempre o pai:
+// Esc, clique no fundo e botões só pedem para fechar chamando `onFechar`, uma vez, e o
+// <dialog> fecha quando o pai muda `aberto` para false.
 export function Modal({ aberto, onFechar, titulo, children, rodape }: ModalProps) {
   const dialogo = useRef<HTMLDialogElement>(null);
   const tituloId = useId();
@@ -29,9 +31,18 @@ export function Modal({ aberto, onFechar, titulo, children, rodape }: ModalProps
       ref={dialogo}
       className={styles.dialogo}
       aria-labelledby={tituloId}
-      onClose={onFechar}
+      onCancel={(evento) => {
+        // Esc: não deixa o navegador fechar sozinho (o pai ficaria com `aberto` desatualizado).
+        evento.preventDefault();
+        onFechar();
+      }}
+      onClose={() => {
+        // Só chega aqui sem o pai ter pedido se o <dialog> foi fechado por outro caminho
+        // (ex.: um formulário com method="dialog"). Quando o pai fecha, `aberto` já é false.
+        if (aberto) onFechar();
+      }}
       onClick={(evento) => {
-        // Clique no fundo escurecido (o próprio <dialog>) fecha; clique no conteúdo não.
+        // Clique no fundo escurecido (o próprio <dialog>) pede para fechar; no conteúdo, não.
         if (evento.target === evento.currentTarget) onFechar();
       }}
     >
