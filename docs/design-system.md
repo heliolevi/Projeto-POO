@@ -153,6 +153,13 @@ Acessibilidade: `Alert` usa `role="alert"` para erro e aviso e `role="status"` p
 sucesso; `Select` liga o erro ao campo com `aria-describedby`; `Modal` herda foco e camada do
 `<dialog>` e chama `onFechar` uma vez só (Esc, clique no fundo ou botão), sempre deixando o pai decidir; `Table` traz `<caption>` e `scope="col"`.
 
+Dois cuidados de uso:
+
+- **`Modal`:** o `onFechar` precisa mudar `aberto` para `false` no pai. Se o pai ignorar o pedido, o
+  `<dialog>` continua aberto na tela e o estado do pai deixa de refletir a realidade.
+- **`Table`:** sem `celula`, o valor da coluna vira texto (`String(valor)`). Para datas, objetos ou
+  qualquer coisa que não seja texto ou número, passe `celula` e formate você mesmo.
+
 Quando o app precisar de um componente que não está aqui, ele entra neste mesmo lugar (e nesta
 tabela) em vez de nascer dentro de uma tela.
 
