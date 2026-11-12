@@ -38,7 +38,13 @@ export function criarBancoFalso(agora: () => Date) {
   // transação confirmou nesse meio tempo)
   function operacoes(sessao: SessaoCliente, desfazer: (() => void)[]): OperacoesReservas {
     const minhas = () => reservas.filter((r) => r.clienteId === sessao.usuarioId);
-    const semInterno = ({ clienteId: _c, bicicletaId: _b, ...linha }: Registro): LinhaReserva => linha;
+    // o que a view devolve: sem o dono e sem a unidade
+    const semInterno = (r: Registro): LinhaReserva => {
+      const copia: Partial<Registro> = { ...r };
+      delete copia.clienteId;
+      delete copia.bicicletaId;
+      return copia as LinhaReserva;
+    };
     return {
       async expirarVencidas() {
         log.push("expirarVencidas");
