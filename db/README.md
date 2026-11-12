@@ -83,6 +83,28 @@ npm run seed:dev -- --ok-dev
 O script imprime o host, gera o hash das senhas com a mesma função do app e aplica o seed numa
 transação. A flag `--ok-dev` é uma confirmação: confira o host antes e **nunca rode em production**.
 
+## Contas da equipe (ADMIN e OPERADOR)
+
+Não há tela para criar a equipe da locadora: os clientes se cadastram pelo app, mas as contas de
+administrador e de operador são criadas por um script. Na raiz do projeto:
+
+```bash
+npm run criar-equipe
+```
+
+O script pergunta o perfil (`ADMIN` ou `OPERADOR`), o nome, o e-mail e a senha. A senha é digitada em
+um prompt oculto, nunca por argumento, para não ficar no histórico do terminal. Ele gera o hash com a
+mesma função do app (scrypt), mostra o host do banco e só grava depois de você digitar `sim`.
+
+- **Conexão:** lê `DATABASE_URL_UNPOOLED` do ambiente, do `.env.local` ou do `.env`.
+- **Regras:** a senha tem de 8 a 128 caracteres, com letra e número. O e-mail é gravado em minúsculas.
+  Um e-mail já cadastrado é recusado e nada é gravado.
+- **Operador:** com um único ponto de retirada ativo, o operador já fica ligado a ele.
+- **Production:** só rode com a autorização do tech lead. Confira o host que o script mostra antes de
+  confirmar.
+- **Seed:** as contas `admin@bikeilha.test` e `operador@bikeilha.test` continuam vindo do seed de
+  desenvolvimento (veja "Dados de exemplo"); o script serve para criar as contas reais da equipe.
+
 ## Esquema atual
 
 Veja `docs/modelo-de-dados.md`.
