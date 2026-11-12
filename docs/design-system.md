@@ -64,6 +64,7 @@ da cor, para ficar claro onde cada uma se aplica.
 | `--color-danger-soft` | `#fdecea` | Fundo de erro (Alert, Badge perigo) |
 | `--color-info-soft` | `#e6f1f8` | Fundo de informação (Alert, Badge info) |
 | `--color-info-border` | `#b3d4e8` | Borda do Alert de informação |
+| `--color-overlay` | `rgba(19, 24, 46, 0.5)` | Fundo escurecido atrás do Modal |
 
 ## Tipografia
 
@@ -149,8 +150,8 @@ props seguem o que o projeto já usa nos componentes de formulário.
 | `EmptyState` | Tela ou lista sem conteúdo, com uma ação sugerida | `title`, `action` |
 
 Acessibilidade: `Alert` usa `role="alert"` para erro e aviso e `role="status"` para informação e
-sucesso; `Select` liga o erro ao campo com `aria-describedby`; `Modal` herda foco, Esc e camada do
-`<dialog>`; `Table` traz `<caption>` e `scope="col"`.
+sucesso; `Select` liga o erro ao campo com `aria-describedby`; `Modal` herda foco e camada do
+`<dialog>` e chama `onFechar` uma vez só (Esc, clique no fundo ou botão), sempre deixando o pai decidir; `Table` traz `<caption>` e `scope="col"`.
 
 Quando o app precisar de um componente que não está aqui, ele entra neste mesmo lugar (e nesta
 tabela) em vez de nascer dentro de uma tela.

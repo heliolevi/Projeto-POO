@@ -105,6 +105,8 @@ export default function PerfilCiclistaPage() {
         const doServidor = errosDaApi(erro.details);
         setErros(doServidor);
         if (doServidor.corpo) setErroGeral(doServidor.corpo);
+        // Se a API mandar um detalhe que a tela não conhece, não deixa o usuário sem resposta.
+        else if (!Object.values(doServidor).some(Boolean)) setErroGeral(erro.message);
       } else {
         setErroGeral(
           erro instanceof ApiError

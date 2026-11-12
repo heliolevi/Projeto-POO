@@ -2,9 +2,10 @@ import type { ReactNode } from "react";
 import styles from "./Table.module.css";
 
 export type ColunaTabela<T> = {
-  chave: string;
+  /** Campo da linha que a coluna mostra. Precisa existir em `T`. */
+  chave: keyof T & string;
   cabecalho: string;
-  /** Como mostrar a célula. Sem isso, usa `linha[chave]`. */
+  /** Como mostrar a célula. Sem isso, mostra `linha[chave]` como texto. */
   celula?: (linha: T) => ReactNode;
   alinhamento?: "esquerda" | "direita";
 };
@@ -53,9 +54,7 @@ export function Table<T>({
                   key={coluna.chave}
                   className={coluna.alinhamento === "direita" ? styles.direita : undefined}
                 >
-                  {coluna.celula
-                    ? coluna.celula(linha)
-                    : (linha as Record<string, ReactNode>)[coluna.chave]}
+                  {coluna.celula ? coluna.celula(linha) : String(linha[coluna.chave] ?? "")}
                 </td>
               ))}
             </tr>

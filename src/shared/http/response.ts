@@ -1,4 +1,4 @@
-import { AppError } from "./errors";
+import { AppError } from "./errors.ts";
 
 export function ok<T>(data: T, init?: ResponseInit) {
   return Response.json({ data }, { ...init, status: 200 });

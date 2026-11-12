@@ -1,4 +1,4 @@
-import { ForbiddenError, UnauthorizedError } from "../../../shared/http/errors.ts";
+import { UnauthorizedError } from "../../../shared/http/errors.ts";
 import { PERFIS, type PerfilUsuario } from "../domain/usuario.ts";
 import { verificarToken } from "../infrastructure/token.ts";
 
@@ -36,16 +36,7 @@ export function criarExigirSessao(buscarSituacao: BuscarSituacao) {
   };
 }
 
-// Confere o perfil depois do login, nesta ordem para seguir o contrato da API: sem sessão
-// válida é 401 (exigirSessao) e, logado com o perfil errado, 403. Devolve a mesma sessão com
-// o perfil já estreitado, para a rota usar sem novas checagens:
-//   const sessao = exigirPerfil(await exigirSessao(request), "OPERADOR", "ADMIN");
-export function exigirPerfil<P extends PerfilUsuario>(
-  sessao: SessaoAtiva,
-  ...permitidos: [P, ...P[]]
-): SessaoAtiva & { perfil: P } {
-  if (!(permitidos as readonly PerfilUsuario[]).includes(sessao.perfil)) {
-    throw new ForbiddenError("Seu perfil não tem acesso a esta ação.");
-  }
-  return sessao as SessaoAtiva & { perfil: P };
-}
+// exigirPerfil (401 antes de 403) mora em shared, porque não depende de nada de contas e os módulos
+// que a usam nas rotas precisam testar que a chamam. Reexportada aqui para o módulo e seus testes
+// continuarem importando daqui.
+export { exigirPerfil } from "../../../shared/http/perfil.ts";

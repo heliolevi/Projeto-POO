@@ -112,7 +112,7 @@ PR ou issue do defeito.
 | CT-CTA-01 | P0 | `GET /api/conta/me` como `CLIENTE` | 200 com dados da conta e `ciclista` (altura, experiência, atividade); campos vazios vêm `null` | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-CTA-02 | P1 | `GET /api/conta/me` como `OPERADOR` ou `ADMIN` | 200 sem o campo `ciclista` | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-CTA-03 | P0 | `PUT /api/conta/perfil-ciclista` com altura, experiência e atividade válidas | 200 com os três campos gravados | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
-| CT-CTA-04 | P1 | `PUT` com campo `null` ou ausente, e com `id` no corpo | O campo é apagado; o `id` é ignorado e vale a conta do token | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-CTA-04 | P1 | `PUT` com campo `null` ou ausente, e com `id` no corpo | O campo é apagado. O `id` no corpo é chave desconhecida: 400, e nada é gravado (o alvo é sempre a conta do token) | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-CTA-05 | P1 | `PUT` com altura fora de 100 a 250 ou valores fora das enumerações | 400 com `details` do campo | Auto | Automatizado (`perfil-ciclista.test.ts`) |
 | CT-CTA-06 | P0 | `PUT perfil-ciclista` por `OPERADOR` ou `ADMIN` | 403 | Integração | Automatizado (`perfil-ciclista.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-CTA-07 | P0 | `POST /api/conta/senha` com senha atual correta e nova válida | 204 e a senha é trocada | Auto | Automatizado (`alterar-senha.test.ts`) |
@@ -124,6 +124,7 @@ PR ou issue do defeito.
 | CT-CTA-13 | P0 | `POST /api/conta/termos` com a versão vigente (`2026-11`) e com versão diferente, vazia ou grande demais | 204 com a vigente; 400 nos outros | Integração | Pendente (o validador da versão dos termos já tem teste) |
 | CT-CTA-14 | P0 | `POST /api/conta/desativar` | 204; a conta fica inativa (não é apagada) e o login seguinte recebe 401 | Integração | Pendente |
 | CT-CTA-15 | P1 | `perfil` e `id` enviados no corpo de altura ou termos | Ignorados | Integração | Em revisão (PR #15) |
+| CT-CTA-16 | P1 | `PUT /api/conta/perfil-ciclista` com corpo `{}`, só com campos que não são do perfil (ex.: `"altura"`) ou com um campo certo ao lado de um errado (ex.: `{"alturaCm": 180, "atividde": "TRILHA"}`) | 400 com `details.corpo`, que cita o campo desconhecido; o perfil não é apagado nem alterado. Para apagar de propósito, as três chaves vão como `null` | Auto | Automatizado (`perfil-ciclista.test.ts`) |
 
 ### 4.5 Segurança e infraestrutura
 
@@ -184,7 +185,7 @@ blackbox), que a CI roda com `npm run teste:reserva-e-pagamento`.
 | CT-CAT-01 | P0 | `GET /api/empresa` sem login | 200 só com pontos ativos; nunca CNPJ, razão social, conta de recebimento nem campos de controle | Integração | Aguarda rota |
 | CT-CAT-02 | P0 | `GET /api/catalogo/tipos` sem login | 200 só com tipos ativos, com preços em centavos | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-CAT-03 | P1 | Inativar um tipo | Some do catálogo e das buscas; reservas já feitas continuam visíveis | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
-| CT-ADM-01 | P0 | Rotas `/api/admin/tipos` e `/api/admin/bicicletas` com `CLIENTE`, `OPERADOR` e sem login | 403 para `CLIENTE` e `OPERADOR`; 401 sem login | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-01 | P0 | Rotas `/api/admin/tipos` e `/api/admin/bicicletas` com `CLIENTE`, `OPERADOR` e sem login | 403 para `CLIENTE` e `OPERADOR`; 401 sem login | Integração | Automatizado (`fabrica-handlers.test.ts`, que prova as 6 rotas do painel com o `exigirPerfil` de verdade) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-02 | P0 | `POST /api/admin/tipos` com dados válidos | 201 com o tipo criado | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-03 | P1 | `POST /api/admin/tipos` com nome repetido, sem atividade, altura mínima maior que a máxima, altura fora de 100 a 250, preço negativo ou decimal | 409 para nome repetido; 400 com `details` nos demais | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-04 | P1 | `PUT /api/admin/tipos/{id}` com `ativo: false`, e só com os campos obrigatórios (sem caução, nível, descrição e `ativo`) | O tipo sai do catálogo; não existe exclusão. Sem os opcionais, o PUT mantém os valores atuais (não zera a caução) | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
@@ -241,7 +242,7 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-RES-14 | P0 | Cancelar reserva já retirada, concluída, cancelada ou expirada | 409 | Integração | Aguarda rota |
 | CT-RES-15 | P1 | Mais de 20 reservas por hora do mesmo usuário | 429 | Integração | Aguarda rota |
 | CT-RES-16 | P0 | Rotas de reserva sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para a equipe | Integração | Aguarda rota |
-| CT-RES-17 | P0 | Reservar o mesmo período depois que uma reserva pendente venceu e ninguém a listou | 201 para a nova reserva, sem 409 falso; a pendente vencida vira `EXPIRADA` (`POST /api/reservas` expira ou ignora as vencidas antes de reservar) | Integração | Aguarda rota |
+| CT-RES-17 | P0 | Reservar o mesmo período depois que uma reserva pendente venceu e ninguém a listou | 201 para a nova reserva, sem 409 falso; a pendente vencida vira `EXPIRADA` (`POST /api/reservas` chama `expirar_reservas_vencidas()` antes de reservar: é pré-requisito da task de reservas; a busca de recomendação já faz isso) | Integração | Aguarda rota |
 
 ### 4.10 Pagamentos por Pix (rotas 16 a 18)
 
