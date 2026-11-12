@@ -6,7 +6,7 @@
 // node tests/blackbox/criar_reserva.test.mjs
 
 import pg from 'pg';
-import { conectar, rodarSuite } from '../suporte.mjs';
+import { rodarSuite } from '../suporte.mjs';
 import { criarFixtures, criarReserva } from '../fixtures.mjs';
 
 const INICIO = '2026-07-10T10:00:00Z';
