@@ -242,7 +242,7 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-RES-14 | P0 | Cancelar reserva já retirada, concluída, cancelada ou expirada | 409 | Integração | Aguarda rota |
 | CT-RES-15 | P1 | Mais de 20 reservas por hora do mesmo usuário | 429 | Integração | Aguarda rota |
 | CT-RES-16 | P0 | Rotas de reserva sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para a equipe | Integração | Aguarda rota |
-| CT-RES-17 | P0 | Reservar o mesmo período depois que uma reserva pendente venceu e ninguém a listou | 201 para a nova reserva, sem 409 falso; a pendente vencida vira `EXPIRADA` (`POST /api/reservas` expira ou ignora as vencidas antes de reservar) | Integração | Aguarda rota |
+| CT-RES-17 | P0 | Reservar o mesmo período depois que uma reserva pendente venceu e ninguém a listou | 201 para a nova reserva, sem 409 falso; a pendente vencida vira `EXPIRADA` (`POST /api/reservas` chama `expirar_reservas_vencidas()` antes de reservar: é pré-requisito da task de reservas; a busca de recomendação já faz isso) | Integração | Aguarda rota |
 
 ### 4.10 Pagamentos por Pix (rotas 16 a 18)
 

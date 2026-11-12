@@ -104,7 +104,7 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 8 | `POST /api/conta/desativar` | Logado | existe (PR do Renan) | Renan | Luis |
 | 9 | `GET /api/empresa` | Visitante | novo | Hélio | Renan |
 | 10 | `GET /api/catalogo/tipos` | Visitante | existe | Hélio | Renan |
-| 11 | `GET /api/recomendacao` | CLIENTE | novo | Hélio | Renan |
+| 11 | `GET /api/recomendacao` | CLIENTE | existe | Hélio | Renan |
 | 12 | `POST /api/reservas` | CLIENTE | novo | Luis | Renan |
 | 13 | `GET /api/reservas` | CLIENTE | novo | Luis | Renan |
 | 14 | `GET /api/reservas/{id}` | CLIENTE | novo | Luis | Renan |
@@ -523,7 +523,9 @@ fica vazia e `ativo` vale `true`. Atividades repetidas viram uma só, e o nome p
 Substitui os dados do tipo (mesmo corpo e mesmas regras da rota 20). Os campos obrigatórios são
 substituídos; os **opcionais que não vierem no corpo** (`descricao`, `nivelRecomendado`,
 `valorCaucaoCentavos` e `ativo`) **mantêm o valor atual**, então quem só quer mudar o preço não zera a
-caução nem reativa um tipo inativo sem querer. Para apagar a descrição, envie `"descricao": null`. Para
+caução nem reativa um tipo inativo sem querer. Para apagar a descrição, envie `"descricao": null`. Em
+`nivelRecomendado` e `valorCaucaoCentavos`, `null` e ausente têm o mesmo efeito (mantêm o valor atual),
+porque esses dois campos não aceitam vazio. Para
 tirar um tipo do catálogo, envie `"ativo": false` (não há exclusão). Um `id` que não é UUID recebe `404`. **Quem:** ADMIN. **Sucesso `200`:** o tipo atualizado.
 **Erros:** `400`, `401`, `403`, `404`, `409`, `413`.
 
