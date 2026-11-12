@@ -145,6 +145,7 @@
 }
 
 .botaoSecundario {
+  display: inline-block;
   padding: var(--space-12) var(--space-16);
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border);

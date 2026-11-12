@@ -16,6 +16,7 @@ import {
   type RespostaRecomendacao,
 } from "@/shared/busca/busca";
 import { perfilCompleto, type ContaLogada } from "@/shared/perfil/perfil-ciclista";
+import { linkDaReserva } from "@/shared/reservas/nova-reserva";
 import styles from "@/shared/reservas/reservas.module.css";
 import { Alert } from "@/shared/ui/Alert";
 import { Badge } from "@/shared/ui/Badge";
@@ -187,10 +188,16 @@ export default function BuscarPage() {
                     action={<Badge variant={aderencia.variant}>{aderencia.rotulo}</Badge>}
                     footer={
                       <div className={styles.acoes}>
-                        {/* A tela de resumo e o POST /api/reservas entram na parte 2 da T38. */}
-                        <button type="button" className={styles.botaoSecundario} disabled>
-                          Reservar (em breve)
-                        </button>
+                        <Link
+                          className={styles.botaoPrimario}
+                          href={linkDaReserva({
+                            tipoId: item.tipoId,
+                            inicio: resultado.resposta.periodo.inicio,
+                            fim: resultado.resposta.periodo.fim,
+                          })}
+                        >
+                          Reservar
+                        </Link>
                       </div>
                     }
                   >
