@@ -1,11 +1,15 @@
 import {
-  EXPERIENCIAS,
-  NOME_ATIVIDADE,
-  NOME_EXPERIENCIA,
-  type Atividade,
-  type Experiencia,
-  type PerfilCiclista,
-} from "./perfil.ts";
+  ajusteDeAltura,
+  cabeNaAltura,
+  criteriosPadrao,
+  experienciaSuficiente,
+  PESOS,
+  type CriterioDeRecomendacao,
+} from "./criterios.ts";
+import type { Atividade, Experiencia, PerfilCiclista } from "./perfil.ts";
+
+// Os critérios e os pesos moram em criterios.ts; reexportados aqui para o endereço antigo continuar valendo.
+export { ajusteDeAltura, cabeNaAltura, experienciaSuficiente, PESOS };
 
 // Recomendação de bicicletas (docs/modelo-de-dados.md, "Dados de recomendação").
 //
@@ -22,8 +26,6 @@ import {
 //    (sem altura informada, nenhum tipo sai por altura).
 // 2. Pontuação de 0 a 100, com os pesos iniciais abaixo (a calibrar com a locadora).
 // 3. Ordem: mais pontos primeiro; empate pelo menor preço por dia, depois pelo nome.
-
-export const PESOS = { altura: 50, atividade: 30, experiencia: 20 } as const;
 
 export type TipoCandidato = {
   id: string;
@@ -55,97 +57,85 @@ export type Recomendacao = {
 // Valor do aluguel de um tipo no período da busca, em centavos.
 export type CalcularValorAluguel = (tipo: TipoCandidato) => number;
 
-export function cabeNaAltura(alturaCm: number, tipo: Pick<TipoCandidato, "alturaMinCm" | "alturaMaxCm">) {
-  return alturaCm >= tipo.alturaMinCm && alturaCm <= tipo.alturaMaxCm;
-}
+// Serviço da recomendação: filtra os tipos que servem ao cliente, pontua cada um pelos critérios
+// e ordena. Os critérios chegam pelo construtor (por padrão, altura, atividade e experiência);
+// o serviço trata todos pela mesma interface (polimorfismo) e não sabe qual é qual.
+export class RecomendacaoService {
+  readonly #criterios: readonly CriterioDeRecomendacao[];
 
-// Ajuste da altura dentro da faixa do tipo: 1 no centro, caindo em linha reta até 0 nas
-// pontas. Faixa de um valor só (mínimo igual ao máximo) é ajuste perfeito.
-export function ajusteDeAltura(
-  alturaCm: number,
-  tipo: Pick<TipoCandidato, "alturaMinCm" | "alturaMaxCm">,
-): number {
-  if (!cabeNaAltura(alturaCm, tipo)) return 0;
-  const meiaFaixa = (tipo.alturaMaxCm - tipo.alturaMinCm) / 2;
-  if (meiaFaixa === 0) return 1;
-  const centro = tipo.alturaMinCm + meiaFaixa;
-  return 1 - Math.abs(alturaCm - centro) / meiaFaixa;
-}
+  constructor(criterios: readonly CriterioDeRecomendacao[] = criteriosPadrao()) {
+    this.#criterios = [...criterios];
+  }
 
-export function experienciaSuficiente(cliente: Experiencia, recomendado: Experiencia): boolean {
-  return EXPERIENCIAS.indexOf(cliente) >= EXPERIENCIAS.indexOf(recomendado);
-}
+  // Soma os pontos dos critérios (0 a 100) e arredonda para inteiro no fim.
+  pontuar(tipo: TipoCandidato, perfil: PerfilCiclista): number {
+    return this.#avaliar(perfil, tipo).pontos;
+  }
 
-function avaliar(perfil: PerfilCiclista, tipo: TipoCandidato) {
-  const motivos: string[] = [];
-  let pontos = 0;
+  // O motivo de cada critério que se aplica, na ordem da lista de critérios.
+  motivos(tipo: TipoCandidato, perfil: PerfilCiclista): string[] {
+    return this.#avaliar(perfil, tipo).motivos;
+  }
 
-  if (perfil.alturaCm !== null) {
-    const ajuste = ajusteDeAltura(perfil.alturaCm, tipo);
-    pontos += PESOS.altura * ajuste;
-    motivos.push(
-      ajuste >= 0.5
-        ? `Cabe bem na sua altura de ${perfil.alturaCm} cm`
-        : `Cabe na sua altura de ${perfil.alturaCm} cm, perto do limite da faixa (${tipo.alturaMinCm} a ${tipo.alturaMaxCm} cm)`,
+  #avaliar(perfil: PerfilCiclista, tipo: TipoCandidato): { pontos: number; motivos: string[] } {
+    const motivos: string[] = [];
+    let pontos = 0;
+    for (const criterio of this.#criterios) {
+      const avaliacao = criterio.avaliar(perfil, tipo);
+      if (avaliacao === null) continue; // dado que falta não pontua
+      pontos += avaliacao.pontos;
+      motivos.push(avaliacao.motivo);
+    }
+    return { pontos: Math.round(pontos), motivos };
+  }
+
+  recomendar(
+    perfil: PerfilCiclista,
+    tipos: readonly TipoCandidato[],
+    calcularValorAluguel: CalcularValorAluguel,
+  ): Recomendacao[] {
+    const candidatos = tipos.filter(
+      (tipo) =>
+        tipo.ativo &&
+        tipo.unidadesLivres > 0 &&
+        (perfil.alturaCm === null || cabeNaAltura(perfil.alturaCm, tipo)),
     );
-  }
 
-  if (perfil.atividade !== null) {
-    if (tipo.atividades.includes(perfil.atividade)) {
-      pontos += PESOS.atividade;
-      motivos.push(`Boa para ${NOME_ATIVIDADE[perfil.atividade]}`);
-    } else {
-      motivos.push(`Não é a mais indicada para ${NOME_ATIVIDADE[perfil.atividade]}`);
-    }
+    return candidatos
+      .map((tipo) => {
+        const { pontos, motivos } = this.#avaliar(perfil, tipo);
+        return {
+          tipo,
+          resultado: {
+            tipoId: tipo.id,
+            nome: tipo.nome,
+            descricao: tipo.descricao,
+            pontos,
+            motivos,
+            valorAluguelCentavos: calcularValorAluguel(tipo),
+            valorCaucaoCentavos: tipo.valorCaucaoCentavos,
+            unidadesLivres: tipo.unidadesLivres,
+          },
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.resultado.pontos - a.resultado.pontos ||
+          a.tipo.precoDiaCentavos - b.tipo.precoDiaCentavos ||
+          a.tipo.nome.localeCompare(b.tipo.nome, "pt-BR") ||
+          a.tipo.id.localeCompare(b.tipo.id),
+      )
+      .map(({ resultado }) => resultado);
   }
-
-  if (perfil.experiencia !== null) {
-    if (experienciaSuficiente(perfil.experiencia, tipo.nivelRecomendado)) {
-      pontos += PESOS.experiencia;
-      motivos.push(`Adequada ao seu nível (${NOME_EXPERIENCIA[perfil.experiencia]})`);
-    } else {
-      motivos.push(`Recomendada a partir do nível ${NOME_EXPERIENCIA[tipo.nivelRecomendado]}`);
-    }
-  }
-
-  return { pontos: Math.round(pontos), motivos };
 }
 
+const servicoPadrao = new RecomendacaoService();
+
+// Atalho com os critérios padrão: é o que a busca (GET /api/recomendacao) usa.
 export function recomendar(
   perfil: PerfilCiclista,
   tipos: readonly TipoCandidato[],
   calcularValorAluguel: CalcularValorAluguel,
 ): Recomendacao[] {
-  const candidatos = tipos.filter(
-    (tipo) =>
-      tipo.ativo &&
-      tipo.unidadesLivres > 0 &&
-      (perfil.alturaCm === null || cabeNaAltura(perfil.alturaCm, tipo)),
-  );
-
-  return candidatos
-    .map((tipo) => {
-      const { pontos, motivos } = avaliar(perfil, tipo);
-      return {
-        tipo,
-        resultado: {
-          tipoId: tipo.id,
-          nome: tipo.nome,
-          descricao: tipo.descricao,
-          pontos,
-          motivos,
-          valorAluguelCentavos: calcularValorAluguel(tipo),
-          valorCaucaoCentavos: tipo.valorCaucaoCentavos,
-          unidadesLivres: tipo.unidadesLivres,
-        },
-      };
-    })
-    .sort(
-      (a, b) =>
-        b.resultado.pontos - a.resultado.pontos ||
-        a.tipo.precoDiaCentavos - b.tipo.precoDiaCentavos ||
-        a.tipo.nome.localeCompare(b.tipo.nome, "pt-BR") ||
-        a.tipo.id.localeCompare(b.tipo.id),
-    )
-    .map(({ resultado }) => resultado);
+  return servicoPadrao.recomendar(perfil, tipos, calcularValorAluguel);
 }
