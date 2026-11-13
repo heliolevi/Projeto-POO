@@ -70,6 +70,16 @@ export function dataEmSaoLuis(agora: Date = new Date()): string {
 export function ordenarParaOBalcao(reservas: ReservaDoPainel[]): ReservaDoPainel[] {
   const peso = (r: ReservaDoPainel) => (movimentoPossivel(r.status) ? 0 : 1);
   return [...reservas].sort(
-    (a, b) => peso(a) - peso(b) || a.periodo.inicio.localeCompare(b.periodo.inicio),
+    (a, b) => peso(a) - peso(b) || Date.parse(a.periodo.inicio) - Date.parse(b.periodo.inicio),
   );
+}
+
+// Reservas EM_ANDAMENTO que não estão na lista do dia (ex.: retirada ontem, devolução hoje).
+// Sem isso a devolução de um aluguel que começou em outro dia não aparece no painel.
+export function andamentoDeOutrosDias(
+  doDia: ReservaDoPainel[],
+  emAndamento: ReservaDoPainel[],
+): ReservaDoPainel[] {
+  const ids = new Set(doDia.map((r) => r.id));
+  return ordenarParaOBalcao(emAndamento.filter((r) => r.status === "EM_ANDAMENTO" && !ids.has(r.id)));
 }

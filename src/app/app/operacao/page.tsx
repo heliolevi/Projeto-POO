@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSessao } from "@/shared/auth/use-sessao";
 import { formatarPeriodo } from "@/shared/format/moeda-e-data";
 import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
 import {
   ITENS_CHECKLIST,
+  andamentoDeOutrosDias,
   ROTULO_ITEM,
   dataEmSaoLuis,
   faltaObservacao,
@@ -42,7 +43,7 @@ export default function OperacaoPage() {
 type Estado =
   | { tipo: "carregando" }
   | { tipo: "erro"; mensagem: string }
-  | { tipo: "pronto"; reservas: ReservaDoPainel[] };
+  | { tipo: "pronto"; reservas: ReservaDoPainel[]; outrosDias: ReservaDoPainel[] };
 
 const TITULO: Record<Movimento, string> = { retirada: "Registrar retirada", devolucao: "Registrar devolução" };
 
@@ -52,13 +53,27 @@ function PainelDeOperacao() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [emRegistro, setEmRegistro] = useState<{ reserva: ReservaDoPainel; movimento: Movimento } | null>(null);
 
+  // Só a resposta do último pedido vale: trocar o dia duas vezes seguidas não deixa a lista
+  // de um dia aparecer sob a data de outro.
+  const ultimoPedido = useRef(0);
+
   const carregar = useCallback(async (dia: string) => {
+    const pedido = ++ultimoPedido.current;
+    setEstado({ tipo: "carregando" });
     try {
-      const reservas = await getAutenticado<ReservaDoPainel[]>(
-        `/api/admin/reservas?${new URLSearchParams({ data: dia })}`,
-      );
-      setEstado({ tipo: "pronto", reservas: ordenarParaOBalcao(reservas) });
+      const [doDia, emAndamento] = await Promise.all([
+        getAutenticado<ReservaDoPainel[]>(`/api/admin/reservas?${new URLSearchParams({ data: dia })}`),
+        // Devoluções de aluguéis que começaram em outro dia (rota 25 aceita `status`).
+        getAutenticado<ReservaDoPainel[]>("/api/admin/reservas?status=EM_ANDAMENTO"),
+      ]);
+      if (pedido !== ultimoPedido.current) return;
+      setEstado({
+        tipo: "pronto",
+        reservas: ordenarParaOBalcao(doDia),
+        outrosDias: andamentoDeOutrosDias(doDia, emAndamento),
+      });
     } catch (e) {
+      if (pedido !== ultimoPedido.current) return;
       setEstado({
         tipo: "erro",
         mensagem:
@@ -75,6 +90,11 @@ function PainelDeOperacao() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- carga ao trocar o dia
     void carregar(data);
   }, [carregar, data]);
+
+  function abrirRegistro(reserva: ReservaDoPainel, movimento: Movimento) {
+    setAviso(null);
+    setEmRegistro({ reserva, movimento });
+  }
 
   return (
     <div style={{ display: "grid", gap: "var(--space-16)" }}>
@@ -105,36 +125,19 @@ function PainelDeOperacao() {
         </Alert>
       )}
 
+      {estado.tipo === "pronto" && estado.outrosDias.length > 0 && (
+        <section aria-label="Em andamento de outros dias" style={{ display: "grid", gap: "var(--space-8)" }}>
+          <h3 className={styles.cartaoTitulo}>Em andamento (retiradas de outros dias)</h3>
+          <ListaDoBalcao reservas={estado.outrosDias} onRegistrar={abrirRegistro} />
+        </section>
+      )}
+
       {estado.tipo === "pronto" && estado.reservas.length === 0 && (
-        <EmptyState title="Nenhuma reserva neste dia">Escolha outro dia para ver as reservas.</EmptyState>
+        <EmptyState title="Nenhuma reserva começa neste dia">Escolha outro dia para ver as reservas.</EmptyState>
       )}
 
       {estado.tipo === "pronto" && estado.reservas.length > 0 && (
-        <ul className={styles.lista}>
-          {estado.reservas.map((reserva) => {
-            const movimento = movimentoPossivel(reserva.status);
-            return (
-              <li key={reserva.id} className={styles.cartao}>
-                <div className={styles.cartaoTopo}>
-                  <span className={styles.cartaoTitulo}>{reserva.cliente.nome}</span>
-                  <SeloStatus status={reserva.status} />
-                </div>
-                <p className={styles.linha}>
-                  {reserva.tipo.nome}
-                  {reserva.bicicleta ? ` · ${reserva.bicicleta.codigo}` : ""} · reserva {reserva.codigo}
-                </p>
-                <p className={styles.linha}>{formatarPeriodo(reserva.periodo.inicio, reserva.periodo.fim)}</p>
-                {movimento && (
-                  <div style={{ marginTop: "var(--space-8)" }}>
-                    <Button type="button" showArrow={false} onClick={() => { setAviso(null); setEmRegistro({ reserva, movimento }); }}>
-                      {TITULO[movimento]}
-                    </Button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <ListaDoBalcao reservas={estado.reservas} onRegistrar={abrirRegistro} />
       )}
 
       {emRegistro && (
@@ -150,6 +153,42 @@ function PainelDeOperacao() {
         />
       )}
     </div>
+  );
+}
+
+function ListaDoBalcao({
+  reservas,
+  onRegistrar,
+}: {
+  reservas: ReservaDoPainel[];
+  onRegistrar: (reserva: ReservaDoPainel, movimento: Movimento) => void;
+}) {
+  return (
+    <ul className={styles.lista}>
+      {reservas.map((reserva) => {
+        const movimento = movimentoPossivel(reserva.status);
+        return (
+          <li key={reserva.id} className={styles.cartao}>
+            <div className={styles.cartaoTopo}>
+              <span className={styles.cartaoTitulo}>{reserva.cliente.nome}</span>
+              <SeloStatus status={reserva.status} />
+            </div>
+            <p className={styles.linha}>
+              {reserva.tipo.nome}
+              {reserva.bicicleta ? ` · ${reserva.bicicleta.codigo}` : ""} · reserva {reserva.codigo}
+            </p>
+            <p className={styles.linha}>{formatarPeriodo(reserva.periodo.inicio, reserva.periodo.fim)}</p>
+            {movimento && (
+              <div style={{ marginTop: "var(--space-8)" }}>
+                <Button type="button" showArrow={false} onClick={() => onRegistrar(reserva, movimento)}>
+                  {TITULO[movimento]}
+                </Button>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -199,7 +238,10 @@ function RegistroDeMovimento({
   return (
     <Modal
       aberto
-      onFechar={onFechar}
+      // Durante o envio, Esc e clique no fundo não fecham: o pedido ainda está a caminho.
+      onFechar={() => {
+        if (!enviando) onFechar();
+      }}
       titulo={`${TITULO[movimento]}: ${reserva.cliente.nome}`}
       rodape={
         <Button type="button" loading={enviando} loadingText="Registrando..." onClick={() => void registrar()}>

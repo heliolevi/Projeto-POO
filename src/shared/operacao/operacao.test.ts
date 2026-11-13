@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  andamentoDeOutrosDias,
   dataEmSaoLuis,
   faltaObservacao,
   montarChecklist,
@@ -54,4 +55,23 @@ test("ordenarParaOBalcao põe primeiro o que tem ação, depois pelo horário", 
     r("c", "CONFIRMADA", "2026-11-14T11:00:00Z"),
   ]).map((x) => x.id);
   assert.deepEqual(ordem, ["c", "b", "a"]);
+});
+
+test("ordenarParaOBalcao compara instantes, não texto", () => {
+  const r = (id: string, inicio: string) =>
+    ({ id, status: "CONFIRMADA", periodo: { inicio, fim: inicio } }) as ReservaDoPainel;
+  const ordem = ordenarParaOBalcao([
+    r("tarde", "2026-11-14T12:00:00-03:00"),
+    r("cedo", "2026-11-14T13:00:00Z"),
+  ]).map((x) => x.id);
+  assert.deepEqual(ordem, ["cedo", "tarde"]);
+});
+
+test("andamentoDeOutrosDias traz só EM_ANDAMENTO que não está na lista do dia", () => {
+  const r = (id: string, status: ReservaDoPainel["status"]) =>
+    ({ id, status, periodo: { inicio: "2026-11-13T12:00:00Z", fim: "2026-11-14T12:00:00Z" } }) as ReservaDoPainel;
+  const doDia = [r("hoje", "EM_ANDAMENTO")];
+  const andamento = [r("hoje", "EM_ANDAMENTO"), r("ontem", "EM_ANDAMENTO"), r("estranha", "CONFIRMADA")];
+  assert.deepEqual(andamentoDeOutrosDias(doDia, andamento).map((x) => x.id), ["ontem"]);
+  assert.deepEqual(andamentoDeOutrosDias([], []), []);
 });
