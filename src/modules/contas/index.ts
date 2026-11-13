@@ -18,6 +18,17 @@ export {
 } from "./http/handlers";
 export { verificarToken, type SessaoToken } from "./infrastructure/token";
 export { exigirPerfil, type SessaoAtiva } from "./application/exigir-sessao";
+export { Admin } from "./domain/admin";
+export { Cliente } from "./domain/cliente";
+export { criarUsuario, type LinhaDeUsuario } from "./domain/fabrica-usuario";
+export { Operador } from "./domain/operador";
+export {
+  PERMISSOES,
+  SenhaAtualIncorreta,
+  Usuario,
+  type Permissao,
+  type ServicoDeSenha,
+} from "./domain/usuario-base";
 export {
   PERFIS,
   type ContaLogada,

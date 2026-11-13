@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import { exigirDentroDoLimite, limparTentativas } from "@/shared/db/limite-tentativas";
 import { query } from "@/shared/db/pool";
 import { UnauthorizedError, ValidationError } from "@/shared/http/errors";
+import { criarUsuario } from "../domain/fabrica-usuario";
 import { validarLogin } from "../domain/validacao";
-import { hashParaTempoConstante, verificarSenha } from "../infrastructure/senha";
+import { hashParaTempoConstante, servicoDeSenha, verificarSenha } from "../infrastructure/senha";
 import { buscarPorEmail } from "../infrastructure/repositorio-usuarios";
 import { montarSessao, type ResultadoSessao } from "./cadastrar-cliente";
 
@@ -36,18 +37,18 @@ export async function autenticar(
   await exigirDentroDoLimite(query, `login:email:${hashEmail}`, LIMITE_POR_EMAIL);
   await exigirDentroDoLimite(query, chaveEmailEIp, LIMITE_POR_EMAIL_E_IP);
 
-  const usuario = await buscarPorEmail(email);
-  // mesma mensagem e mesmo custo de tempo para e-mail inexistente, senha errada e conta inativa
-  const hash = usuario?.senhaHash ?? (await hashParaTempoConstante());
-  const senhaCorreta = await verificarSenha(senha, hash);
-  if (!usuario || !senhaCorreta || !usuario.ativo) {
+  const linha = await buscarPorEmail(email);
+  // mesma mensagem e mesmo custo de tempo para e-mail inexistente, senha errada e conta inativa:
+  // sem usuário, roda o scrypt inteiro contra um hash falso; com usuário, autenticar() também
+  // confere a senha antes de olhar se a conta está ativa
+  if (!linha) {
+    await verificarSenha(senha, await hashParaTempoConstante());
+    throw new UnauthorizedError("E-mail ou senha inválidos.");
+  }
+  const usuario = criarUsuario(linha);
+  if (!(await usuario.autenticar(senha, servicoDeSenha))) {
     throw new UnauthorizedError("E-mail ou senha inválidos.");
   }
   await limparTentativas(query, chaveEmailEIp);
-  return montarSessao({
-    id: usuario.id,
-    perfil: usuario.perfil,
-    nome: usuario.nome,
-    email: usuario.email,
-  });
+  return montarSessao(usuario.paraPublico());
 }

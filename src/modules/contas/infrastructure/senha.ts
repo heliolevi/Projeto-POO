@@ -61,3 +61,6 @@ export const HASH_FALSO =
 export function hashParaTempoConstante(): Promise<string> {
   return Promise.resolve(HASH_FALSO);
 }
+
+// Adaptador para o contrato que o domínio conhece (ServicoDeSenha): o domínio não importa scrypt.
+export const servicoDeSenha = { verificar: verificarSenha, gerarHash: gerarHashSenha };
