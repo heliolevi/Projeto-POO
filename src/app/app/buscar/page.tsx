@@ -15,6 +15,8 @@ import {
   type FormularioBusca,
   type RespostaRecomendacao,
 } from "@/shared/busca/busca";
+import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
+import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
 import { perfilCompleto, type ContaLogada } from "@/shared/perfil/perfil-ciclista";
 import { linkDaReserva } from "@/shared/reservas/nova-reserva";
 import styles from "@/shared/reservas/reservas.module.css";
@@ -23,6 +25,7 @@ import { Badge } from "@/shared/ui/Badge";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { FotoCapa } from "@/shared/ui/FotoCapa";
 import { Select } from "@/shared/ui/Select";
 import { CalendarIcon } from "@/shared/ui/icons";
 import { TextField } from "@/shared/ui/TextField";
@@ -46,6 +49,7 @@ export default function BuscarPage() {
   const [erros, setErros] = useState<ErrosBusca>({});
   const [resultado, setResultado] = useState<Resultado>({ tipo: "inicial" });
   const [perfilIncompleto, setPerfilIncompleto] = useState(false);
+  const atividadesPorTipo = useAtividadesPorTipo();
 
   // Só para avisar quem ainda não preencheu o perfil: sem altura a busca não traz nada útil.
   useEffect(() => {
@@ -201,6 +205,11 @@ export default function BuscarPage() {
                       </div>
                     }
                   >
+                    <FotoCapa
+                      foto={fotoDoTipoPorId(atividadesPorTipo, item.tipoId)}
+                      formato="cartao"
+                      sizes="(min-width: 768px) 560px, 100vw"
+                    />
                     <p className={styles.linha}>{item.descricao}</p>
                     <ul style={{ margin: "var(--space-8) 0", paddingLeft: "var(--space-20)" }}>
                       {item.motivos.map((motivo) => (

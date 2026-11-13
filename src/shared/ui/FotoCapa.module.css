@@ -1,0 +1,66 @@
+.moldura {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-lavender);
+  isolation: isolate;
+}
+
+.capa {
+  aspect-ratio: 4 / 4.4;
+  border-radius: var(--radius-lg);
+}
+
+.cartao {
+  aspect-ratio: 16 / 10;
+}
+
+.faixa {
+  aspect-ratio: 21 / 9;
+}
+
+.miniatura {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-sm);
+}
+
+.imagem {
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+/* A foto cresce um pouco quando o cartão que a contém recebe o mouse ou o foco. */
+:global(a):hover .imagem,
+:global(a):focus-visible .imagem {
+  transform: scale(1.04);
+}
+
+/* Degradê verde-escuro embaixo: o texto branco sobre a foto sempre passa de 4,5:1. */
+.cobertura {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--space-8);
+  padding: var(--space-16);
+  color: #ffffff;
+  background: linear-gradient(
+    to top,
+    rgba(0, 28, 20, 0.86) 0%,
+    rgba(0, 28, 20, 0.52) 38%,
+    rgba(0, 28, 20, 0) 72%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .imagem {
+    transition: none;
+  }
+
+  :global(a):hover .imagem,
+  :global(a):focus-visible .imagem {
+    transform: none;
+  }
+}

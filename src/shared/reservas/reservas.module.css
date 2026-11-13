@@ -174,3 +174,15 @@
   color: var(--color-link-blue);
   text-decoration: none;
 }
+
+/* Cartão da lista de reservas com a miniatura da bicicleta ao lado do texto. */
+.cartaoComFoto {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: var(--space-12);
+  align-items: start;
+}
+
+.cartaoCorpo {
+  min-width: 0;
+}

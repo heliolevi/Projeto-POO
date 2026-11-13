@@ -14,11 +14,14 @@ import {
   type PedidoDeReserva,
   type PontoDaEmpresa,
 } from "@/shared/reservas/nova-reserva";
+import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
+import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
 import type { Reserva } from "@/shared/reservas/reserva";
 import styles from "@/shared/reservas/reservas.module.css";
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
+import { FotoCapa } from "@/shared/ui/FotoCapa";
 
 type Estado =
   | { tipo: "carregando" }
@@ -42,6 +45,7 @@ function ResumoDaReserva() {
   const [estado, setEstado] = useState<Estado>({ tipo: pedido ? "carregando" : "invalido" });
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+  const atividadesPorTipo = useAtividadesPorTipo();
 
   const tipoId = pedido?.tipoId;
   const inicio = pedido?.inicio;
@@ -165,6 +169,12 @@ function ResumoDaReserva() {
 
       {estado.tipo === "pronto" && pedido && (
         <>
+          <FotoCapa
+            foto={fotoDoTipoPorId(atividadesPorTipo, estado.item.tipoId)}
+            formato="cartao"
+            sizes="(min-width: 768px) 592px, 100vw"
+            priority
+          />
           <Card title={`Bicicleta ${estado.item.nome}`}>
             <dl className={styles.detalhes} style={{ border: "none", padding: 0, margin: 0 }}>
               <div>

@@ -32,13 +32,14 @@ export function AppShell({ perfil, children }: { perfil: PerfilUsuario; children
 
         <div className={styles.content}>{children}</div>
 
-        <nav className={styles.nav}>
+        <nav className={styles.nav} aria-label="Principal">
           {itens.map((item) => {
             const ativo = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={ativo ? "page" : undefined}
                 className={`${styles.navItem} ${ativo ? styles.navItemActive : ""}`}
               >
                 <span className={styles.navIcon}>{item.icon}</span>

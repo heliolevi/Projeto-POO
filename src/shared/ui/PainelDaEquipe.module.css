@@ -1,0 +1,79 @@
+.pagina {
+  display: grid;
+  gap: var(--space-20);
+}
+
+.etiqueta {
+  align-self: flex-start;
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.titulo {
+  font-size: var(--font-size-3xl);
+  line-height: 1.1;
+  font-weight: var(--font-weight-bold);
+  color: #ffffff;
+}
+
+.texto {
+  max-width: 32ch;
+  font-size: var(--font-size-md);
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.atalhos {
+  display: grid;
+  gap: var(--space-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.atalho {
+  position: relative;
+  display: grid;
+  gap: var(--space-4);
+  min-height: 76px;
+  padding: var(--space-16) var(--space-48) var(--space-16) var(--space-16);
+  border: 1px solid var(--color-surface-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text);
+  text-decoration: none;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.atalho:hover {
+  background: var(--color-surface-soft);
+  border-color: var(--color-mint-secondary);
+}
+
+.atalhoTitulo {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.atalhoTexto {
+  font-size: var(--font-size-md);
+  color: var(--color-text-support);
+}
+
+.seta {
+  position: absolute;
+  top: 50%;
+  right: var(--space-16);
+  transform: translateY(-50%);
+  font-size: var(--font-size-xl);
+  color: var(--color-primary);
+}

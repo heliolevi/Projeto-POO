@@ -5,11 +5,14 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
 import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
+import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
+import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
 import { podeCancelar, type Reserva, type ReservaDetalhada } from "@/shared/reservas/reserva";
 import { ContagemRegressiva } from "@/shared/reservas/ContagemRegressiva";
 import { SeloStatus } from "@/shared/reservas/SeloStatus";
 import styles from "@/shared/reservas/reservas.module.css";
 import { Alert } from "@/shared/ui/Alert";
+import { FotoCapa } from "@/shared/ui/FotoCapa";
 
 type Estado =
   | { tipo: "carregando" }
@@ -36,6 +39,7 @@ export default function ReservaDetalhePage() {
   const [cancelando, setCancelando] = useState(false);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [versao, setVersao] = useState(0);
+  const atividadesPorTipo = useAtividadesPorTipo();
   // Prazo de pagamento acabou: busca a reserva de novo para mostrar o status atual (Expirada).
   const recarregar = useCallback(() => setVersao((atual) => atual + 1), []);
 
@@ -93,6 +97,19 @@ export default function ReservaDetalhePage() {
           <p className={styles.subtitulo}>
             <SeloStatus status={estado.reserva.status} />
           </p>
+
+          <div style={{ marginBottom: "var(--space-16)" }}>
+            <FotoCapa
+              foto={fotoDoTipoPorId(atividadesPorTipo, estado.reserva.tipo.id)}
+              formato="cartao"
+              sizes="(min-width: 768px) 592px, 100vw"
+              priority
+            >
+              <strong style={{ fontFamily: "var(--font-heading)", fontSize: "var(--font-size-xl)" }}>
+                Bicicleta {estado.reserva.tipo.nome}
+              </strong>
+            </FotoCapa>
+          </div>
 
           <p className={styles.aviso}>
             {MENSAGEM_POR_STATUS[estado.reserva.status]}
