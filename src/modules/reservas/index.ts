@@ -11,3 +11,13 @@ export {
   type Periodo,
   type Precos,
 } from "./domain/preco";
+export {
+  calcularExpiraEm,
+  ehStatusReserva,
+  PRAZO_PAGAMENTO_MS,
+  podeCancelar,
+  STATUS_RESERVA,
+  type StatusReserva,
+} from "./domain/reserva";
+export type { Reserva, ReservaDetalhada } from "./application/reserva-dto";
+export { getReserva, getReservas, postCancelarReserva, postReservas } from "./http/handlers";

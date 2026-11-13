@@ -1,4 +1,4 @@
-import { ATIVIDADES, ehAtividade, type Atividade } from "./perfil.ts";
+import { ATIVIDADES, ehAtividade, type Atividade } from "./ciclista.ts";
 
 export type ErrosPorCampo = Record<string, string>;
 
@@ -27,6 +27,8 @@ function lerData(valor: unknown): Date | null {
   return Number.isNaN(data.getTime()) ? null : data;
 }
 
+// Regra de período do contrato (docs/contrato-api-mvp.md), compartilhada por GET /api/recomendacao
+// e POST /api/reservas: as duas aceitam o mesmo período.
 // Valida os parâmetros da busca de GET /api/recomendacao (inicio, fim e atividade).
 export function validarBusca(
   parametros: { inicio?: unknown; fim?: unknown; atividade?: unknown },

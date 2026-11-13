@@ -1,6 +1,6 @@
 import type { SessaoBanco } from "../../../shared/db/sessao.ts";
 import { ValidationError } from "../../../shared/http/errors.ts";
-import { validarBusca } from "../domain/periodo.ts";
+import { validarBusca } from "../../../shared/dominio/periodo.ts";
 import type { Atividade, Experiencia } from "../domain/perfil.ts";
 import { recomendar, type Recomendacao, type TipoCandidato } from "../domain/recomendacao.ts";
 
