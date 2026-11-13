@@ -59,7 +59,7 @@ código, e o banco tem poucas tabelas e nenhum dado real.
 | **1. Simplificar o que já existe** | Banco e código no novo modelo | Migration `0004`: cria `empresa`; tira `locadora_id` e `nivel_acesso` de `usuario`; troca os perfis por `CLIENTE`, `OPERADOR` e `ADMIN`; tira `locadora_id` de `ponto`; remove views, políticas e funções por locadora; ajusta as permissões do `app_backend`. No código: perfis no módulo `contas`, `comSessao` passa a declarar o usuário, remover o módulo `locadoras` e renomear `busca` para `recomendacao`. Atualizar testes e a CI. Aplicar no Neon `dev` e depois no `production` |
 | **2. Catálogo e estoque** | A locadora cadastra o que aluga | Migration com `tipo_bicicleta`, `bicicleta` e `arquivo` (fotos); telas e rotas do administrador; dados da empresa e pontos |
 | **3. Disponibilidade, reservas e recomendação** | O cliente vê as bicicletas recomendadas e reserva | Migration com `reserva` e a *exclusion constraint*; consulta de disponibilidade; recomendação por regras; campos `experiencia` e `atividade_preferida` no cadastro e na gestão da conta |
-| **4. Pagamentos** | Pix e cartão | Migration com `pagamento`; integração com o Mercado Pago e confirmação por webhook; expiração da reserva não paga |
+| **4. Pagamentos** | Pix simulado no MVP; Mercado Pago em stand by | Migration com `pagamento`; **no MVP não há integração com o Mercado Pago**: o Pix é simulado (`PAGAMENTO_MODO=simulado`) e a reserva é confirmada sem cobrança real. Integração com o Mercado Pago e confirmação por webhook ficam para depois do MVP; expiração da reserva não paga continua |
 | **5. Operação** | Retirada, devolução e ocorrências | Migration com `movimentacao` e `ocorrencia`; checklist e fotos; painel do operador |
 | **6. Avisos e fechamento** | Notificações e auditoria | Migration com `notificacao` e `auditoria_log`; WhatsApp, e-mail e web push; nova rodada de validação de segurança |
 | **Depois** | Se houver tempo | Assinaturas e créditos; retorno do cliente após o aluguel para melhorar a recomendação; mais de um ponto de retirada |
@@ -89,7 +89,8 @@ ao modelo novo:
 | Decisão | O que foi assumido |
 |---|---|
 | Quantos pontos de retirada a locadora tem | Um ou mais; a tabela `ponto` fica |
-| Dados da locadora (razão social, CNPJ, contato, conta no Mercado Pago) | Entram na tabela `empresa` quando a locadora for definida |
+| Mercado Pago | **Em stand by (novembro de 2026).** O MVP não usa o Mercado Pago: o pagamento é simulado. A integração entra numa fase posterior |
+| Dados da locadora (razão social, CNPJ, contato, conta no Mercado Pago, quando a integração entrar) | Entram na tabela `empresa` quando a locadora for definida |
 | Valor da recomendação | Regras simples e explicáveis; pesos de altura 50, atividade 30 e experiência 20 como ponto de partida, a calibrar com a locadora |
 | Dados do cliente usados na recomendação | Altura, experiência e atividade preferida; peso e outros dados ficam de fora por minimização (LGPD) |
 | Perfis da equipe | `ADMIN` (gestão) e `OPERADOR` (atendimento); sem perfil de gerente separado |

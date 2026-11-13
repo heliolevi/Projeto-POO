@@ -5,6 +5,11 @@ Cada rota tem o que precisa para ser feita e usada sem perguntar: método, camin
 corpo, resposta de sucesso e erros. Se algo precisar mudar, avise na PR ou no grupo antes de mudar o
 código: o contrato só muda com os dois lados de acordo.
 
+> **MVP sem Mercado Pago (novembro de 2026).** A integração com o Mercado Pago está em **stand by** e
+> fica fora do MVP. O pagamento é **simulado** (`PAGAMENTO_MODO=simulado`): as rotas 16 e 17 funcionam com
+> um Pix de mentira, e a rota 18 (webhook) e o erro `502 PAGAMENTO_INDISPONIVEL` só entram quando a
+> integração voltar.
+
 > **Estado:** rotas marcadas como *existe* já estão no código; as marcadas como *novo* serão feitas na
 > semana do MVP. Quem faz cada uma está na tabela do [resumo](#resumo-das-rotas).
 
@@ -24,7 +29,7 @@ código: o contrato só muda com os dois lados de acordo.
 | 409 | `CONFLICT` | O estado atual não permite a ação (sem bicicleta livre, reserva já paga, etc.) |
 | 413 | `PAYLOAD_TOO_LARGE` | Corpo acima de 16 KiB |
 | 429 | `TOO_MANY_REQUESTS` | Limite de tentativas; vem o cabeçalho `Retry-After` (segundos) |
-| 502 | `PAGAMENTO_INDISPONIVEL` | O Mercado Pago não respondeu ou recusou a criação da cobrança *(código novo)* |
+| 502 | `PAGAMENTO_INDISPONIVEL` | O Mercado Pago não respondeu ou recusou a criação da cobrança *(código novo; só com a integração, fora do MVP)* |
 | 500 | `INTERNAL_ERROR` | Erro inesperado; a mensagem é sempre genérica |
 
 **Autenticação:** `Authorization: Bearer <token>`, com o token devolvido pelo login ou cadastro (vale 24 h).
@@ -113,7 +118,7 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 15 | `POST /api/reservas/{id}/cancelar` | CLIENTE | existe | Luis | Renan |
 | 16 | `POST /api/pagamentos` | CLIENTE | novo | Hélio | Renan |
 | 17 | `GET /api/pagamentos/{reservaId}/status` | CLIENTE | novo | Hélio | Renan |
-| 18 | `POST /api/pagamentos/webhook` | Mercado Pago | novo | Hélio | Mercado Pago |
+| 18 | `POST /api/pagamentos/webhook` | Mercado Pago | **stand by (fora do MVP)** | Hélio | Mercado Pago |
 | 19 | `GET /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
 | 20 | `POST /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
 | 21 | `PUT /api/admin/tipos/{id}` | ADMIN | existe | Hélio | Hélio |
@@ -449,8 +454,9 @@ Idempotente: se a reserva já tem um Pix `PENDENTE` ainda válido, devolve o mes
             "pix": { "qrCodeBase64": "iVBORw0KGgo...", "copiaECola": "0002012658...", "expiraEm": "2026-11-14T11:15:00.000Z" } } }
 ```
 
-Com `PAGAMENTO_MODO=simulado`, o QR é de mentira e existe uma forma de aprovar sem o Mercado Pago (só em
-desenvolvimento e na demo).
+**No MVP o pagamento é sempre simulado** (`PAGAMENTO_MODO=simulado`): o QR é de mentira e existe uma forma
+de aprovar sem o Mercado Pago. Não há cobrança real. Com a integração do Mercado Pago (depois do MVP), o QR
+passa a ser o verdadeiro.
 
 **Erros:** `400`, `401`, `403`, `404` (reserva inexistente ou de outro cliente), `409` (reserva que não
 está `PENDENTE_PAGAMENTO`, ou já paga), `429`, `502` (`PAGAMENTO_INDISPONIVEL`).
@@ -471,7 +477,8 @@ A tela chama a cada 3 segundos na tela do Pix, até a reserva ficar confirmada. 
 
 ### 18. `POST /api/pagamentos/webhook`
 
-Aviso do Mercado Pago. **Novo.** Não é chamada pela tela.
+Aviso do Mercado Pago. **Stand by: fora do MVP, não será implementada agora.** Não é chamada pela tela.
+Fica descrita aqui para quando a integração voltar.
 
 | | |
 |---|---|

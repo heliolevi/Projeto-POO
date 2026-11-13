@@ -34,7 +34,7 @@ testes que já existem no repositório. Mantido por William (DevOps e QA).
 passo a passo) ou `Integração` (precisa do banco e, quando for o caso, do sandbox do Mercado Pago).
 
 **Status:** `Automatizado`, `Em revisão (PR #n)`, `Pendente`, `Aguarda rota`, `Aguarda fase N`, `Passou`,
-`Falhou` ou `Bloqueado`. `Automatizado` quer dizer que a regra tem teste no repositório (em geral de uma
+`Falhou`, `Bloqueado` ou `Stand by` (caso adiado de propósito, como os do Mercado Pago). `Automatizado` quer dizer que a regra tem teste no repositório (em geral de uma
 função ou do banco); o caminho completo pela rota só é provado nos casos do tipo `Integração`. Ao executar um caso manual, troque para `Passou` ou `Falhou` e registre a data e o
 PR ou issue do defeito.
 
@@ -52,9 +52,9 @@ PR ou issue do defeito.
 | Testes de banco | `cd db && npm run teste:banco`, com PostgreSQL com PostGIS. Rodam na CI (serviço de banco do workflow); localmente precisam de `DATABASE_URL_UNPOOLED`, e o teste de RLS precisa que o dono do banco consiga assumir o papel `app_backend` |
 | Banco de desenvolvimento | Branch `dev` do Neon, populado por `db/seeds/dev.sql`. **Nunca** testar no branch `production` fora do combinado com o tech lead |
 | Migrations | `cd db && npm run migrar:simular` antes de aplicar qualquer migration |
-| Pagamentos | Conta de teste (sandbox) do Mercado Pago, ou `PAGAMENTO_MODO=simulado` em desenvolvimento e na demo. Nenhum pagamento real |
+| Pagamentos | **MVP sem Mercado Pago:** `PAGAMENTO_MODO=simulado`. Nenhum pagamento real. A conta de teste (sandbox) do Mercado Pago só volta com a integração |
 | Dados | Dados fictícios ou da locadora, sem dados pessoais reais |
-| Variáveis | `.env.local` na máquina (fora do Git). `SESSION_SECRET` obrigatório; `HEALTH_DB_SECRET` opcional; `MP_WEBHOOK_SECRET` para o webhook |
+| Variáveis | `.env.local` na máquina (fora do Git). `SESSION_SECRET` obrigatório; `HEALTH_DB_SECRET` opcional; `MP_WEBHOOK_SECRET` só quando o webhook existir (stand by) |
 
 ## 4. Casos de teste
 
@@ -246,6 +246,10 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 
 ### 4.10 Pagamentos por Pix (rotas 16 a 18)
 
+> **MVP sem Mercado Pago.** Os casos que dependem do Mercado Pago ou do webhook (rota 18) estão em
+> `Stand by`: serão executados quando a integração voltar. No MVP valem os casos da rota 16 e 17 com o
+> pagamento simulado.
+
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
 | CT-PAG-01 | P0 | `POST /api/pagamentos` com `PIX` em reserva pendente | 201 com `qrCodeBase64`, `copiaECola` e `expiraEm`; cobra só o aluguel (a caução é combinada no balcão) | Integração | Aguarda rota |
@@ -253,21 +257,21 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-PAG-03 | P0 | Pagar reserva que não está `PENDENTE_PAGAMENTO` ou que já está paga | 409 | Integração | Aguarda rota |
 | CT-PAG-04 | P0 | `metodo` diferente de `PIX` | 400 | Integração | Aguarda rota |
 | CT-PAG-05 | P0 | Reserva de outro cliente ou inexistente | 404 | Integração | Aguarda rota |
-| CT-PAG-06 | P0 | Mercado Pago fora do ar ou recusando a criação da cobrança | 502 `PAGAMENTO_INDISPONIVEL`; a reserva continua pendente | Integração | Aguarda rota |
+| CT-PAG-06 | P0 | Mercado Pago fora do ar ou recusando a criação da cobrança | 502 `PAGAMENTO_INDISPONIVEL`; a reserva continua pendente | Integração | Stand by (sem Mercado Pago) |
 | CT-PAG-07 | P1 | Mais de 10 pedidos de pagamento por hora do mesmo usuário | 429 | Integração | Aguarda rota |
 | CT-PAG-08 | P0 | `GET /api/pagamentos/{reservaId}/status` | `statusPagamento` e `statusReserva`; `statusPagamento` é `null` sem cobrança; reserva de outro cliente recebe 404 | Integração | Aguarda rota |
-| CT-PAG-09 | P0 | Webhook com assinatura válida e pagamento aprovado no Mercado Pago | Pagamento `APROVADO` e reserva `CONFIRMADA` na mesma transação; resposta 200 `{ recebido: true }` | Integração | Aguarda rota |
-| CT-PAG-10 | P0 | O mesmo webhook chega duas vezes | Nada é duplicado (`mp_payment_id` único); resposta 200 | Integração | Aguarda rota |
-| CT-PAG-11 | P0 | Webhook sem assinatura ou com assinatura inválida (`x-signature`, `x-request-id`) | 401 e nada é alterado | Integração | Aguarda rota |
-| CT-PAG-12 | P0 | Webhook cujo corpo diz "aprovado", mas o Mercado Pago não confirma o `data.id` | Nada muda: o servidor não confia no corpo | Integração | Aguarda rota |
-| CT-PAG-13 | P1 | Webhook de outro tipo ou de pagamento desconhecido | 200, ignorado | Integração | Aguarda rota |
+| CT-PAG-09 | P0 | Webhook com assinatura válida e pagamento aprovado no Mercado Pago | Pagamento `APROVADO` e reserva `CONFIRMADA` na mesma transação; resposta 200 `{ recebido: true }` | Integração | Stand by (sem Mercado Pago) |
+| CT-PAG-10 | P0 | O mesmo webhook chega duas vezes | Nada é duplicado (`mp_payment_id` único); resposta 200 | Integração | Stand by (sem Mercado Pago) |
+| CT-PAG-11 | P0 | Webhook sem assinatura ou com assinatura inválida (`x-signature`, `x-request-id`) | 401 e nada é alterado | Integração | Stand by (sem Mercado Pago) |
+| CT-PAG-12 | P0 | Webhook cujo corpo diz "aprovado", mas o Mercado Pago não confirma o `data.id` | Nada muda: o servidor não confia no corpo | Integração | Stand by (sem Mercado Pago) |
+| CT-PAG-13 | P1 | Webhook de outro tipo ou de pagamento desconhecido | 200, ignorado | Integração | Stand by (sem Mercado Pago) |
 | CT-PAG-14 | P1 | Pix não pago em 15 minutos | Pagamento `EXPIRADO` e reserva `EXPIRADA` (o contrato só diz que a reserva expira; confirmar se o pagamento também muda) | Integração | Aguarda rota |
-| CT-PAG-15 | P1 | `PAGAMENTO_MODO=simulado` | Aprova sem o Mercado Pago só em desenvolvimento e na demo; desligado em produção | Manual | Aguarda rota |
+| CT-PAG-15 | P1 | `PAGAMENTO_MODO=simulado` | No MVP é o único modo (sem Mercado Pago). Com a integração, só em desenvolvimento e na demo; desligado em produção | Manual | Aguarda rota |
 | CT-PAG-16 | P1 | Valores monetários | Sempre inteiros em centavos, sem arredondamento errado | Auto | Aguarda rota |
-| CT-PAG-17 | P0 | Pix aprovado depois que a reserva expirou (e a bicicleta já foi reservada por outra pessoa) | O webhook não confirma a reserva expirada: ela continua `EXPIRADA`, não há duas reservas ativas na mesma bicicleta e o pagamento fica registrado para tratamento manual | Integração | Aguarda rota |
-| CT-PAG-18 | P0 | Webhook com valor pago diferente do cobrado | O servidor compara com `valor_aluguel_centavos`; se for diferente, não confirma a reserva e registra a divergência | Integração | Aguarda rota |
+| CT-PAG-17 | P0 | Pix aprovado depois que a reserva expirou (e a bicicleta já foi reservada por outra pessoa) | O webhook não confirma a reserva expirada: ela continua `EXPIRADA`, não há duas reservas ativas na mesma bicicleta e o pagamento fica registrado para tratamento manual | Integração | Stand by (sem Mercado Pago) |
+| CT-PAG-18 | P0 | Webhook com valor pago diferente do cobrado | O servidor compara com `valor_aluguel_centavos`; se for diferente, não confirma a reserva e registra a divergência | Integração | Stand by (sem Mercado Pago) |
 | CT-PAG-19 | P0 | Dois pagamentos `APROVADO` na mesma reserva | O segundo é recusado ou ignorado; hoje nada no banco impede isso (sugestão: índice único parcial em `pagamento(reserva_id)` para `APROVADO`) | Integração | Pendente (o banco ainda não impede) |
-| CT-PAG-20 | P0 | Webhook sem sessão de usuário atualizando `pagamento` e `reserva` com a RLS ligada | A atualização funciona pelo papel ou perfil de serviço do webhook; um visitante ou cliente não consegue fazer o mesmo | Integração | Aguarda rota (hoje não existe perfil para isso) |
+| CT-PAG-20 | P0 | Webhook sem sessão de usuário atualizando `pagamento` e `reserva` com a RLS ligada | A atualização funciona pelo papel ou perfil de serviço do webhook; um visitante ou cliente não consegue fazer o mesmo | Integração | Stand by (sem Mercado Pago; hoje também não existe perfil para isso) |
 
 ### 4.11 Operação: retirada e devolução (rotas 25 a 27)
 
@@ -364,7 +368,7 @@ no do celular, com a conta e os dados de teste.
 - [ ] Mostra QR code, código copia e cola e o prazo de expiração.
 - [ ] A tela consulta o status a cada 3 segundos e passa para "confirmada" sem recarregar a página.
 - [ ] Se o Pix expirar, a tela avisa que a reserva expirou e leva a uma nova busca.
-- [ ] Se o Mercado Pago estiver indisponível (502), mostra mensagem clara e permite tentar de novo.
+- [ ] *(Stand by, só com o Mercado Pago)* Se a cobrança falhar (502), mostra mensagem clara e permite tentar de novo.
 
 ### Minhas reservas
 - [ ] Lista só as reservas do cliente logado, com status e código.

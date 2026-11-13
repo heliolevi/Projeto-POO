@@ -33,8 +33,9 @@ o MVP aceita só Pix. Não coletamos fotos nem a sua localização.
 Usamos só os dados de que precisamos. A recomendação de bicicletas usa apenas altura, experiência e atividade.
 
 ## 3. Com quem compartilhamos
-- **Mercado Pago:** processa o pagamento por Pix. Recebe os dados necessários para gerar a cobrança, em
-  geral e-mail e CPF, além do valor da reserva.
+- **Operadora de pagamento:** no MVP **não há**. O Mercado Pago está em stand by e o pagamento é simulado,
+  então nenhum dado seu é enviado a uma operadora. Se a integração entrar depois, ela receberá os dados
+  necessários para gerar a cobrança (em geral e-mail e CPF, além do valor) e esta política será atualizada.
 - **Provedores de infraestrutura** (hospedagem e banco de dados): guardam os dados para o app funcionar. A
   localização exata dos servidores depende desses provedores e será informada aqui quando a locadora real for
   definida.
