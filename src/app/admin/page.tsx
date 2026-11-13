@@ -254,6 +254,7 @@ function NovoTipo({ aoCriar }: { aoCriar: (nome: string) => Promise<void> }) {
         atividades,
         alturaMinCm: Number(texto("alturaMin")),
         alturaMaxCm: Number(texto("alturaMax")),
+        nivelRecomendado: texto("nivelRecomendado") || "INICIANTE",
         precoHoraCentavos: hora,
         precoDiaCentavos: dia,
         valorCaucaoCentavos: caucao,
@@ -272,7 +273,7 @@ function NovoTipo({ aoCriar }: { aoCriar: (nome: string) => Promise<void> }) {
   return (
     <Card title="Novo tipo" as="section">
       <form onSubmit={enviar} style={{ display: "grid", gap: "var(--space-12)" }} noValidate>
-        {erroGeral && <Alert variant="erro">{erroGeral}</Alert>}
+        {(erroGeral ?? erros.corpo) && <Alert variant="erro">{erroGeral ?? erros.corpo}</Alert>}
         <TextField name="nome" label="Nome" icon={<SearchIcon />} error={erros.nome} required />
         <TextField name="descricao" label="Descrição (opcional)" icon={<SearchIcon />} error={erros.descricao} />
         <fieldset style={{ border: "none", padding: 0 }}>
@@ -295,6 +296,12 @@ function NovoTipo({ aoCriar }: { aoCriar: (nome: string) => Promise<void> }) {
         </fieldset>
         <TextField name="alturaMin" label="Altura mínima (cm)" type="number" inputMode="numeric" icon={<IdCardIcon />} error={erros.alturaMinCm} />
         <TextField name="alturaMax" label="Altura máxima (cm)" type="number" inputMode="numeric" icon={<IdCardIcon />} error={erros.alturaMaxCm} />
+        <Select name="nivelRecomendado" label="Nível recomendado" defaultValue="INICIANTE" error={erros.nivelRecomendado}
+          opcoes={[
+            { valor: "INICIANTE", rotulo: "Iniciante" },
+            { valor: "INTERMEDIARIO", rotulo: "Intermediário" },
+            { valor: "AVANCADO", rotulo: "Avançado" },
+          ]} />
         <TextField name="precoHora" label="Preço por hora (R$)" inputMode="decimal" icon={<IdCardIcon />} error={erros.precoHoraCentavos} />
         <TextField name="precoDia" label="Preço por dia (R$)" inputMode="decimal" icon={<IdCardIcon />} error={erros.precoDiaCentavos} />
         <TextField name="caucao" label="Caução (R$, opcional)" inputMode="decimal" icon={<IdCardIcon />} error={erros.valorCaucaoCentavos} />
@@ -356,7 +363,7 @@ function NovaBicicleta({
   return (
     <Card title="Nova bicicleta" as="section">
       <form onSubmit={enviar} style={{ display: "grid", gap: "var(--space-12)" }} noValidate>
-        {erroGeral && <Alert variant="erro">{erroGeral}</Alert>}
+        {(erroGeral ?? erros.corpo) && <Alert variant="erro">{erroGeral ?? erros.corpo}</Alert>}
         <Select name="tipoId" label="Tipo" placeholder="Escolha o tipo" error={erros.tipoId}
           opcoes={tipos.map((t) => ({ valor: t.id, rotulo: t.nome }))} />
         <Select name="pontoId" label="Ponto de retirada" error={erros.pontoId}

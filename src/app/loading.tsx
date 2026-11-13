@@ -4,8 +4,7 @@ import { LogoMark } from "@/shared/ui/Logo";
 export default function Carregando() {
   return (
     <main
-      role="status"
-      aria-live="polite"
+      aria-busy="true"
       style={{
         minHeight: "100dvh",
         display: "grid",
@@ -17,7 +16,7 @@ export default function Carregando() {
       }}
     >
       <LogoMark size={40} />
-      <p>Carregando...</p>
+      <p role="status">Carregando...</p>
     </main>
   );
 }
