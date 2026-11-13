@@ -18,6 +18,7 @@ import {
 } from "./pagamento.ts";
 
 const CRIADO = new Date("2026-11-14T11:00:00.000Z");
+const PAGO = new Date("2026-11-14T11:05:00.000Z");
 const MIN = 60_000;
 const dados = (parcial = {}) => ({
   id: "pg-1",
@@ -26,14 +27,17 @@ const dados = (parcial = {}) => ({
   criadoEm: CRIADO,
   ...parcial,
 });
-const pix = (status?: StatusPagamento) => new PagamentoPix(dados({ status }));
+// um pagamento aprovado sempre tem a data em que foi pago (o banco exige pago_em no APROVADO)
+const pix = (status?: StatusPagamento) =>
+  new PagamentoPix(dados({ status, pagoEm: status === "APROVADO" ? PAGO : undefined }));
 const cartao = (debito = false) => new PagamentoCartao({ ...dados(), debito });
 
 describe("Pagamento (classe abstrata): ciclo de vida", () => {
-  test("nasce PENDENTE, sem id do Mercado Pago e sem estorno", () => {
+  test("nasce PENDENTE, sem id do Mercado Pago, sem data de pagamento e sem estorno", () => {
     const p = pix();
     assert.equal(p.status, "PENDENTE");
     assert.equal(p.mpPaymentId, null);
+    assert.equal(p.pagoEm, null);
     assert.ok(p.valorEstornado.ehZero());
     assert.equal(p.reservaId, "r-1");
     assert.equal(p.valor.centavos, 4800);
@@ -46,53 +50,62 @@ describe("Pagamento (classe abstrata): ciclo de vida", () => {
     assert.throws(() => new PagamentoPix(dados({ valorEstornado: Dinheiro.deCentavos(4801) })), RangeError);
   });
 
-  test("confirmar: PENDENTE -> APROVADO e guarda o id do Mercado Pago", () => {
+  test("confirmar: PENDENTE -> APROVADO, guarda o id do Mercado Pago e a data do pagamento", () => {
     const p = pix();
-    p.confirmar("mp-123");
+    assert.equal(p.confirmar("mp-123", PAGO), true);
     assert.equal(p.status, "APROVADO");
     assert.equal(p.mpPaymentId, "mp-123");
+    assert.equal(p.pagoEm?.getTime(), PAGO.getTime());
   });
 
   test("confirmar é idempotente com o mesmo id (aviso duplicado) e conflito com outro id", () => {
     const p = pix();
-    p.confirmar("mp-123");
-    p.confirmar("mp-123");
+    p.confirmar("mp-123", PAGO);
+    assert.equal(p.confirmar("mp-123", new Date(PAGO.getTime() + 60_000)), false);
     assert.equal(p.status, "APROVADO");
-    assert.throws(() => p.confirmar("mp-999"), TransicaoDePagamentoInvalida);
+    assert.equal(p.pagoEm?.getTime(), PAGO.getTime(), "o aviso repetido não muda a data do pagamento");
+    assert.throws(() => p.confirmar("mp-999", PAGO), TransicaoDePagamentoInvalida);
     assert.equal(p.mpPaymentId, "mp-123");
   });
 
   test("no MVP simulado o id do Mercado Pago fica vazio", () => {
     const p = pix();
-    p.confirmar(null);
+    p.confirmar(null, PAGO);
     assert.equal(p.status, "APROVADO");
     assert.equal(p.mpPaymentId, null);
-    p.confirmar(null);
+    assert.equal(p.confirmar(null, PAGO), false);
     assert.equal(p.status, "APROVADO");
   });
 
-  test("recusar e expirar só valem para pendente", () => {
+  test("recusar e expirar valem para pendente, e repetir o mesmo aviso é idempotente (false, sem erro)", () => {
     const recusado = pix();
-    recusado.recusar();
+    assert.equal(recusado.recusar(), true);
     assert.equal(recusado.status, "RECUSADO");
+    assert.equal(recusado.recusar(), false, "o aviso repetido de recusado não vira 409");
     const expirado = pix();
-    expirado.expirar();
+    assert.equal(expirado.expirar(), true);
     assert.equal(expirado.status, "EXPIRADO");
-    for (const status of ["APROVADO", "RECUSADO", "ESTORNADO", "EXPIRADO"] as const) {
-      assert.throws(() => pix(status).recusar(), TransicaoDePagamentoInvalida, status);
-      assert.throws(() => pix(status).expirar(), TransicaoDePagamentoInvalida, status);
+    assert.equal(expirado.expirar(), false, "o aviso repetido de expirado não vira 409");
+  });
+
+  test("recusar e expirar não valem para um estado que contradiz o aviso", () => {
+    for (const status of ["APROVADO", "ESTORNADO", "EXPIRADO"] as const) {
+      assert.throws(() => pix(status).recusar(), TransicaoDePagamentoInvalida, `recusar em ${status}`);
+    }
+    for (const status of ["APROVADO", "RECUSADO", "ESTORNADO"] as const) {
+      assert.throws(() => pix(status).expirar(), TransicaoDePagamentoInvalida, `expirar em ${status}`);
     }
   });
 
   test("os estados finais não confirmam", () => {
     for (const status of ["RECUSADO", "ESTORNADO", "EXPIRADO"] as const) {
-      assert.throws(() => pix(status).confirmar("mp-1"), TransicaoDePagamentoInvalida, status);
+      assert.throws(() => pix(status).confirmar("mp-1", PAGO), TransicaoDePagamentoInvalida, status);
     }
   });
 
   test("a transição inválida é um 409", () => {
     assert.throws(
-      () => pix("EXPIRADO").confirmar("x"),
+      () => pix("EXPIRADO").confirmar("x", PAGO),
       (erro) => erro instanceof ConflictError && (erro as ConflictError).status === 409,
     );
   });
@@ -102,6 +115,36 @@ describe("Pagamento (classe abstrata): ciclo de vida", () => {
     assert.deepEqual(Object.keys(p), []);
     p.criadoEm.setUTCFullYear(1999);
     assert.equal(p.criadoEm.getUTCFullYear(), 2026);
+  });
+});
+
+describe("Pagamento: data do pagamento (pago_em) como o banco exige", () => {
+  test("um pagamento aprovado sem a data é recusado na construção (constraint pagamento_pago_em_consistente)", () => {
+    assert.throws(() => new PagamentoPix(dados({ status: "APROVADO" })), RangeError);
+    assert.throws(() => new PagamentoCartao({ ...dados({ status: "APROVADO" }) }), RangeError);
+  });
+
+  test("pagoEmParaPersistir: a data só vai ao banco enquanto o status é APROVADO", () => {
+    assert.equal(pix().pagoEmParaPersistir(), null, "pendente");
+    const aprovado = pix("APROVADO");
+    assert.equal(aprovado.pagoEmParaPersistir()?.getTime(), PAGO.getTime());
+    aprovado.estornar(Dinheiro.deCentavos(4800));
+    assert.equal(aprovado.status, "ESTORNADO");
+    assert.equal(aprovado.pagoEmParaPersistir(), null, "depois do estorno total o banco exige pago_em nulo");
+    assert.equal(aprovado.pagoEm?.getTime(), PAGO.getTime(), "mas o objeto continua sabendo quando foi pago");
+  });
+
+  test("o que sai é cópia da data", () => {
+    const p = pix("APROVADO");
+    p.pagoEm?.setUTCFullYear(1999);
+    p.pagoEmParaPersistir()?.setUTCFullYear(1999);
+    assert.equal(p.pagoEm?.getUTCFullYear(), 2026);
+  });
+
+  test("ESTORNADO, RECUSADO e EXPIRADO lidos do banco (pago_em nulo) são aceitos", () => {
+    for (const status of ["ESTORNADO", "RECUSADO", "EXPIRADO"] as const) {
+      assert.doesNotThrow(() => new PagamentoPix(dados({ status })), status);
+    }
   });
 });
 
@@ -133,13 +176,56 @@ describe("Pagamento: estorno", () => {
       assert.throws(() => pix(status).estornar(Dinheiro.deCentavos(1)), TransicaoDePagamentoInvalida, status);
     }
   });
+
+  test("estornarTudo estorna o que resta e é idempotente (o aviso repetido não vira erro)", () => {
+    const p = pix("APROVADO");
+    p.estornar(Dinheiro.deCentavos(1000));
+    assert.equal(p.estornarTudo(), true);
+    assert.equal(p.status, "ESTORNADO");
+    assert.equal(p.valorEstornado.centavos, 4800);
+    assert.equal(p.estornarTudo(), false);
+    assert.equal(p.status, "ESTORNADO");
+  });
+
+  test("estornarTudo num pagamento que não foi aprovado continua sendo erro", () => {
+    for (const status of ["PENDENTE", "RECUSADO", "EXPIRADO"] as const) {
+      assert.throws(() => pix(status).estornarTudo(), TransicaoDePagamentoInvalida, status);
+    }
+  });
 });
 
 describe("PagamentoPix", () => {
-  test("o método é PIX e vale 15 minutos", () => {
+  test("o método é PIX e, sem prazo informado, vale 15 minutos", () => {
     assert.equal(pix().metodo, "PIX");
     assert.equal(PRAZO_DO_PIX_MS, 15 * MIN);
     assert.equal(pix().expiraEm().getTime(), CRIADO.getTime() + 15 * MIN);
+  });
+
+  test("com o prazo da reserva, vale até ele (e não 15 minutos a partir da criação)", () => {
+    const p = new PagamentoPix(dados({ expiraEm: new Date(CRIADO.getTime() + 5 * MIN) }));
+    assert.equal(p.expiraEm().getTime(), CRIADO.getTime() + 5 * MIN);
+    assert.equal(p.gerar(CRIADO).pix.expiraEm, "2026-11-14T11:05:00.000Z");
+    assert.throws(() => p.gerarPix(new Date(CRIADO.getTime() + 5 * MIN)), TransicaoDePagamentoInvalida);
+  });
+
+  test("o prazo precisa ser depois da criação", () => {
+    assert.throws(() => new PagamentoPix(dados({ expiraEm: CRIADO })), RangeError);
+    assert.throws(() => new PagamentoPix(dados({ expiraEm: new Date(CRIADO.getTime() - MIN) })), RangeError);
+  });
+
+  test("estaVencido: só o pendente que passou do prazo (no instante do prazo já venceu)", () => {
+    const p = pix();
+    assert.equal(p.estaVencido(new Date(CRIADO.getTime() + 15 * MIN - 1)), false);
+    assert.equal(p.estaVencido(new Date(CRIADO.getTime() + 15 * MIN)), true);
+    const aprovado = pix("APROVADO");
+    assert.equal(aprovado.estaVencido(new Date(CRIADO.getTime() + 99 * MIN)), false, "aprovado nunca vence");
+    assert.equal(pix("EXPIRADO").estaVencido(new Date(CRIADO.getTime() + 99 * MIN)), false);
+  });
+
+  test("o prazo devolvido é cópia", () => {
+    const p = pix();
+    p.expiraEm().setUTCFullYear(1999);
+    assert.equal(p.expiraEm().getUTCFullYear(), 2026);
   });
 
   test("gerarPix devolve o copia e cola simulado dentro do prazo", () => {
@@ -172,25 +258,38 @@ describe("PagamentoCartao", () => {
   test("cobrarCartao aceita um token e recusa texto que não parece token", () => {
     const c = cartao();
     for (const ruim of ["", "curto", "tem espaço no meio", "4111111111111111 12/30"]) {
-      assert.throws(() => c.cobrarCartao(ruim), RangeError, ruim);
+      assert.throws(() => c.cobrarCartao(ruim, "1234"), RangeError, ruim);
     }
-    c.cobrarCartao("tok_ABCDEFGH1234");
+    c.cobrarCartao("tok_ABCDEFGH1234", "1234");
     assert.equal(c.status, "PENDENTE");
   });
 
-  test("gerar sem token é recusado; com token mostra só o final", () => {
+  test("o final do cartão vem do meio de pagamento e precisa ter exatamente 4 dígitos", () => {
+    const c = cartao();
+    for (const ruim of ["", "123", "12345", "abcd", "12 4", "4111111111111111"]) {
+      assert.throws(() => c.cobrarCartao("tok_ABCDEFGH1234", ruim), RangeError, ruim);
+    }
+    assert.throws(() => c.gerar(), TransicaoDePagamentoInvalida, "um final recusado não deixa o cartão pronto");
+  });
+
+  test("gerar sem token é recusado; com token mostra o final informado, não o fim do token", () => {
     const c = cartao();
     assert.throws(() => c.gerar(), TransicaoDePagamentoInvalida);
-    c.cobrarCartao("tok_ABCDEFGH1234");
+    c.cobrarCartao("tok_ABCDEFGH1234", "9876");
     const cobranca = c.gerar();
-    assert.equal(cobranca.cartao.finalDoCartao, "1234");
+    assert.equal(cobranca.cartao.finalDoCartao, "9876");
     assert.ok(!JSON.stringify(cobranca).includes("tok_ABCDEFGH"));
+    assert.ok(!JSON.stringify(cobranca).includes("1234"), "os últimos caracteres do token não aparecem");
     assert.equal(cobranca.metodo, "CARTAO_CREDITO");
   });
 
   test("não cobra pagamento que já não está pendente", () => {
-    const c = new PagamentoCartao({ ...dados({ status: "APROVADO" }) });
-    assert.throws(() => c.cobrarCartao("tok_ABCDEFGH1234"), TransicaoDePagamentoInvalida);
+    const c = new PagamentoCartao({ ...dados({ status: "APROVADO", pagoEm: PAGO }) });
+    assert.throws(() => c.cobrarCartao("tok_ABCDEFGH1234", "1234"), TransicaoDePagamentoInvalida);
+  });
+
+  test("o cartão não tem prazo próprio: nunca está vencido", () => {
+    assert.equal(cartao().estaVencido(), false);
   });
 });
 
@@ -211,10 +310,18 @@ describe("criarPagamento (fábrica) e polimorfismo", () => {
     assert.throws(() => criarPagamento("BOLETO" as never, dados()), RangeError);
   });
 
-  test("o mesmo código usa qualquer pagamento sem saber qual é: confirmar e resumo", () => {
+  test("o prazo informado vale para o Pix e é ignorado pelo cartão", () => {
+    const prazo = new Date(CRIADO.getTime() + 3 * MIN);
+    const p = criarPagamento("PIX", dados({ expiraEm: prazo }));
+    assert.equal((p as PagamentoPix).expiraEm().getTime(), prazo.getTime());
+    assert.doesNotThrow(() => criarPagamento("CARTAO_CREDITO", dados({ expiraEm: prazo })));
+  });
+
+  test("o mesmo código usa qualquer pagamento sem saber qual é: confirmar, vencimento e resumo", () => {
     const todos: Pagamento[] = METODOS_PAGAMENTO.map((m) => criarPagamento(m, dados()));
     for (const p of todos) {
-      p.confirmar("mp-1");
+      assert.equal(p.estaVencido(CRIADO), false);
+      p.confirmar("mp-1", PAGO);
       assert.equal(p.status, "APROVADO");
       assert.equal(p.resumo().metodo, p.metodo);
       assert.equal(p.resumo().valorCentavos, 4800);
@@ -227,14 +334,7 @@ describe("criarPagamento (fábrica) e polimorfismo", () => {
   });
 });
 
-describe("pagamentos: pontos acrescentados na revisão de qualidade", () => {
-  test("confirmar devolve true só na transição PENDENTE -> APROVADO", () => {
-    const p = pix();
-    assert.equal(p.confirmar("mp-1"), true);
-    assert.equal(p.confirmar("mp-1"), false);
-    assert.equal(pix().confirmar(null), true);
-  });
-
+describe("pagamentos: cobrança inicial e prazo", () => {
   test("cobrancaInicial: o Pix já traz a cobrança e o cartão só o resumo, sem lançar sem token", () => {
     const cobrancaPix = pix().cobrancaInicial(CRIADO);
     assert.ok("pix" in cobrancaPix);
@@ -257,7 +357,7 @@ describe("pagamentos: pontos acrescentados na revisão de qualidade", () => {
     }
   });
 
-  test("o prazo do Pix é o mesmo da reserva pendente (uma constante só)", () => {
+  test("o prazo padrão do Pix é o da reserva pendente (uma constante só)", () => {
     assert.equal(PRAZO_DO_PIX_MS, PRAZO_DE_PAGAMENTO_MS);
     assert.equal(PRAZO_DE_PAGAMENTO_MS, 15 * MIN);
   });

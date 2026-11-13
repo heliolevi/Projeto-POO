@@ -18,8 +18,17 @@ export type CobrancaPix = CobrancaGerada & {
 // Pix. No MVP o pagamento é simulado (a integração com o Mercado Pago está em stand by): o "copia e
 // cola" é um texto reconhecível como de teste, no formato "PIX-SIMULADO|id|valor".
 export class PagamentoPix extends Pagamento {
+  readonly #expiraEm: Date;
+
   constructor(dados: DadosPagamento) {
     super(dados);
+    // sem prazo informado, vale 15 minutos a partir da criação; com o prazo da reserva, vale até ele
+    this.#expiraEm = dados.expiraEm
+      ? new Date(dados.expiraEm)
+      : new Date(this.criadoEm.getTime() + PRAZO_DO_PIX_MS);
+    if (this.#expiraEm.getTime() <= this.criadoEm.getTime()) {
+      throw new RangeError("O prazo do Pix precisa ser depois da criação do pagamento.");
+    }
   }
 
   get metodo(): MetodoPagamento {
@@ -27,7 +36,11 @@ export class PagamentoPix extends Pagamento {
   }
 
   expiraEm(): Date {
-    return new Date(this.criadoEm.getTime() + PRAZO_DO_PIX_MS);
+    return new Date(this.#expiraEm);
+  }
+
+  estaVencido(agora: Date): boolean {
+    return this.status === "PENDENTE" && agora.getTime() >= this.#expiraEm.getTime();
   }
 
   // O texto que o cliente copia e cola no aplicativo do banco.
@@ -55,18 +68,22 @@ export class PagamentoPix extends Pagamento {
 
 export type CobrancaCartao = CobrancaGerada & {
   metodo: "CARTAO_CREDITO" | "CARTAO_DEBITO";
-  cartao: { finalDoCartao: string | null };
+  cartao: { finalDoCartao: string };
 };
 
 const TOKEN_DE_CARTAO = /^[A-Za-z0-9_-]{8,}$/;
+const FINAL_DO_CARTAO = /^\d{4}$/;
 
 export type DadosPagamentoCartao = DadosPagamento & { debito?: boolean };
 
 // Cartão de crédito ou débito. Os dados do cartão nunca passam por aqui: o navegador troca o cartão
-// por um token e só o token chega ao sistema. O token fica privado e a cobrança mostra só o final.
+// por um token e só o token chega ao sistema. O token fica privado e a cobrança mostra só o final
+// do cartão, que vem do meio de pagamento junto com o token (os últimos caracteres do token não
+// têm relação com o número do cartão).
 export class PagamentoCartao extends Pagamento {
   readonly #debito: boolean;
   #token: string | null = null;
+  #finalDoCartao: string | null = null;
 
   constructor(dados: DadosPagamentoCartao) {
     super(dados);
@@ -77,26 +94,35 @@ export class PagamentoCartao extends Pagamento {
     return this.#debito ? "CARTAO_DEBITO" : "CARTAO_CREDITO";
   }
 
-  // Registra o token do cartão para a cobrança. O pagamento continua PENDENTE até a operadora
-  // responder (confirmar, recusar).
-  cobrarCartao(token: string): void {
+  // Registra o token do cartão e o final dele (4 dígitos, como o meio de pagamento devolve) para a
+  // cobrança. O pagamento continua PENDENTE até a operadora responder (confirmar, recusar).
+  cobrarCartao(token: string, finalDoCartao: string): void {
     this.exigirPendente();
     if (!TOKEN_DE_CARTAO.test(token)) {
       throw new RangeError("Token de cartão inválido.");
     }
+    if (!FINAL_DO_CARTAO.test(finalDoCartao)) {
+      throw new RangeError("O final do cartão precisa ter 4 dígitos.");
+    }
     this.#token = token;
+    this.#finalDoCartao = finalDoCartao;
   }
 
   gerar(): CobrancaCartao {
     this.exigirPendente();
-    if (this.#token === null) {
+    if (this.#token === null || this.#finalDoCartao === null) {
       throw new TransicaoDePagamentoInvalida("Informe o cartão antes de gerar a cobrança.");
     }
     return {
       ...this.resumo(),
       metodo: this.metodo,
-      cartao: { finalDoCartao: this.#token.slice(-4) },
+      cartao: { finalDoCartao: this.#finalDoCartao },
     };
+  }
+
+  // O cartão não tem prazo próprio: quem vence é a reserva.
+  estaVencido(): boolean {
+    return false;
   }
 
   // O cartão ainda espera o token do navegador: não há o que mostrar além do resumo.

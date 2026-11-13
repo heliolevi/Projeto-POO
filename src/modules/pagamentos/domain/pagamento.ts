@@ -29,6 +29,12 @@ export type DadosPagamento = {
   // id do pagamento no Mercado Pago; fica vazio no MVP (pagamento simulado)
   mpPaymentId?: string | null;
   valorEstornado?: Dinheiro;
+  // Quando foi pago. O banco exige pago_em preenchido exatamente quando o status é APROVADO
+  // (constraint pagamento_pago_em_consistente), então um pagamento aprovado precisa dela.
+  pagoEm?: Date | null;
+  // Só o Pix usa: até quando a cobrança vale. É o menor entre 15 minutos e o prazo da reserva,
+  // para o Pix não sobreviver à reserva que ele paga.
+  expiraEm?: Date | null;
 };
 
 // O que a cobrança devolve para a tela. Cada forma de pagamento acrescenta os seus campos.
@@ -54,6 +60,7 @@ export abstract class Pagamento {
   #status: StatusPagamento;
   #mpPaymentId: string | null;
   #valorEstornado: Dinheiro;
+  #pagoEm: Date | null;
 
   protected constructor(dados: DadosPagamento) {
     if (!dados.id) throw new RangeError("O pagamento precisa de um id.");
@@ -61,13 +68,19 @@ export abstract class Pagamento {
     if (dados.valor.ehZero()) throw new RangeError("O valor do pagamento precisa ser maior que zero.");
     const estornado = dados.valorEstornado ?? Dinheiro.ZERO;
     if (estornado.maiorQue(dados.valor)) throw new RangeError("O valor estornado não pode passar do valor pago.");
+    const status = dados.status ?? "PENDENTE";
+    const pagoEm = dados.pagoEm ? new Date(dados.pagoEm) : null;
+    if (status === "APROVADO" && pagoEm === null) {
+      throw new RangeError("Um pagamento aprovado precisa da data em que foi pago (pagoEm).");
+    }
     this.#id = dados.id;
     this.#reservaId = dados.reservaId;
     this.#valor = dados.valor;
     this.#criadoEm = new Date(dados.criadoEm);
-    this.#status = dados.status ?? "PENDENTE";
+    this.#status = status;
     this.#mpPaymentId = dados.mpPaymentId ?? null;
     this.#valorEstornado = estornado;
+    this.#pagoEm = pagoEm;
   }
 
   abstract get metodo(): MetodoPagamento;
@@ -79,6 +92,10 @@ export abstract class Pagamento {
   // ainda espera o token, então devolve só o resumo. Quem cria o pagamento chama este método e não
   // precisa saber qual forma é.
   abstract cobrancaInicial(agora: Date): CobrancaGerada;
+
+  // A cobrança pendente já passou do prazo (só o Pix tem prazo próprio). O serviço expira o
+  // pagamento vencido para poder criar outro, em vez de devolver a mesma cobrança morta.
+  abstract estaVencido(agora: Date): boolean;
 
   get id(): string {
     return this.#id;
@@ -101,26 +118,49 @@ export abstract class Pagamento {
   get criadoEm(): Date {
     return new Date(this.#criadoEm);
   }
+  get pagoEm(): Date | null {
+    return this.#pagoEm === null ? null : new Date(this.#pagoEm);
+  }
 
-  // Aprovação. Devolve true se mudou o pagamento de PENDENTE para APROVADO. Idempotente: o mesmo aviso
-  // do Mercado Pago chegando duas vezes (mesmo id) não muda nada e devolve false; um id diferente num
-  // pagamento já aprovado é conflito.
-  confirmar(mpPaymentId: string | null): boolean {
+  // O que o repositório grava em pago_em: o banco só aceita a data quando o status é APROVADO. Depois
+  // de um estorno total o status vira ESTORNADO e a coluna volta a ser nula.
+  pagoEmParaPersistir(): Date | null {
+    return this.#status === "APROVADO" ? this.pagoEm : null;
+  }
+
+  // Aprovação. Devolve true se mudou o pagamento de PENDENTE para APROVADO e guarda a data do
+  // pagamento. Idempotente: o mesmo aviso do Mercado Pago chegando duas vezes (mesmo id) não muda
+  // nada e devolve false; um id diferente num pagamento já aprovado é conflito.
+  confirmar(mpPaymentId: string | null, agora: Date): boolean {
     if (this.#status === "APROVADO" && mpPaymentId === this.#mpPaymentId) return false;
     if (this.#status === "APROVADO") {
       throw new TransicaoDePagamentoInvalida("Este pagamento já foi aprovado com outro identificador.");
     }
     this.#mudarPara("APROVADO", "confirmar");
     this.#mpPaymentId = mpPaymentId;
+    this.#pagoEm = new Date(agora);
     return true;
   }
 
-  recusar(): void {
+  // Recusar e expirar também são idempotentes (devolvem true só se mudaram o status): o meio de
+  // pagamento reenvia o aviso que não recebe resposta de sucesso, e o repetido não pode virar 409.
+  recusar(): boolean {
+    if (this.#status === "RECUSADO") return false;
     this.#mudarPara("RECUSADO", "recusar");
+    return true;
   }
 
-  expirar(): void {
+  expirar(): boolean {
+    if (this.#status === "EXPIRADO") return false;
     this.#mudarPara("EXPIRADO", "expirar");
+    return true;
+  }
+
+  // Estorna o que ainda resta. Idempotente: se já foi tudo estornado, não faz nada e devolve false.
+  estornarTudo(): boolean {
+    if (this.#status === "ESTORNADO") return false;
+    this.estornar(this.restanteParaEstorno());
+    return true;
   }
 
   // Devolve parte ou todo o valor de um pagamento aprovado. Estornado o valor inteiro, o pagamento
