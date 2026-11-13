@@ -108,6 +108,14 @@ export function putAutenticado<T>(url: string, corpo: unknown): Promise<T> {
   });
 }
 
+export function patchAutenticado<T>(url: string, corpo: unknown): Promise<T> {
+  return enviarAutenticado<T>(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...cabecalhoAutenticado() },
+    body: JSON.stringify(corpo),
+  });
+}
+
 export function postAutenticado<T>(
   url: string,
   corpo: unknown = {},

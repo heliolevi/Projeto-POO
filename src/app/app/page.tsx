@@ -1,24 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { lerSessao, type PerfilUsuario } from "@/shared/auth/sessao";
-import { PlaceholderScreen } from "@/shared/ui/PlaceholderScreen";
+import { PainelDaEquipe } from "@/shared/ui/PainelDaEquipe";
 
-const TITULO_POR_PERFIL: Record<PerfilUsuario, string> = {
-  CLIENTE: "Que bom te ver de novo!",
-  OPERADOR: "Painel da equipe",
-  ADMIN: "Painel da plataforma",
-};
-
+// O cliente cai direto na Busca; a equipe vê o cartão do painel.
 export default function AppHomePage() {
+  const router = useRouter();
   const [perfil] = useState<PerfilUsuario | null>(() => lerSessao()?.perfil ?? null);
 
-  if (!perfil) return null;
+  useEffect(() => {
+    if (perfil === "CLIENTE") router.replace("/app/buscar");
+  }, [perfil, router]);
 
-  return (
-    <PlaceholderScreen
-      title={TITULO_POR_PERFIL[perfil]}
-      description="Esta tela ainda está em construção."
-    />
-  );
+  if (!perfil || perfil === "CLIENTE") return null;
+
+  return <PainelDaEquipe admin={perfil === "ADMIN"} />;
 }
