@@ -10,6 +10,43 @@ novembro de 2026 com a mudança de escopo.
 > entre locadoras descrevem o estado antigo e serão ajustados na fase 1 do plano. O novo escopo e o
 > plano estão em [mudanca-de-escopo.md](mudanca-de-escopo.md).
 
+## Situação em 12/11/2026 e cronograma até 19/11
+
+> **Decisões de 12/11/2026.** (1) O projeto é da disciplina de POO, então o código passa para
+> orientação a objetos, conforme o diagrama de classes ([arquitetura-oo.md](arquitetura-oo.md)).
+> (2) **MVP mínimo em 13/11** (experiência do cliente) e **sistema completo em 19/11**. (4) O PR #45 (reservas) é reformulado em classes antes de entrar na `dev`.
+
+### Tasks e pull requests
+
+| Situação | Tasks (PR) |
+|---|---|
+| Concluídas | T02 (#11), T03 (#13), T04 (#9), T05 (#14), T06 (#20), T07 (#21), T08 a T10 (#4, #5, #12), T11 (#15), T12 (#18), T13 (#19, #31), T14 (#32), T17 (#16), T18 (#28, #41), T19 (#27, #35, #40), T21 (#26), T22 (#29, #37), T24 (#42), T25 (#43), T26 (#25), T27 (#44), T30 (#30), T34 (#34), T38 (#38, #46), T39 (#39), T42 (#33, #36), T50 (#49), T57 (#48), T62 (#50) |
+| Em andamento (PR aberto) | T35 (#45, será reformulado em classes), T28 (#47), T58 (#51), T59 (#52), T47 (#53), T31 (#54), decisão de escopo sem Mercado Pago (#55) |
+| Pausadas | T20 (Mercado Pago fora do ar), T36 e T37 (pagamento e webhook, passam a usar gateway simulado) |
+| Não iniciadas | T23, T29, T40, T43, T45, T46, T48, T49, T51, T53, T54, T55, T56, T60, T61, T63, T64, T65, T66 a T77, mais as tasks R1 a R8 da migração para classes |
+
+### Dois objetivos
+
+- **Sex 13/11, MVP mínimo:** mostrar a experiência do cliente para apresentar a ideia (entrar, informar altura e passeio, ver as bicicletas recomendadas, reservar, pagar com Pix simulado e ver a reserva confirmada). Sem painel da equipe. **Precisa estar online, com URL pública** (hoje não existe nenhum deploy). Estado das telas testado em 13/11: a landing, a busca e o resumo da reserva funcionam; quebram o botão "Reservar e pagar", Minhas reservas e o Pix (faltam as APIs de reservas e de pagamento) e o Início do app está vazio.
+- **Qui 19/11, sistema completo:** todas as regras funcionando e testadas, com o código em orientação a objetos conforme o diagrama de classes.
+
+### Cronograma
+
+| Quando | O que acontece |
+|---|---|
+| Qui 12/11 à noite até Sex 13/11 07:30 | Branch de demonstração `demo/mvp-2026-11-13` (`dev` + #45 + #52), migration 0011 no Neon dev, pagamento Pix simulado (API), Início do app sem "em construção", mensagens e estados vazios, dados da demo (cliente Maria) e **deploy na Vercel com URL pública** |
+| Sex 13/11 08:30 e 09:00 | Smoke test (William) e decisão Go/No-Go (Luis): Plano A (jornada completa), B (até a reserva criada) ou C (vídeo e prints) |
+| Sex 13/11 | **Apresentação do MVP.** À tarde: limpar os PRs abertos e abrir issues dos defeitos vistos na demo |
+| Sáb 14 e Dom 15 | Sem tarefas obrigatórias |
+| Seg 16/11 | Regra de lint, objetos de valor, token com expiração, páginas 404 e erro, validação de variáveis |
+| Ter 17/11 | Catálogo, contas e reservas em classes (o #45 é reformulado e entra na `dev`); recomendação em classes; painel do catálogo; `GET /api/empresa` |
+| Qua 18/11 | Operação, pagamento em classes com webhook idempotente, limites, painel de operação; congelamento final às 18:00; E2E e QA |
+| Qui 19/11 | Correções P0 e P1, diagrama, documentação, slide de OO, regressão final, deploy final, ensaio e **entrega do sistema completo** |
+
+O que não estiver pronto no congelamento de 18/11 fica documentado como "modelado, ainda não migrado".
+As tarefas, com responsável, prazo e plano B, estão na planilha `docs/cronograma-entrega-19-11.xlsx`
+(abas "Por pessoa", "MVP 13-11" e "Sistema 19-11").
+
 ## Equipe
 
 | Pessoa | Papel | Conta no GitHub |
@@ -133,9 +170,12 @@ limitador agora é aguardada, em vez de rodar solta.
 
 ## Referências
 
+- `docs/arquitetura-oo.md`: regras de orientação a objetos, mapa das classes do diagrama e como criar uma classe nova.
+- `docs/superpowers/plans/2026-11-12-refatoracao-poo.md`: plano da migração para classes.
+
 - `docs/mudanca-de-escopo.md`: o que mudou ao passar para uma única locadora e o plano de trabalho.
 - `docs/modelo-de-dados.md`: modelo de dados novo (uma locadora), recomendação e segurança por linha.
-- `docs/diagrama-de-classes.pdf`: planejamento das classes do modelo anterior (várias locadoras), a ser refeito.
+- `docs/diagrama-de-classes.pdf`: diagrama de classes do modelo de uma única locadora (novembro de 2026); a task T63 o atualiza com o que foi implementado.
 - `db/README.md`: como aplicar migrations e criar o papel do aplicativo.
 - Relatório de validação do backend (PDF entregue pelo William em 28/10, ainda não versionado).
 
