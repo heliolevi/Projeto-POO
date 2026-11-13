@@ -1,10 +1,6 @@
-import { SiteLayout } from "@/shared/ui/SiteLayout";
-import { PlaceholderScreen } from "@/shared/ui/PlaceholderScreen";
+import { redirect } from "next/navigation";
 
-export default function BuscarPage() {
-  return (
-    <SiteLayout>
-      <PlaceholderScreen title="Buscar" description="Esta tela ainda está em construção." />
-    </SiteLayout>
-  );
+// Endereço antigo: a tela de verdade fica dentro do app.
+export default function Page() {
+  redirect("/app/buscar");
 }

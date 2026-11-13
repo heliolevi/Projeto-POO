@@ -78,6 +78,7 @@ function PainelCatalogo() {
       setDados({ tipos, bicicletas });
       setErro(null);
     } catch (e) {
+      setAviso(null);
       setErro(mensagem(e, "Não foi possível carregar o catálogo agora. Tente de novo."));
     }
   }, []);
@@ -101,6 +102,7 @@ function PainelCatalogo() {
       setAviso(`${tipo.nome} ${tipo.ativo ? "saiu da" : "voltou para a"} busca.`);
       await carregar();
     } catch (e) {
+      setAviso(null);
       setErro(mensagem(e, "Não foi possível alterar o tipo."));
     }
   }
@@ -111,6 +113,7 @@ function PainelCatalogo() {
       setAviso(`Bicicleta ${bicicleta.codigo}: ${ROTULO_STATUS[status]}.`);
       await carregar();
     } catch (e) {
+      setAviso(null);
       setErro(mensagem(e, "Não foi possível mudar o status."));
     }
   }
