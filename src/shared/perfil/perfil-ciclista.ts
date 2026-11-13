@@ -67,3 +67,25 @@ export function montarCorpo(form: FormularioPerfil): PerfilCiclista {
 export function perfilCompleto(ciclista?: PerfilCiclista | null): boolean {
   return Boolean(ciclista && ciclista.alturaCm && ciclista.experiencia && ciclista.atividade);
 }
+
+/** Quantos dos três dados do formulário estão preenchidos com um valor aceito (0 a 3). */
+export function dadosInformados(form: FormularioPerfil): number {
+  const altura = form.altura.trim();
+  return [
+    /^\d+$/.test(altura) && alturaValida(Number(altura)),
+    ehExperiencia(form.experiencia),
+    ehAtividade(form.atividade),
+  ].filter(Boolean).length;
+}
+
+// Altura de partida para os botões − e + quando o campo está vazio: perto da média de adultos.
+const ALTURA_INICIAL_CM = 170;
+
+/**
+ * Soma `passo` centímetros à altura do campo e devolve o texto novo, sempre dentro da faixa
+ * aceita. Campo vazio ou com texto parte de 170 cm.
+ */
+export function ajustarAltura(texto: string, passo: number): string {
+  const atual = /^\d+$/.test(texto.trim()) ? Number(texto.trim()) : ALTURA_INICIAL_CM - passo;
+  return String(Math.min(ALTURA_MAX_CM, Math.max(ALTURA_MIN_CM, atual + passo)));
+}
