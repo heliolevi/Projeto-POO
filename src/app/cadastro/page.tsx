@@ -102,8 +102,10 @@ export default function CadastroPage() {
           </div>
         )}
 
-        <fieldset className={authStyles.secao}>
-          <legend className={authStyles.secaoTitulo}>Seus dados</legend>
+        <div className={authStyles.secao} role="group" aria-labelledby="cadastro-dados">
+          <h3 id="cadastro-dados" className={authStyles.secaoTitulo}>
+            Seus dados
+          </h3>
 
           <TextField
             label="Nome completo"
@@ -141,10 +143,12 @@ export default function CadastroPage() {
             maxLength={14}
             required
           />
-        </fieldset>
+        </div>
 
-        <fieldset className={authStyles.secao}>
-          <legend className={authStyles.secaoTitulo}>Sua senha</legend>
+        <div className={authStyles.secao} role="group" aria-labelledby="cadastro-senha">
+          <h3 id="cadastro-senha" className={authStyles.secaoTitulo}>
+            Sua senha
+          </h3>
 
           <PasswordField
             label="Senha"
@@ -199,7 +203,7 @@ export default function CadastroPage() {
               As duas senhas são iguais.
             </p>
           )}
-        </fieldset>
+        </div>
 
         <div>
           <label className={styles.checkboxRow}>
