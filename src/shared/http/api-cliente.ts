@@ -19,11 +19,14 @@ export type ResultadoSessao = {
 export class ApiError extends Error {
   code: string;
   details?: ErrosPorCampo;
+  /** Status HTTP da resposta (0 quando a requisição nem chegou ao servidor). */
+  status: number;
 
-  constructor(code: string, message: string, details?: ErrosPorCampo) {
+  constructor(code: string, message: string, details?: ErrosPorCampo, status = 0) {
     super(message);
     this.code = code;
     this.details = details;
+    this.status = status;
   }
 }
 
@@ -43,6 +46,7 @@ async function enviar<T>(url: string, init: RequestInit): Promise<T> {
       erro.code,
       mensagemDoErro(resposta.status, erro.code, erro.message),
       erro.details,
+      resposta.status,
     );
   }
 

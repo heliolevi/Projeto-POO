@@ -185,3 +185,16 @@ test("patchAutenticado: 401 apaga a sessão e leva ao login", async () => {
   assert.equal(armazenamento.has("bik_token"), false);
   assert.ok(redirecionouPara?.includes("/login?next="));
 });
+
+test("404 sem corpo JSON (rota inexistente) guarda o status HTTP no ApiError", async () => {
+  globais.fetch = async (url: string, init: RequestInit = {}) => {
+    chamadas.push({ url, init });
+    return new Response("<html>404</html>", { status: 404 });
+  };
+  await assert.rejects(getAutenticado("/api/nao-existe"), (erro: unknown) => {
+    assert.ok(erro instanceof ApiError);
+    assert.equal(erro.status, 404);
+    assert.equal(erro.code, "UNKNOWN");
+    return true;
+  });
+});

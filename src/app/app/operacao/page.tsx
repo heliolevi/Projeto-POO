@@ -77,7 +77,8 @@ function PainelDeOperacao() {
       setEstado({
         tipo: "erro",
         mensagem:
-          e instanceof ApiError && e.code === "NOT_FOUND"
+          // 404 sem corpo JSON: a rota ainda não existe no servidor (antes do B16).
+          e instanceof ApiError && e.status === 404
             ? "O painel de operação ainda não está disponível no servidor."
             : e instanceof ApiError
               ? e.message
