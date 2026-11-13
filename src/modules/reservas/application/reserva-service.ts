@@ -21,7 +21,7 @@ export class ReservaService {
     this.#criar = criarCriarReserva(deps);
     this.#listar = criarListarReservas({ transacao: deps.transacao });
     this.#buscar = criarBuscarReserva({ transacao: deps.transacao });
-    this.#cancelar = criarCancelarReserva({ transacao: deps.transacao });
+    this.#cancelar = criarCancelarReserva({ transacao: deps.transacao, agora: deps.agora });
   }
 
   // POST /api/reservas (rota 12)

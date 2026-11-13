@@ -162,12 +162,12 @@ export function operacoesNoBanco(client: PoolClient): OperacoesReservas {
 
     // FOR UPDATE: segura a linha até o fim da transação, então um cancelamento concorrente (ou a
     // retirada) espera e vê o status já mudado. A RLS só deixa ver as reservas do cliente.
-    async travarStatus(id) {
-      const { rows } = await client.query<{ status: LinhaReserva["status"] }>(
-        "SELECT status FROM reserva WHERE id = $1 FOR UPDATE",
-        [id],
-      );
-      return rows[0]?.status ?? null;
+    // A view não se trava (junta várias tabelas): trava-se a linha de `reserva` e, já com a trava,
+    // lê-se a linha completa pela view. Cada comando enxerga o que foi confirmado até ali, então a
+    // leitura vem depois da trava com o status atual.
+    async travarReserva(id) {
+      const { rowCount } = await client.query("SELECT 1 FROM reserva WHERE id = $1 FOR UPDATE", [id]);
+      return rowCount === 0 ? null : lerPorId(id);
     },
 
     async marcarCancelada(id) {

@@ -203,5 +203,5 @@ test("a ordem no banco: expira, trava a reserva, cancela, relê", async () => {
   const { banco, cancelar } = montar();
   banco.semear({ id: ID_A1, clienteId: A.usuarioId, bicicletaId: "b1", status: "CONFIRMADA" });
   await cancelar(A, ID_A1);
-  assert.deepEqual(banco.log, ["BEGIN", "expirarVencidas", "travarStatus", "marcarCancelada", "buscar", "COMMIT"]);
+  assert.deepEqual(banco.log, ["BEGIN", "expirarVencidas", "travarReserva", "marcarCancelada", "buscar", "COMMIT"]);
 });

@@ -13,7 +13,7 @@ import { criarCriarReserva } from '../../../src/modules/reservas/application/cri
 import { criarBuscarReserva, criarListarReservas } from '../../../src/modules/reservas/application/consultar-reservas.ts';
 import { criarCancelarReserva } from '../../../src/modules/reservas/application/cancelar-reserva.ts';
 import { operacoesNoBanco } from '../../../src/modules/reservas/infrastructure/repositorio-reservas.ts';
-import { calcularValorAluguel } from '../../../src/modules/reservas/domain/preco.ts';
+import { calcularValorAluguel } from '../../../src/shared/dominio/preco-aluguel.ts';
 import { gerarCodigoReserva } from '../../../src/modules/reservas/domain/reserva.ts';
 import { comSessaoEm } from '../../../src/shared/db/sessao.ts';
 
@@ -76,11 +76,19 @@ await rodarSuite('blackbox/reservas_api', async (executor, client) => {
   const { criar, listar, buscar, cancelar } = montar();
 
   const corpo = (deslocaHoras = 0, duracaoHoras = 4) => ({ tipoId: ctx.tipoId, ...periodo(deslocaHoras, duracaoHoras) });
+  const cadeiaDe = (erro) => {
+    const nomes = [];
+    for (let p = erro; p && p !== Object.prototype; p = Object.getPrototypeOf(p)) {
+      if (p.constructor?.name) nomes.push(p.constructor.name);
+    }
+    return nomes;
+  };
   const rejeitaCom = async (promessa, classe) => {
     try {
       await promessa;
     } catch (erro) {
-      assert(nomeErro(erro) === classe, `esperava ${classe}, veio ${nomeErro(erro)}: ${erro.message}`);
+      // vale a classe pedida ou uma subclasse dela (ex.: TransicaoDeReservaInvalida é um ConflictError)
+      assert(cadeiaDe(erro).includes(classe), `esperava ${classe}, veio ${nomeErro(erro)}: ${erro.message}`);
       return erro;
     }
     throw new Error(`esperava ${classe}, mas deu certo`);
@@ -361,6 +369,7 @@ async function rodarSuiteConcorrencia() {
   };
   const transacao = (sessao, fn) => comSessaoEm(conectar, sessao, (c) => fn(operacoesNoBanco(c)));
   const criar = criarCriarReserva({ transacao, agora: () => new Date(), gerarCodigo: gerarCodigoReserva, calcularValorAluguel });
+  const cancelarReal = criarCancelarReserva({ transacao });
 
   try {
     console.log('\nconcorrência (conexões reais):');
@@ -412,6 +421,24 @@ async function rodarSuiteConcorrencia() {
         const { rows } = await admin.query(
           `SELECT count(DISTINCT bicicleta_id)::int AS unidades FROM reserva WHERE cliente_id = ANY($1::uuid[])`, [ids.usuarios]);
         verificar(rows[0].unidades === 3, `unidades diferentes: ${rows[0].unidades}`);
+        await apagarReservas();
+      }
+    });
+
+    // A trava vem ANTES da leitura: o segundo cancelamento espera o primeiro terminar e, ao ler, já vê
+    // CANCELADA, então a classe Reserva o recusa. Se a leitura viesse antes da trava, os dois
+    // passariam pela regra e os dois responderiam 200.
+    await caso('dois cancelamentos da mesma reserva ao mesmo tempo: um 200 e o outro 409', async () => {
+      for (let rodada = 0; rodada < 20; rodada++) {
+        const reserva = await criar(sessoes[0], pedido);
+        const resultados = await Promise.allSettled([cancelarReal(sessoes[0], reserva.id), cancelarReal(sessoes[0], reserva.id)]);
+        const ok = resultados.filter((r) => r.status === 'fulfilled');
+        const falha = resultados.filter((r) => r.status === 'rejected');
+        verificar(ok.length === 1 && falha.length === 1, `rodada ${rodada}: ${ok.length} aceitos e ${falha.length} recusados`);
+        verificar(ok[0].value.status === 'CANCELADA', `o aceito devolveu ${ok[0].value.status}`);
+        verificar(nomeErro(falha[0].reason) === 'TransicaoDeReservaInvalida', `o recusado deu ${nomeErro(falha[0].reason)}: ${falha[0].reason.message}`);
+        const { rows } = await admin.query('SELECT status FROM reserva WHERE id = $1', [reserva.id]);
+        verificar(rows[0].status === 'CANCELADA', `status no banco: ${rows[0].status}`);
         await apagarReservas();
       }
     });
