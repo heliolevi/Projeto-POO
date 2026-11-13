@@ -4,8 +4,8 @@ import {
   NotFoundError,
   ValidationError,
 } from "../../../shared/http/errors.ts";
+import { TipoBicicleta } from "../domain/tipo-bicicleta.ts";
 import {
-  paraPublico,
   type BicicletaAdmin,
   type TipoAdmin,
   type TipoPublico,
@@ -58,7 +58,7 @@ export function criarCatalogo(repositorio: RepositorioCatalogo) {
   // Rota 10 (visitante): só os tipos ativos, sem o campo `ativo`.
   async function listarTiposPublicos(sessao: SessaoBanco): Promise<TipoPublico[]> {
     const tipos = await repositorio.listarTipos(sessao, { apenasAtivos: true });
-    return tipos.map(paraPublico);
+    return tipos.map((tipo) => new TipoBicicleta(tipo).paraPublico());
   }
 
   // Rota 19 (ADMIN): todos os tipos, inclusive os inativos.
