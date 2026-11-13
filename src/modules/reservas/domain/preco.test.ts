@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calcularValorAluguel, horasCobradas } from "./preco.ts";
+import { calcularValorAluguel, horasCobradas, horasDaDuracao, valorPorHoras } from "../../../shared/dominio/preco-aluguel.ts";
 
 // Tipo "Passeio" do seed de desenvolvimento: R$ 12,00 por hora e R$ 60,00 por dia.
 const PASSEIO = { precoHoraCentavos: 1200, precoDiaCentavos: 6000 };
@@ -190,4 +190,27 @@ test("uma conta enorme não atrapalha quando o resultado é exato pela outra", (
   // e o contrário: diária enorme, hora barata
   const diariaAbsurda = { precoHoraCentavos: 1200, precoDiaCentavos: Number.MAX_SAFE_INTEGER };
   assert.equal(valor(3 * HORA, diariaAbsurda), 3600);
+});
+
+// ---------- as duas peças que a regra de preço expõe ----------
+
+test("horasDaDuracao arredonda para cima e concorda com horasCobradas", () => {
+  assert.equal(horasDaDuracao(1), 1);
+  assert.equal(horasDaDuracao(HORA), 1);
+  assert.equal(horasDaDuracao(HORA + 1), 2);
+  assert.equal(horasDaDuracao(3 * HORA + 10 * MIN), 4);
+  for (const ms of [1, 59_999, HORA, HORA + 1, 25 * HORA, 7 * DIA + 1]) {
+    assert.equal(horasDaDuracao(ms), horasCobradas({ inicio: INICIO, fim: depois(ms) }), String(ms));
+  }
+});
+
+test("valorPorHoras dá o mesmo valor que calcularValorAluguel para as mesmas horas", () => {
+  for (const horas of [1, 2, 5, 23, 24, 25, 48, 49, 100]) {
+    assert.equal(valorPorHoras(horas, PASSEIO), valor(horas * HORA), String(horas));
+  }
+});
+
+test("valorPorHoras valida os preços como calcularValorAluguel", () => {
+  assert.throws(() => valorPorHoras(2, { precoHoraCentavos: -1, precoDiaCentavos: 6000 }), RangeError);
+  assert.throws(() => valorPorHoras(2, { precoHoraCentavos: 1200, precoDiaCentavos: 10.5 }), RangeError);
 });
