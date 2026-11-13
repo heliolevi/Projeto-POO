@@ -349,7 +349,7 @@ Detalhes da implementação (`src/modules/recomendacao`, função pura `recomend
 - **Motivos** também avisam o que pesa contra ("Não é a mais indicada para trilha", "Recomendada a
   partir do nível intermediário", altura perto do limite da faixa).
 - **Preço do aluguel** (a mesma função da reserva: `calcularValorAluguel`, em
-  `src/modules/reservas/domain/preco.ts`; a recomendação não calcula preço), regra assumida (dados
+  `src/shared/dominio/preco-aluguel.ts`; a recomendação não calcula preço), regra assumida (dados
   fictícios, sem locadora real; reavaliar quando houver): as horas são arredondadas para cima, cada
   bloco de 24 horas custa `preco_dia_centavos` e as horas que sobram custam `preco_hora_centavos`,
   limitadas ao preço de um dia (25 horas são 1 diária + 1 hora). Sempre em centavos inteiros.

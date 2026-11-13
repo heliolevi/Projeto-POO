@@ -33,7 +33,7 @@ const ELETRICA = tipo({ id: "t-eletrica", nome: "Elétrica", atividades: ["TURIS
 const INFANTIL = tipo({ id: "t-infantil", nome: "Infantil", atividades: ["PASSEIO"], alturaMinCm: 100, alturaMaxCm: 140, precoHoraCentavos: 800, precoDiaCentavos: 4000, valorCaucaoCentavos: 10000 });
 const CATALOGO = [URBANA, PASSEIO, MTB, SPEED, ELETRICA, INFANTIL];
 
-// O preço de verdade é testado em src/modules/reservas/domain/preco.test.ts. Aqui a função é
+// O preço de verdade é testado em src/modules/reservas/domain/preco.test.ts (a regra mora em src/shared/dominio/preco-aluguel.ts). Aqui a função é
 // um dublê simples (4 horas pelo preço por hora): estes testes cobrem a ordem e a pontuação.
 const VALOR_4H = (t: TipoCandidato) => t.precoHoraCentavos * 4;
 
