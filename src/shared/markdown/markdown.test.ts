@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { converterLinkDoc, extrairVersao, lerMarkdown, lerTrechos } from "./markdown.ts";
+import { converterLinkDoc, extrairVersao, legendaDaTabela, lerMarkdown, lerTrechos } from "./markdown.ts";
+
+describe("legendaDaTabela", () => {
+  it("usa o título da seção em que a tabela está, sem a marcação", () => {
+    const blocos = lerMarkdown("## 1. Outra\n\ntexto\n\n## 2. Quais **dados** coletamos\n\n| A | B |\n|---|---|\n| 1 | 2 |");
+    const indice = blocos.findIndex((b) => b.tipo === "tabela");
+    assert.equal(legendaDaTabela(blocos, indice), "2. Quais dados coletamos");
+  });
+  it("sem título antes, cai para a lista dos cabeçalhos", () => {
+    const blocos = lerMarkdown("| Dado | Para que |\n|---|---|\n| x | y |");
+    assert.equal(legendaDaTabela(blocos, 0), "Dado, Para que");
+  });
+  it("não pega o título de uma seção que vem depois da tabela", () => {
+    const blocos = lerMarkdown("| A | B |\n|---|---|\n| 1 | 2 |\n\n## Depois");
+    assert.equal(legendaDaTabela(blocos, 0), "A, B");
+  });
+});
 
 describe("lerMarkdown", () => {
   it("separa títulos, parágrafos e listas", () => {

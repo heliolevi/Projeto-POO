@@ -155,3 +155,14 @@ export function lerTrechos(texto: string): Trecho[] {
   if (ultimo < texto.length) trechos.push({ tipo: "texto", texto: texto.slice(ultimo) });
   return trechos;
 }
+
+// Legenda da tabela (<caption>), lida por leitor de tela: o título da seção em que ela está, sem a
+// marcação. Sem título antes dela, cai para a lista dos cabeçalhos.
+export function legendaDaTabela(blocos: Bloco[], indice: number): string {
+  for (let i = indice - 1; i >= 0; i--) {
+    const bloco = blocos[i];
+    if (bloco.tipo === "titulo") return lerTrechos(bloco.texto).map((t) => t.texto).join("");
+  }
+  const tabela = blocos[indice];
+  return tabela?.tipo === "tabela" ? tabela.cabecalho.join(", ") : "";
+}

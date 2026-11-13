@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { lerMarkdown, lerTrechos, type Bloco } from "@/shared/markdown/markdown";
+import { legendaDaTabela, lerMarkdown, lerTrechos, type Bloco } from "@/shared/markdown/markdown";
 import { Alert } from "./Alert";
 import { Table } from "./Table";
 import styles from "./Documento.module.css";
@@ -27,7 +27,7 @@ function Texto({ texto }: { texto: string }) {
   );
 }
 
-function BlocoView({ bloco }: { bloco: Bloco }): ReactNode {
+function BlocoView({ bloco, legenda }: { bloco: Bloco; legenda: string }): ReactNode {
   switch (bloco.tipo) {
     case "titulo": {
       const Tag = bloco.nivel === 1 ? "h1" : "h2";
@@ -70,7 +70,7 @@ function BlocoView({ bloco }: { bloco: Bloco }): ReactNode {
       }));
       return (
         <Table
-          legenda={bloco.cabecalho.join(", ")}
+          legenda={legenda}
           colunas={colunas}
           linhas={linhas}
           chaveDaLinha={(linha) => linha.c0}
@@ -82,10 +82,11 @@ function BlocoView({ bloco }: { bloco: Bloco }): ReactNode {
 
 /** Mostra um documento Markdown (termos, política) com os componentes do design system. */
 export function Documento({ markdown }: { markdown: string }) {
+  const blocos = lerMarkdown(markdown);
   return (
     <article className={styles.documento}>
-      {lerMarkdown(markdown).map((bloco, i) => (
-        <BlocoView key={i} bloco={bloco} />
+      {blocos.map((bloco, i) => (
+        <BlocoView key={i} bloco={bloco} legenda={bloco.tipo === "tabela" ? legendaDaTabela(blocos, i) : ""} />
       ))}
     </article>
   );
