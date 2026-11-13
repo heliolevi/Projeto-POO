@@ -72,6 +72,26 @@ describe("converterLinkDoc", () => {
   it("recusa documento desconhecido", () => {
     assert.equal(converterLinkDoc("outro.md"), null);
   });
+  it("não aceita nomes herdados do Object como se fossem documentos", () => {
+    // `x in objeto` enxerga a cadeia de protótipos: [x](constructor) devolvia uma função.
+    for (const nome of ["constructor", "toString", "hasOwnProperty", "valueOf", "__proto__"]) {
+      assert.equal(converterLinkDoc(nome), null, nome);
+    }
+  });
+  it("recusa destino que o navegador leria como outro site", () => {
+    const barraInvertida = String.fromCharCode(92);
+    // o navegador troca "\" por "/": "/\host" vira "//host" (outro site)
+    assert.equal(converterLinkDoc(`/${barraInvertida}host`), null);
+    assert.equal(converterLinkDoc(`/${barraInvertida}/host`), null);
+    assert.equal(converterLinkDoc("//host"), null);
+    // o navegador ignora tab e quebra de linha dentro da URL: "/\t/host" também vira "//host"
+    assert.equal(converterLinkDoc("/\t/host"), null);
+    assert.equal(converterLinkDoc("/\n/host"), null);
+  });
+  it("continua aceitando rotas do app com consulta e subcaminhos", () => {
+    assert.equal(converterLinkDoc("/cadastro?origem=termos"), "/cadastro?origem=termos");
+    assert.equal(converterLinkDoc("/a/b#secao"), "/a/b#secao");
+  });
 });
 
 describe("lerTrechos", () => {

@@ -110,16 +110,24 @@ export function extrairVersao(texto: string): string | null {
   return achado ? achado[1] : null;
 }
 
-const LINKS_ENTRE_DOCUMENTOS: Record<string, string> = {
-  "termos-de-uso.md": "/termos",
-  "politica-de-privacidade.md": "/privacidade",
-};
+// Map, e não um objeto: `"constructor" in objeto` é verdadeiro pela cadeia de protótipos e
+// devolveria uma função no lugar do endereço.
+const LINKS_ENTRE_DOCUMENTOS = new Map<string, string>([
+  ["termos-de-uso.md", "/termos"],
+  ["politica-de-privacidade.md", "/privacidade"],
+]);
+
+// Rota do próprio app: começa com uma única "/" e não tem barra invertida, espaço nem caractere de
+// controle. O navegador lê "\" como "/" e ignora tab e quebra de linha dentro da URL, então
+// "/\host" e "/<tab>/host" abririam outro site ("//host").
+const ROTA_DO_APP = /^\/(?![/\\])[^\\\s\u0000-\u001f\u007f]*$/;
 
 // Só devolve destinos seguros: rota do app, http(s) ou um dos documentos conhecidos.
 export function converterLinkDoc(destino: string): string | null {
   const limpo = destino.trim();
-  if (limpo in LINKS_ENTRE_DOCUMENTOS) return LINKS_ENTRE_DOCUMENTOS[limpo];
-  if (limpo.startsWith("/") && !limpo.startsWith("//")) return limpo;
+  const documento = LINKS_ENTRE_DOCUMENTOS.get(limpo);
+  if (documento !== undefined) return documento;
+  if (ROTA_DO_APP.test(limpo)) return limpo;
   if (/^https?:\/\//i.test(limpo)) return limpo;
   return null;
 }

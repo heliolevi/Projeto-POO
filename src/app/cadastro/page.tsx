@@ -162,11 +162,11 @@ export default function CadastroPage() {
             <span className={styles.checkboxLabel}>
               Li e concordo com os{" "}
               <Link href="/termos" target="_blank" rel="noopener noreferrer">
-                Termos de Uso
+                Termos de Uso<span className={styles.somenteLeitor}> (abre em nova aba)</span>
               </Link>{" "}
               e a{" "}
               <Link href="/privacidade" target="_blank" rel="noopener noreferrer">
-                Política de Privacidade
+                Política de Privacidade<span className={styles.somenteLeitor}> (abre em nova aba)</span>
               </Link>
               .
             </span>
