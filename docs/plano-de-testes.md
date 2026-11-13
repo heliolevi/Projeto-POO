@@ -312,6 +312,23 @@ Só como lembrete: não há rota no contrato, então não bloqueiam o MVP.
 
 **Total:** 174 casos (P0: 116, P1: 55, P2: 3). 42 já têm teste automatizado ou rodam na CI, 29 estão em PRs abertos (#14, #15, #19 e #30), 1 está bloqueado, 70 aguardam rotas que ainda não existem e 32 estão pendentes de execução. Nenhum caso falhou até agora.
 
+### 4.14 Regressão da refatoração para orientação a objetos
+
+Rodados em cada PR de refatoração (um módulo por PR) e no fim, em 18 e 19/11/2026. O objetivo é
+provar que o **comportamento não mudou**: os mesmos testes passam sem alterar asserções.
+
+| ID | Caso | Resultado esperado | Perfil | Prioridade |
+|---|---|---|---|---|
+| CT-POO-01 | `npm run lint`, `typecheck`, `test` e `build` depois do PR | Todos verdes; a quantidade de testes não diminui | n/a | P0 |
+| CT-POO-02 | Testes de banco (`db/tests`) | Verdes, sem migration nova | n/a | P0 |
+| CT-POO-03 | Fluxo de conta: cadastro, login, trocar senha, desativar | Mesmos status e mensagens do contrato | Cliente | P0 |
+| CT-POO-04 | Transição inválida de reserva (por exemplo cancelar uma `CONCLUIDA`) | 409 e a reserva não muda | Cliente | P0 |
+| CT-POO-05 | `GET /api/recomendacao` com o mesmo perfil e período de antes da refatoração | Mesma ordem, pontos e motivos | Cliente | P0 |
+| CT-POO-06 | Permissões por perfil nas rotas de equipe | 403 para cliente; operador não acessa as rotas de ADMIN; admin acessa | Os três | P0 |
+| CT-POO-07 | Resposta de qualquer rota de conta | Nunca contém `senhaHash` nem campo interno | Todos | P0 |
+| CT-POO-08 | Webhook repetido (quando existir) | A reserva é confirmada uma única vez | n/a | P1 |
+| CT-POO-09 | Smoke test do fluxo completo antes da entrega | Os 10 itens do roteiro passam | Os três | P0 |
+
 ## 5. Checklist de aceite por tela
 
 Cada tela só é considerada aceita quando todos os itens estiverem marcados no navegador do computador e

@@ -15,11 +15,13 @@ retiradas e devoluções.
 
 ## Status do projeto
 
-Em desenvolvimento. Já existem o projeto Next.js (TypeScript, ESLint e módulos do back-end em
-`src/modules`), o cadastro e o login de clientes e as migrations do banco. O banco e o código ainda
-refletem o modelo anterior (várias locadoras) e serão simplificados conforme o plano em
-[docs/mudanca-de-escopo.md](docs/mudanca-de-escopo.md). O modelo de dados novo está descrito em
-[docs/modelo-de-dados.md](docs/modelo-de-dados.md).
+Em desenvolvimento, para uma única locadora (migrations `0001` a `0009` aplicadas na `dev`).
+Já existem contas (cadastro, login e gestão da conta), catálogo, recomendação e as telas de
+busca, reserva, Minhas reservas, perfil do ciclista e pagamento. O **MVP da interface** é entregue
+em 13/11/2026 e o **sistema completo**, com reservas, pagamento simulado, operação e o código
+reorganizado em **orientação a objetos** (requisito da disciplina de POO), em **19/11/2026**.
+O cronograma está em [docs/andamento-do-projeto.md](docs/andamento-do-projeto.md) e o modelo de
+dados em [docs/modelo-de-dados.md](docs/modelo-de-dados.md).
 
 ## Objetivo geral
 
@@ -151,6 +153,12 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+
+**Orientação a objetos.** O domínio e os serviços seguem o diagrama de classes
+(`docs/diagrama-de-classes.pdf`): classes com atributos privados, herança (`Usuario` com `Cliente`,
+`Operador` e `Admin`), polimorfismo e interfaces para repositórios e serviços externos. As regras de
+estilo, o mapa classe a classe e como criar uma classe nova estão em
+[docs/arquitetura-oo.md](docs/arquitetura-oo.md).
 
 Estrutura do back-end: um diretório por módulo em `src/modules/<modulo>`, cada um com as camadas
 `domain`, `application`, `infrastructure` e `http` e uma API pública em `index.ts`. Os Route Handlers

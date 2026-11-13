@@ -65,6 +65,7 @@ será feito. O resumo diz o quê; o corpo diz por quê.
 | `chore` | Ajuste que não muda o comportamento | `chore: adiciona script test (node --test)` |
 | `test` | Só testes | `test(contas): cobre o limite de tentativas` |
 | `refactor` | Reorganiza o código sem mudar o comportamento | `refactor(reservas): separa a regra de preço` |
+| `refactor` (OO) | Converte um módulo para classes, um módulo por PR, sem mudar rotas nem testes | `refactor(contas): usuario e perfis como classes` |
 
 ## Passo a passo de uma tarefa
 
@@ -176,6 +177,10 @@ Use comentários por linha nos pontos específicos e um resumo geral ao concluir
 5. **Testes e documentação acompanham o código**, no mesmo PR.
 6. **Não mexa no banco de produção** (branch `production` do Neon) fora do combinado com o tech lead.
 7. **Não apague nem reescreva histórico** que já foi enviado e que outras pessoas podem ter baixado.
+8. **PR de refatoração para orientação a objetos:** um módulo por PR; nenhum teste existente muda de
+   asserção (só a forma de construir o objeto); sem migration nova; seguir as regras de
+   [arquitetura-oo.md](arquitetura-oo.md); o dono do módulo avisa antes de abrir e ninguém mais mexe
+   em `src/modules/<modulo>` até o merge.
 
 ## Banco de dados e migrations
 

@@ -631,3 +631,8 @@ quem consome. Pontos ainda abertos para o Luis fechar com Hélio e Renan:
 - Formato final de `horarios` do ponto (`diaSemana` de 0 a 6, começando no domingo?).
 - Se o cliente sem altura preenchida pode buscar (assumido: pode; só perde o filtro e os pontos de altura).
 - Texto exato das mensagens de erro de `409` que a tela mostra ao cliente.
+
+**Refatoração para orientação a objetos (novembro de 2026).** Rotas, campos, erros e códigos de
+status deste contrato **não mudam** com a migração do código para classes. Qualquer diferença
+encontrada nos testes de contrato durante a refatoração é defeito da refatoração e deve ser corrigida
+no código, não neste documento.

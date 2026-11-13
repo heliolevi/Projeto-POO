@@ -399,6 +399,23 @@ O backend informa quem está logado no início de cada transação (`set_config(
   distância até o cliente. Se a locadora tiver um ponto só, o PostGIS pode ser dispensado.
 - **Documento do cliente:** só a chave do arquivo fica no banco; o arquivo fica em armazenamento privado.
 
+## Classes do domínio e tabelas
+
+Cada classe do diagrama de classes (`docs/diagrama-de-classes.pdf`) corresponde a uma tabela ou
+coluna. O código das classes segue [arquitetura-oo.md](arquitetura-oo.md).
+
+| Classe | Tabela ou coluna | Observação |
+|---|---|---|
+| `Usuario` (abstrata), `Cliente`, `Operador`, `Admin` | `usuario` (`perfil`: `CLIENTE`, `OPERADOR`, `ADMIN`) | As colunas de cliente (`cpf`, `altura_cm`, `experiencia`, `atividade_preferida`, `aceite_termos_em`) só existem para `CLIENTE`; `Admin` herda direto de `Usuario` |
+| `Empresa` | `empresa` | Um único registro |
+| `TipoBicicleta` | `tipo_bicicleta` | Preços e caução em centavos |
+| `Bicicleta` | `bicicleta` (`status_bicicleta`) | `DISPONIVEL`, `ALUGADA`, `MANUTENCAO`, `BLOQUEADA`, `BAIXADA` |
+| `Reserva` | `reserva` (`status_reserva`) | A exclusion constraint continua sendo a garantia final contra sobreposição; `Periodo` é o objeto de valor de `periodo` (`tstzrange`) |
+| `Pagamento`, `PagamentoPix`, `PagamentoCartao` | `pagamento` (`metodo_pagamento`, `status_pagamento`) | O método escolhe a subclasse |
+| `Movimentacao`, `Retirada`, `Devolucao` | `movimentacao` (`tipo`) | No máximo uma de cada por reserva |
+| `Ocorrencia`, `Notificacao`, `Arquivo` | `ocorrencia`, `notificacao`, `arquivo` | Fora do MVP; só no diagrama |
+| `RecomendacaoService`, `ReservaService`, `PagamentoService` | n/a | Serviços de aplicação, sem tabela própria |
+
 ## Do modelo anterior para este
 
 | Hoje (migrations `0001` a `0003`) | No modelo novo |

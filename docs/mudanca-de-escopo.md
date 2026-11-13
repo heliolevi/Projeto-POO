@@ -96,3 +96,20 @@ ao modelo novo:
 | Estratégia do banco (A ou B acima) | A, migration incremental |
 | PostGIS | Opcional; fica habilitado por enquanto |
 | Assinaturas e créditos | Fora do escopo inicial |
+
+## Decisão de 12/11/2026: orientação a objetos
+
+O projeto é da disciplina de POO, então o código de regra de negócio precisa seguir orientação a
+objetos (classes, encapsulamento, herança e polimorfismo), conforme o diagrama de classes. O MVP
+foi construído em estilo funcional (tipos e fábricas com dependências injetadas), e a decisão da
+equipe foi:
+
+- **13/11/2026:** entregar o MVP mínimo, que mostra a experiência do cliente (da busca recomendada à reserva confirmada com Pix simulado).
+- **16 a 19/11/2026:** migrar o código para classes, um módulo por pull request, sem mudar rotas, banco
+  nem telas, e entregar o sistema completo em **19/11**.
+- O PR #45 (API de reservas) **não** entra na `dev` como está: ele é reformulado em classes antes de
+  mesclar. Para a demonstração de 13/11, a versão funcional dele roda numa branch de demonstração
+  (`demo/mvp-2026-11-13`), que não vai para a `dev`.
+- O `Admin` herda direto de `Usuario` (como no diagrama), e não de `Operador`.
+
+Detalhes em [arquitetura-oo.md](arquitetura-oo.md) e no cronograma de [andamento-do-projeto.md](andamento-do-projeto.md).
