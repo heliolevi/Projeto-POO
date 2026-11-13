@@ -295,7 +295,8 @@ do dono (`SECURITY DEFINER`) e devolve só contagens, nunca quem reservou.
 
 ### `pagamento`
 
-Pix ou cartão pelo Mercado Pago, em centavos. `mp_payment_id` é único, para o mesmo aviso do Mercado
+Pix ou cartão pelo Mercado Pago, em centavos. **No MVP o Mercado Pago está em stand by:** o pagamento é
+simulado e `mp_payment_id` fica vazio; a coluna existe para a integração futura. `mp_payment_id` é único, para o mesmo aviso do Mercado
 Pago (webhook) não confirmar um pagamento duas vezes. Não há tabela de plano, assinatura nem repasse.
 
 ### `movimentacao`, `ocorrencia`, `arquivo`, `notificacao` e `auditoria_log`

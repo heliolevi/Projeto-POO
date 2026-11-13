@@ -23,7 +23,8 @@ para a sua altura, o seu nível de experiência e a atividade que você quer faz
   como diz a [Política de privacidade](politica-de-privacidade.md).
 
 ## 3. Reserva e pagamento
-- O pagamento é por **Pix**, feito pelo Mercado Pago. O app cobra **só o aluguel**.
+- O pagamento é por **Pix**. Nesta versão de demonstração o pagamento é **simulado**: não passa por
+  operadora de pagamento (o Mercado Pago está fora do MVP) e não há cobrança real. O app cobra **só o aluguel**.
 - A reserva fica pendente por **15 minutos** esperando o pagamento. Sem pagamento nesse prazo, ela expira e a
   bicicleta volta a ficar livre.
 - O valor é sempre calculado pelo sistema, e você o vê antes de confirmar.

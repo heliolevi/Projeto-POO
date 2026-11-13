@@ -92,7 +92,7 @@ caso algum módulo precise escalar separadamente.
 | Backend | TypeScript (Route Handlers do Next.js) |
 | Banco de dados | PostgreSQL gerenciado (ex.: Neon). A extensão PostGIS é opcional: só é necessária se a locadora tiver mais de um ponto e se quiser mostrar distâncias |
 | Mapas | Serviço de mapas (Google Maps/Mapbox) apenas para mostrar o(s) ponto(s) de retirada |
-| Pagamentos | Mercado Pago (Pix e cartão) |
+| Pagamentos | MVP: pagamento simulado, **sem Mercado Pago**. Mercado Pago (Pix e cartão) fica em stand by, para depois do MVP |
 | Notificações | Web push (PWA), WhatsApp API, e-mail transacional |
 | Arquivos | Armazenamento de objetos privado (Vercel Blob ou compatível com S3) |
 | Hospedagem | Vercel, com HTTPS |
@@ -140,7 +140,7 @@ por row-level security.
 - Aplicar a migration que simplifica o banco para uma locadora (plano em
   [docs/mudanca-de-escopo.md](docs/mudanca-de-escopo.md)).
 - Implementar catálogo, busca com recomendação e reservas.
-- Planejar a integração com o Mercado Pago (Pix e cartão).
+- Integração com o Mercado Pago (Pix e cartão): **em stand by**, fora do MVP. O MVP usa pagamento simulado.
 
 ## Desenvolvimento
 
