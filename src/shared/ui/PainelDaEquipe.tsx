@@ -27,7 +27,13 @@ export function PainelDaEquipe({ admin }: { admin: boolean }) {
 
   return (
     <div className={styles.pagina}>
-      <FotoCapa foto={FOTO_URBANA} formato="capa" sizes="(min-width: 768px) 592px, 100vw" priority>
+      <FotoCapa
+        foto={FOTO_URBANA}
+        formato="capa"
+        texto="topo"
+        sizes="(min-width: 768px) 592px, 100vw"
+        priority
+      >
         <span className={styles.etiqueta}>{admin ? "Administração" : "Balcão"}</span>
         <h2 className={styles.titulo}>Painel da equipe</h2>
         <p className={styles.texto}>

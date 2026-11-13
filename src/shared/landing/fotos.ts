@@ -1,12 +1,20 @@
 // Fotos das bicicletas do app. Arquivos em public/bicicletas, todos CC0 (domínio público):
 // ver docs/creditos-das-imagens.md.
-export type FotoBicicleta = { src: string; alt: string; largura: number; altura: number };
+export type FotoBicicleta = {
+  src: string;
+  alt: string;
+  largura: number;
+  altura: number;
+  /** Ponto da foto que fica no centro quando a moldura corta (CSS object-position). */
+  foco?: string;
+};
 
 export const FOTO_PASSEIO: FotoBicicleta = {
   src: "/bicicletas/passeio.jpg",
   alt: "Bicicleta de passeio azul com cesta de vime, parada na grama de um parque",
   largura: 1100,
   altura: 733,
+  foco: "50% 60%",
 };
 
 export const FOTO_TRILHA: FotoBicicleta = {
@@ -21,6 +29,7 @@ export const FOTO_URBANA: FotoBicicleta = {
   alt: "Bicicleta urbana preta com alforje, encostada em uma grade coberta de folhagem",
   largura: 1100,
   altura: 733,
+  foco: "34% 70%",
 };
 
 export const FOTO_TURISMO: FotoBicicleta = {
@@ -28,6 +37,7 @@ export const FOTO_TURISMO: FotoBicicleta = {
   alt: "Bicicleta amarela apoiada em uma grade, entre muros antigos e plantas verdes",
   largura: 1100,
   altura: 698,
+  foco: "30% 50%",
 };
 
 export const TODAS_AS_FOTOS: readonly FotoBicicleta[] = [

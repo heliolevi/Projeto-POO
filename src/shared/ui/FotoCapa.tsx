@@ -13,6 +13,8 @@ type FotoCapaProps = {
   priority?: boolean;
   /** Conteúdo sobre a foto (título, botão). Fica sobre um degradê verde para manter o contraste. */
   children?: ReactNode;
+  /** Onde o texto fica: embaixo (padrão) ou em cima, quando a bicicleta está na parte de baixo da foto. */
+  texto?: "base" | "topo";
   className?: string;
 };
 
@@ -23,20 +25,25 @@ export function FotoCapa({
   sizes,
   priority,
   children,
+  texto = "base",
   className,
 }: FotoCapaProps) {
   const classes = [styles.moldura, styles[formato], className ?? ""].filter(Boolean).join(" ");
+  const coberturaClasses = [styles.cobertura, texto === "topo" ? styles.coberturaTopo : ""]
+    .filter(Boolean)
+    .join(" ");
   return (
     <div className={classes}>
       <Image
         className={styles.imagem}
+        style={foto.foco ? { objectPosition: foto.foco } : undefined}
         src={foto.src}
         alt={foto.alt}
         fill
         sizes={sizes}
         priority={priority}
       />
-      {children && <div className={styles.cobertura}>{children}</div>}
+      {children && <div className={coberturaClasses}>{children}</div>}
     </div>
   );
 }

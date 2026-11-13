@@ -27,7 +27,7 @@
   align-self: flex-start;
   padding: var(--space-4) var(--space-10);
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 28, 20, 0.55);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
   letter-spacing: 0.06em;

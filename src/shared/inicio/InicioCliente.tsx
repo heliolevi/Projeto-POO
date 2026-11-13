@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
 import { getAutenticado } from "@/shared/http/api-cliente";
-import { FOTO_TURISMO, fotoDoTipo } from "@/shared/landing/fotos";
+import { FOTO_PASSEIO, fotoDoTipo } from "@/shared/landing/fotos";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
 import {
   faixaDeAltura,
@@ -60,12 +60,16 @@ export function InicioCliente() {
         <h2 className={styles.saudacaoNome}>{nome || "Bem-vindo"}</h2>
       </header>
 
-      <FotoCapa foto={FOTO_TURISMO} formato="capa" sizes="(min-width: 768px) 592px, 100vw" priority>
+      <FotoCapa
+        foto={FOTO_PASSEIO}
+        formato="capa"
+        texto="topo"
+        sizes="(min-width: 768px) 592px, 100vw"
+        priority
+      >
         <span className={styles.etiqueta}>São Luís · {LOCADORA.ponto.nome}</span>
         <p className={styles.heroiTitulo}>Qual bicicleta combina com o seu passeio?</p>
-        <p className={styles.heroiTexto}>
-          Conte sua altura e o que quer fazer. Mostramos primeiro a mais indicada para você.
-        </p>
+        <p className={styles.heroiTexto}>Mostramos primeiro a mais indicada para você.</p>
         <Link href="/app/buscar" className={styles.botaoMenta}>
           Buscar bicicleta <span aria-hidden="true">→</span>
         </Link>
@@ -165,8 +169,9 @@ export function InicioCliente() {
                     </span>
                   </FotoCapa>
                   <span className={styles.tipoNome}>{tipo.nome}</span>
+                  <span className={styles.tipoInfo}>{faixaDeAltura(tipo)}</span>
                   <span className={styles.tipoInfo}>
-                    {faixaDeAltura(tipo)} · {formatarReais(tipo.precoHoraCentavos)}/hora
+                    {formatarReais(tipo.precoHoraCentavos)} por hora
                   </span>
                 </Link>
               </li>
