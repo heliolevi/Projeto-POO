@@ -11,19 +11,21 @@ import { CalendarIcon, LogoutIcon, SearchIcon, ShieldIcon, UserIcon } from "./ic
 
 type LinkNav = { href: string; label: string; icon: ReactNode };
 
-const BUSCAR: LinkNav = { href: "/buscar", label: "Buscar", icon: <SearchIcon /> };
+const BUSCAR: LinkNav = { href: "/app/buscar", label: "Buscar", icon: <SearchIcon /> };
 const MINHAS_RESERVAS: LinkNav = {
-  href: "/minhas-reservas",
+  href: "/app/reservas",
   label: "Minhas reservas",
   icon: <CalendarIcon />,
 };
-const PERFIL: LinkNav = { href: "/perfil", label: "Perfil", icon: <UserIcon /> };
+const PERFIL: LinkNav = { href: "/app/perfil", label: "Perfil", icon: <UserIcon /> };
 const ADMIN: LinkNav = { href: "/admin", label: "Admin", icon: <ShieldIcon /> };
 
 function linksPorEstado(perfil: PerfilUsuario | null): LinkNav[] {
   if (!perfil) return [BUSCAR];
   if (perfil === "CLIENTE") return [BUSCAR, MINHAS_RESERVAS, PERFIL];
-  return [BUSCAR, ADMIN, PERFIL];
+  // A busca é só do cliente; o catálogo (/admin) é só do ADMIN.
+  if (perfil === "ADMIN") return [ADMIN, PERFIL];
+  return [PERFIL];
 }
 
 export function SiteHeader() {
