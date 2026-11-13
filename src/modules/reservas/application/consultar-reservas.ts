@@ -4,8 +4,8 @@ import type { SessaoCliente, Transacao } from "./portas.ts";
 import {
   montarReserva,
   montarReservaDetalhada,
-  type Reserva,
-  type ReservaDetalhada,
+  type ReservaDetalhadaDto,
+  type ReservaDto,
 } from "./reserva-dto.ts";
 
 export const MENSAGEM_NAO_ENCONTRADA = "Reserva não encontrada.";
@@ -18,7 +18,7 @@ export function criarListarReservas(deps: { transacao: Transacao }) {
   return async function listarReservas(
     sessao: SessaoCliente,
     filtros: { status?: unknown },
-  ): Promise<Reserva[]> {
+  ): Promise<ReservaDto[]> {
     const bruto = filtros.status;
     const semFiltro = bruto === undefined || bruto === null || bruto === "";
     if (!semFiltro && !ehStatusReserva(bruto)) {
@@ -38,7 +38,7 @@ export function criarListarReservas(deps: { transacao: Transacao }) {
 // GET /api/reservas/{id} (rota 14). Reserva de outro cliente e reserva que não existe dão o mesmo
 // 404: a resposta não diz qual dos dois (a RLS esconde a de outro como se não existisse).
 export function criarBuscarReserva(deps: { transacao: Transacao }) {
-  return async function buscarReserva(sessao: SessaoCliente, id: unknown): Promise<ReservaDetalhada> {
+  return async function buscarReserva(sessao: SessaoCliente, id: unknown): Promise<ReservaDetalhadaDto> {
     if (!ehUuid(id)) throw new NotFoundError(MENSAGEM_NAO_ENCONTRADA);
 
     return deps.transacao(sessao, async (op) => {

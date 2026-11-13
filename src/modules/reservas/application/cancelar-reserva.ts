@@ -2,7 +2,7 @@ import { ConflictError, NotFoundError } from "../../../shared/http/errors.ts";
 import { ehUuid, podeCancelar } from "../domain/reserva.ts";
 import { MENSAGEM_NAO_ENCONTRADA } from "./consultar-reservas.ts";
 import type { SessaoCliente, Transacao } from "./portas.ts";
-import { montarReserva, type Reserva } from "./reserva-dto.ts";
+import { montarReserva, type ReservaDto } from "./reserva-dto.ts";
 
 // POST /api/reservas/{id}/cancelar (rota 15): cancela a reserva pendente ou confirmada que ainda
 // não foi retirada. A bicicleta volta a ficar livre na hora (a exclusion constraint só vale para
@@ -16,7 +16,7 @@ import { montarReserva, type Reserva } from "./reserva-dto.ts";
 // O estorno de pagamento já aprovado não faz parte do MVP: o cancelamento de reserva paga é
 // tratado no balcão (docs/contrato-api-mvp.md).
 export function criarCancelarReserva(deps: { transacao: Transacao }) {
-  return async function cancelarReserva(sessao: SessaoCliente, id: unknown): Promise<Reserva> {
+  return async function cancelarReserva(sessao: SessaoCliente, id: unknown): Promise<ReservaDto> {
     if (!ehUuid(id)) throw new NotFoundError(MENSAGEM_NAO_ENCONTRADA);
 
     return deps.transacao(sessao, async (op) => {
