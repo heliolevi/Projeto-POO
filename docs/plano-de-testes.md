@@ -15,7 +15,7 @@ testes que já existem no repositório. Mantido por William (DevOps e QA).
 - Garantir que o MVP (sexta, 13/11/2026) funcione de ponta a ponta: cadastro, login, catálogo,
   recomendação, reserva, pagamento por Pix e operação de retirada e devolução.
 - Dar à equipe uma lista única do que foi testado, do que falta e do que está quebrado.
-- **Dentro do escopo:** as 27 rotas do contrato, o banco (migrations 0004 a 0010), a CI e as telas do MVP.
+- **Dentro do escopo:** as 27 rotas do contrato, o banco (migrations 0004 a 0011), a CI e as telas do MVP.
 - **Fora do escopo:** cartão de crédito e débito, estorno de pagamento, assinaturas e créditos, ocorrências
   (dano, furto, atraso), fotos e notificações. Nada disso está no contrato do MVP e fica para uma fase
   posterior (os casos de avisos e auditoria estão na seção 4.13, só como lembrete).
@@ -49,7 +49,7 @@ PR ou issue do defeito.
 | Instalação | `npm ci` (nunca `npm install` para validar) |
 | Checagens | `npm run lint`, `npm run typecheck`, `npm test` e `npm run build` |
 | Testes do app | `npm test` na raiz roda só `src/**/*.test.ts` |
-| Testes de banco | `cd db && npm run teste:reserva-e-pagamento`, com PostgreSQL com PostGIS. Rodam na CI (serviço de banco do workflow); localmente precisam de `DATABASE_URL_UNPOOLED`, e o teste de RLS precisa que o dono do banco consiga assumir o papel `app_backend` |
+| Testes de banco | `cd db && npm run teste:banco`, com PostgreSQL com PostGIS. Rodam na CI (serviço de banco do workflow); localmente precisam de `DATABASE_URL_UNPOOLED`, e o teste de RLS precisa que o dono do banco consiga assumir o papel `app_backend` |
 | Banco de desenvolvimento | Branch `dev` do Neon, populado por `db/seeds/dev.sql`. **Nunca** testar no branch `production` fora do combinado com o tech lead |
 | Migrations | `cd db && npm run migrar:simular` antes de aplicar qualquer migration |
 | Pagamentos | Conta de teste (sandbox) do Mercado Pago, ou `PAGAMENTO_MODO=simulado` em desenvolvimento e na demo. Nenhum pagamento real |
@@ -145,7 +145,7 @@ PR ou issue do defeito.
 ### 4.6 Banco de dados, migrations e RLS
 
 Os casos CT-BD-06 a CT-BD-17, CT-BD-20 e CT-BD-22 a CT-BD-28 correspondem aos testes de `db/tests` (unit, whitebox e
-blackbox), que a CI roda com `npm run teste:reserva-e-pagamento`.
+blackbox), que a CI roda com `npm run teste:banco`.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
@@ -185,7 +185,7 @@ blackbox), que a CI roda com `npm run teste:reserva-e-pagamento`.
 | CT-CAT-01 | P0 | `GET /api/empresa` sem login | 200 só com pontos ativos; nunca CNPJ, razão social, conta de recebimento nem campos de controle | Integração | Aguarda rota |
 | CT-CAT-02 | P0 | `GET /api/catalogo/tipos` sem login | 200 só com tipos ativos, com preços em centavos | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-CAT-03 | P1 | Inativar um tipo | Some do catálogo e das buscas; reservas já feitas continuam visíveis | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
-| CT-ADM-01 | P0 | Rotas `/api/admin/tipos` e `/api/admin/bicicletas` com `CLIENTE`, `OPERADOR` e sem login | 403 para `CLIENTE` e `OPERADOR`; 401 sem login | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
+| CT-ADM-01 | P0 | Rotas `/api/admin/tipos` e `/api/admin/bicicletas` com `CLIENTE`, `OPERADOR` e sem login | 403 para `CLIENTE` e `OPERADOR`; 401 sem login | Integração | Automatizado (`fabrica-handlers.test.ts`, que prova as 6 rotas do painel com o `exigirPerfil` de verdade) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-02 | P0 | `POST /api/admin/tipos` com dados válidos | 201 com o tipo criado | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-03 | P1 | `POST /api/admin/tipos` com nome repetido, sem atividade, altura mínima maior que a máxima, altura fora de 100 a 250, preço negativo ou decimal | 409 para nome repetido; 400 com `details` nos demais | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-04 | P1 | `PUT /api/admin/tipos/{id}` com `ativo: false`, e só com os campos obrigatórios (sem caução, nível, descrição e `ativo`) | O tipo sai do catálogo; não existe exclusão. Sem os opcionais, o PUT mantém os valores atuais (não zera a caução) | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
@@ -240,8 +240,8 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-RES-12 | P1 | `GET /api/reservas/{id}` da própria reserva | Objeto da reserva com `pagamento` (`status` e `metodo`) ou `null` | Integração | Automatizado (`criar-reserva.test.ts` e `consultar-e-cancelar.test.ts`; contra o banco, `db/tests/blackbox/reservas_api.test.mjs`) |
 | CT-RES-13 | P0 | `POST /api/reservas/{id}/cancelar` em reserva `PENDENTE_PAGAMENTO` ou `CONFIRMADA` ainda não retirada | 200 `CANCELADA`; a bicicleta volta a ficar livre | Integração | Automatizado (`criar-reserva.test.ts` e `consultar-e-cancelar.test.ts`; contra o banco, `db/tests/blackbox/reservas_api.test.mjs`) |
 | CT-RES-14 | P0 | Cancelar reserva já retirada, concluída, cancelada ou expirada | 409 | Integração | Automatizado (`criar-reserva.test.ts` e `consultar-e-cancelar.test.ts`; contra o banco, `db/tests/blackbox/reservas_api.test.mjs`) |
-| CT-RES-15 | P1 | Mais de 20 reservas por hora do mesmo usuário | 429 | Integração | Implementado (limite compartilhado, testado em `limite-tentativas.test.ts`); falta teste da rota |
-| CT-RES-16 | P0 | Rotas de reserva sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para a equipe | Integração | Parcial: 401 conferido com a rota no ar e `exigirPerfil` testado em `exigir-sessao.test.ts`; falta o 403 da equipe ponta a ponta |
+| CT-RES-15 | P1 | Mais de 20 reservas por hora do mesmo usuário | 429 | Integração | Pendente: o limite está implementado e o limite compartilhado é testado em `limite-tentativas.test.ts`, mas a rota ainda não tem teste do 429 |
+| CT-RES-16 | P0 | Rotas de reserva sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para a equipe | Integração | Parcial: o 401 sem login foi conferido à mão nas 4 rotas com o app no ar (`next start`, sem cookie) e `exigirPerfil` é testado em `exigir-sessao.test.ts`. Pendente: teste da rota com 403 para a equipe |
 | CT-RES-17 | P0 | Reservar o mesmo período depois que uma reserva pendente venceu e ninguém a listou | 201 para a nova reserva, sem 409 falso; a pendente vencida vira `EXPIRADA` (`POST /api/reservas` expira ou ignora as vencidas antes de reservar) | Integração | Automatizado (`criar-reserva.test.ts` e `consultar-e-cancelar.test.ts`; contra o banco, `db/tests/blackbox/reservas_api.test.mjs`) |
 
 ### 4.10 Pagamentos por Pix (rotas 16 a 18)
@@ -409,7 +409,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 | 2 | As rotas 6 (altura) e 7 (termos) listam só `CLIENTE` e os erros 400, 401 e 413. O PR #15 faz a equipe receber 403 | Acrescentar o 403 ao contrato |
 | 3 | O contrato diz que `inicio` "não pode estar no passado"; o PR #14 aceita 5 minutos de folga | Alinhar o texto do contrato com o código |
 | 4 | O cadastro responde 409 para e-mail ou CPF já cadastrado, enquanto o login é cuidadoso para não revelar se a conta existe | Risco de descobrir quem tem conta. Decidir se é aceito no MVP |
-| 5 | Os testes de banco usam uma conexão com savepoint, então não provam concorrência; RLS de `pagamento` e acesso da equipe só são conferidos pela inspeção das políticas | Casos CT-BD-18, CT-BD-19 e CT-BD-20 |
+| 5 | Os testes de banco usam uma conexão com savepoint, então não provam concorrência (a disputa pela mesma bicicleta já é coberta com conexões reais, CT-BD-20); RLS de `pagamento` e acesso da equipe só são conferidos pela inspeção das políticas | Casos CT-BD-18 e CT-BD-19 |
 | 6 | O `npm test` da raiz agora roda só `src/**/*.test.ts`; os testes de banco rodam apenas no job de banco da CI | Quem mexer em migration precisa rodar os testes de `db` ou esperar a CI |
 | 7 | A RLS só vale com o papel `app_login`, e o `.env` de desenvolvimento conecta como dono do banco | CT-BD-04 fica `Bloqueado` até o tech lead fechar a pendência |
 | 8 | `src/shared/http/api-cliente.ts` ainda declara `GERENTE_LOCADORA` e `ADMIN_PLATAFORMA` no tipo do perfil, e `lerSessao` aceita token sem `exp` (sugestões do tech lead no PR #19, para outro PR) | Alinhar os tipos com o modelo novo; caso CT-UI-10 |

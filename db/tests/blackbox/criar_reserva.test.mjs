@@ -1,4 +1,4 @@
-// Testes de caixa-preta da migration 0010: escolher_unidade_para_reserva() (escolha da unidade
+// Testes de caixa-preta da migration 0011: escolher_unidade_para_reserva() (escolha da unidade
 // na criação da reserva) e a view reserva_detalhada (leitura das reservas pelo cliente).
 // Tudo roda com o papel do app (SET ROLE app_backend + perfil CLIENTE), como o backend faz:
 // o dono do banco ignora a RLS e esconderia os problemas que estas peças resolvem.

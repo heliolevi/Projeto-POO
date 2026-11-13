@@ -17,7 +17,9 @@
     "teste:whitebox": "node tests/whitebox/schema.test.mjs && node tests/whitebox/indices_e_funcao.test.mjs",
     "teste:blackbox": "node tests/blackbox/reserva_e_pagamento.test.mjs && node tests/blackbox/expirar_reservas.test.mjs && node tests/blackbox/disponibilidade_por_tipo.test.mjs && node tests/blackbox/criar_reserva.test.mjs && node tests/blackbox/reservas_api.test.mjs",
     "perf:recomendacao": "node perf/recomendacao-explain.mjs",
-    "teste:reserva-e-pagamento": "npm run teste:unit && npm run teste:whitebox && npm run teste:blackbox"
+    "teste:movimentacao": "node tests/unit/movimentacao.test.mjs && node tests/whitebox/movimentacao.test.mjs && node tests/blackbox/movimentacao.test.mjs",
+    "teste:reserva-e-pagamento": "npm run teste:unit && npm run teste:whitebox && npm run teste:blackbox",
+    "teste:banco": "npm run teste:reserva-e-pagamento && npm run teste:movimentacao"
   },
   "dependencies": {
     "pg": "^8.13.1"

@@ -61,6 +61,10 @@ da cor, para ficar claro onde cada uma se aplica.
 | Token | Valor | Uso |
 |---|---|---|
 | `--color-danger` | `#c0392b` | Erro de validação |
+| `--color-danger-soft` | `#fdecea` | Fundo de erro (Alert, Badge perigo) |
+| `--color-info-soft` | `#e6f1f8` | Fundo de informação (Alert, Badge info) |
+| `--color-info-border` | `#b3d4e8` | Borda do Alert de informação |
+| `--color-overlay` | `rgba(19, 24, 46, 0.5)` | Fundo escurecido atrás do Modal |
 
 ## Tipografia
 
@@ -129,3 +133,32 @@ de tamanho (`--size-*`) numa revisão futura.
 - Nunca repetir o valor hexadecimal, o tamanho de fonte ou o espaçamento direto no componente —
   sempre pelo token. Facilita trocar o valor em um lugar só e evita a UI ir se desalinhando aos
   poucos conforme cada tela inventa o próprio número.
+
+## Componentes
+
+Todos em `src/shared/ui`, com CSS Module próprio e só tokens (nada de valor solto). Os nomes das
+props seguem o que o projeto já usa nos componentes de formulário.
+
+| Componente | Para que serve | Props principais |
+|---|---|---|
+| `Card` | Bloco de conteúdo com borda, sombra e cabeçalho opcional | `title`, `action`, `footer`, `as`, `interactive` |
+| `Badge` | Selo curto de status | `variant`: `neutro`, `sucesso`, `aviso`, `perigo`, `info` |
+| `Alert` | Mensagem destacada (erro, aviso, sucesso, informação) | `variant`: `info`, `sucesso`, `aviso`, `erro`; `title`, `action` |
+| `Select` | Lista de opções, com rótulo, erro e dica como o `TextField` | `label`, `opcoes` (`{ valor, rotulo }`), `placeholder`, `error`, `hint` |
+| `Table` | Tabela tipada, com legenda para leitores de tela e rolagem horizontal | `legenda`, `colunas`, `linhas`, `chaveDaLinha`, `vazio` |
+| `Modal` | Janela de diálogo sobre a página (usa o `<dialog>` nativo) | `aberto`, `onFechar`, `titulo`, `rodape` |
+| `EmptyState` | Tela ou lista sem conteúdo, com uma ação sugerida | `title`, `action` |
+
+Acessibilidade: `Alert` usa `role="alert"` para erro e aviso e `role="status"` para informação e
+sucesso; `Select` liga o erro ao campo com `aria-describedby`; `Modal` herda foco e camada do
+`<dialog>` e chama `onFechar` uma vez só (Esc, clique no fundo ou botão), sempre deixando o pai decidir; `Table` traz `<caption>` e `scope="col"`.
+
+Dois cuidados de uso:
+
+- **`Modal`:** o `onFechar` precisa mudar `aberto` para `false` no pai. Se o pai ignorar o pedido, o
+  `<dialog>` continua aberto na tela e o estado do pai deixa de refletir a realidade.
+- **`Table`:** sem `celula`, o valor da coluna vira texto (`String(valor)`). Para datas, objetos ou
+  qualquer coisa que não seja texto ou número, passe `celula` e formate você mesmo.
+
+Quando o app precisar de um componente que não está aqui, ele entra neste mesmo lugar (e nesta
+tabela) em vez de nascer dentro de uma tela.

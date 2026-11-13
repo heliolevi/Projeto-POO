@@ -21,7 +21,7 @@ type LinhaView = {
   pagamento_metodo: string | null;
 };
 
-// reserva_detalhada (migration 0010) monta o objeto reserva do contrato com tipo, ponto e último
+// reserva_detalhada (migration 0011) monta o objeto reserva do contrato com tipo, ponto e último
 // pagamento, e filtra pela sessão como a política de RLS de reserva: o cliente só vê as próprias.
 // O cliente não lê as tabelas bicicleta e pagamento direto, por isso a leitura passa pela view.
 const COLUNAS_VIEW = `
@@ -96,7 +96,7 @@ export function operacoesNoBanco(client: PoolClient): OperacoesReservas {
         : null;
     },
 
-    // escolher_unidade_para_reserva() (migration 0010): unidade DISPONIVEL do tipo, sem reserva
+    // escolher_unidade_para_reserva() (migration 0011): unidade DISPONIVEL do tipo, sem reserva
     // ativa sobreposta, FOR UPDATE SKIP LOCKED. É SECURITY DEFINER porque o cliente não lê
     // bicicleta e não vê as reservas dos outros.
     async escolherUnidade(tipoId, inicio, fim, excluir) {
