@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { ChamadasDoHeroi, LandingHeader } from "@/shared/landing/LandingHeader";
+import { FOTO_PASSEIO, FOTO_TRILHA } from "@/shared/landing/fotos";
 import { TiposEmDestaque } from "@/shared/landing/TiposEmDestaque";
 import { LOCADORA, PASSOS } from "@/shared/landing/locadora";
 import styles from "@/shared/landing/landing.module.css";
@@ -28,6 +30,20 @@ export default function Home() {
               livres no dia que você escolher, da mais indicada para a menos.
             </p>
             <ChamadasDoHeroi />
+            <div className={styles.heroiFotos}>
+              {[FOTO_PASSEIO, FOTO_TRILHA].map((foto, indice) => (
+                <Image
+                  key={foto.src}
+                  className={styles.heroiFoto}
+                  src={foto.src}
+                  alt={foto.alt}
+                  width={foto.largura}
+                  height={foto.altura}
+                  sizes="(min-width: 720px) 500px, 50vw"
+                  priority={indice === 0}
+                />
+              ))}
+            </div>
           </div>
         </section>
 
