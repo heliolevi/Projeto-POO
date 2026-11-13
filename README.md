@@ -145,12 +145,16 @@ por row-level security.
 ## Desenvolvimento
 
 ```bash
-npm install
+npm ci
 npm run dev        # http://localhost:3000 — health check em /api/health
 npm run lint
 npm run typecheck
+npm test
 npm run build
 ```
+
+Para rodar o projeto do zero (Node 22.18 ou mais novo, variáveis do `.env.local`, banco, seed, conta
+de equipe e testes), siga o [guia de ambiente local](docs/ambiente-local.md).
 
 Estrutura do back-end: um diretório por módulo em `src/modules/<modulo>`, cada um com as camadas
 `domain`, `application`, `infrastructure` e `http` e uma API pública em `index.ts`. Os Route Handlers
