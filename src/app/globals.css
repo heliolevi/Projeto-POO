@@ -91,6 +91,10 @@ body {
   color: var(--color-text);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  /* Com viewport-fit=cover, o aparelho deitado deixa o notch por cima do conteúdo nas telas
+     que não usam a área segura (login, cadastro e página inicial). */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 h1,
