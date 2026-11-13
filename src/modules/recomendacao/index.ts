@@ -14,7 +14,7 @@ export {
   type Experiencia,
   type PerfilCiclista,
 } from "./domain/perfil";
-export { validarBusca, type BuscaValidada } from "./domain/periodo";
+export { validarBusca, type BuscaValidada } from "../../shared/dominio/periodo";
 export {
   PESOS,
   recomendar,

@@ -86,6 +86,8 @@ ela vira `EXPIRADA` e a bicicleta volta a ficar livre.
 ```
 
 `expiraEm` só vem preenchido enquanto a reserva está `PENDENTE_PAGAMENTO`; nos outros estados é `null`.
+É sempre `criadaEm` + 15 minutos: o banco não tem coluna `expira_em`, e a função `expirar_reservas_vencidas()`
+conta o mesmo prazo a partir de `criado_em`.
 O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rotas de operação.
 
 ---
@@ -105,10 +107,10 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 9 | `GET /api/empresa` | Visitante | novo | Hélio | Renan |
 | 10 | `GET /api/catalogo/tipos` | Visitante | existe | Hélio | Renan |
 | 11 | `GET /api/recomendacao` | CLIENTE | existe | Hélio | Renan |
-| 12 | `POST /api/reservas` | CLIENTE | novo | Luis | Renan |
-| 13 | `GET /api/reservas` | CLIENTE | novo | Luis | Renan |
-| 14 | `GET /api/reservas/{id}` | CLIENTE | novo | Luis | Renan |
-| 15 | `POST /api/reservas/{id}/cancelar` | CLIENTE | novo | Luis | Renan |
+| 12 | `POST /api/reservas` | CLIENTE | existe | Luis | Renan |
+| 13 | `GET /api/reservas` | CLIENTE | existe | Luis | Renan |
+| 14 | `GET /api/reservas/{id}` | CLIENTE | existe | Luis | Renan |
+| 15 | `POST /api/reservas/{id}/cancelar` | CLIENTE | existe | Luis | Renan |
 | 16 | `POST /api/pagamentos` | CLIENTE | novo | Hélio | Renan |
 | 17 | `GET /api/pagamentos/{reservaId}/status` | CLIENTE | novo | Hélio | Renan |
 | 18 | `POST /api/pagamentos/webhook` | Mercado Pago | novo | Hélio | Mercado Pago |
