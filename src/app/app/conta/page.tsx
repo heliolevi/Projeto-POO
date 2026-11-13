@@ -7,6 +7,7 @@ import {
   CONFIRMACAO_DESATIVAR,
   confirmacaoValida,
   mensagemDeErro,
+  podeDesativarConta,
   validarAltura,
   validarTrocaDeSenha,
   type ErrosSenha,
@@ -14,14 +15,13 @@ import {
 } from "@/shared/conta/conta";
 import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
 import type { ContaLogada } from "@/shared/perfil/perfil-ciclista";
-import styles from "@/shared/reservas/reservas.module.css";
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
 import { Modal } from "@/shared/ui/Modal";
 import { PasswordField } from "@/shared/ui/PasswordField";
 import { TextField } from "@/shared/ui/TextField";
-import { UserIcon } from "@/shared/ui/icons";
+import { ShieldIcon, UserIcon } from "@/shared/ui/icons";
 import contaStyles from "./conta.module.css";
 
 const SENHA_VAZIA: FormularioSenha = { senhaAtual: "", novaSenha: "", confirmar: "" };
@@ -55,7 +55,7 @@ export default function MinhaContaPage() {
     };
   }, []);
 
-  if (estado.tipo === "carregando") return <p className={styles.vazio}>Carregando a sua conta...</p>;
+  if (estado.tipo === "carregando") return <p className={contaStyles.vazio}>Carregando a sua conta...</p>;
   if (estado.tipo === "erro") return <Alert variant="erro">{estado.mensagem}</Alert>;
 
   const { conta } = estado;
@@ -67,8 +67,8 @@ export default function MinhaContaPage() {
 
   return (
     <div>
-      <h2 className={styles.titulo}>Minha conta</h2>
-      <p className={styles.subtitulo}>Gerencie a sua senha, a sua altura e o acesso à conta.</p>
+      <h2 className={contaStyles.titulo}>Minha conta</h2>
+      <p className={contaStyles.subtitulo}>Gerencie a sua senha, a sua altura e o acesso à conta.</p>
 
       <div className={contaStyles.secoes}>
         <Card title="Seus dados">
@@ -79,7 +79,7 @@ export default function MinhaContaPage() {
 
         <SecaoSenha />
         {conta.perfil === "CLIENTE" && <SecaoAltura alturaInicial={conta.ciclista?.alturaCm ?? null} />}
-        <SecaoDesativar onDesativada={aoDesativar} />
+        {podeDesativarConta(conta.perfil) && <SecaoDesativar onDesativada={aoDesativar} />}
       </div>
     </div>
   );
@@ -308,13 +308,17 @@ function SecaoDesativar({ onDesativada }: { onDesativada: () => void }) {
                 <strong>não são canceladas</strong> e continuam valendo. Se não for retirar a
                 bicicleta, cancele antes de desativar.
               </li>
+              <li>
+                Não há como reativar a conta pela tela, e o mesmo e-mail e o mesmo CPF{" "}
+                <strong>não podem ser usados em um novo cadastro</strong>.
+              </li>
               <li>Os seus dados não são apagados. Para eliminá-los, peça por e-mail à locadora.</li>
             </ul>
           </Alert>
           {erro && <Alert variant="erro">{erro}</Alert>}
           <TextField
             label={`Digite ${CONFIRMACAO_DESATIVAR} para confirmar`}
-            icon={<UserIcon />}
+            icon={<ShieldIcon />}
             autoComplete="off"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}

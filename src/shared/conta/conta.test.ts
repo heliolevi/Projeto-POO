@@ -4,6 +4,7 @@ import {
   CONFIRMACAO_DESATIVAR,
   confirmacaoValida,
   mensagemDeErro,
+  podeDesativarConta,
   validarAltura,
   validarTrocaDeSenha,
 } from "./conta.ts";
@@ -87,5 +88,19 @@ describe("mensagemDeErro", () => {
   });
   it("400 usa a mensagem da API", () => {
     assert.equal(mensagemDeErro({ code: "VALIDATION_ERROR", message: "Dados inválidos." }), "Dados inválidos.");
+  });
+});
+
+describe("podeDesativarConta", () => {
+  it("só o cliente vê a opção de desativar a própria conta", () => {
+    assert.equal(podeDesativarConta("CLIENTE"), true);
+  });
+  it("a equipe não vê: um clique desativaria a única conta de operador ou admin da demo", () => {
+    assert.equal(podeDesativarConta("OPERADOR"), false);
+    assert.equal(podeDesativarConta("ADMIN"), false);
+  });
+  it("perfil desconhecido não vê a opção", () => {
+    assert.equal(podeDesativarConta("GERENTE_LOCADORA"), false);
+    assert.equal(podeDesativarConta(""), false);
   });
 });

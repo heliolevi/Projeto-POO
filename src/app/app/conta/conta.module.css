@@ -52,3 +52,24 @@
   gap: var(--space-6);
   font-size: var(--font-size-md);
 }
+
+.titulo {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-4);
+}
+
+.subtitulo {
+  font-size: var(--font-size-md);
+  color: var(--color-text-support);
+  margin: 0 0 var(--space-20);
+}
+
+.vazio {
+  text-align: center;
+  padding: var(--space-32) var(--space-16);
+  color: var(--color-text-support);
+  font-size: var(--font-size-md);
+}

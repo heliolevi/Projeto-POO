@@ -33,6 +33,13 @@ export function validarAltura(texto: string): { alturaCm: number } | { erro: str
 
 export const CONFIRMACAO_DESATIVAR = "DESATIVAR";
 
+// Só o cliente desativa a própria conta pela tela. As contas de equipe (OPERADOR e ADMIN) são
+// criadas por script (T28) e não há tela para recriá-las: um clique tiraria a única conta de
+// equipe da locadora. A API ainda aceita os três perfis (contrato, rota 8).
+export function podeDesativarConta(perfil: string): boolean {
+  return perfil === "CLIENTE";
+}
+
 export function confirmacaoValida(texto: string): boolean {
   return texto.trim() === CONFIRMACAO_DESATIVAR;
 }
