@@ -26,13 +26,20 @@ export function LogoMark({ size = 32 }: LogoProps) {
   );
 }
 
-export function Logo({ withSubtitle = false }: { withSubtitle?: boolean }) {
+type LogoCompletoProps = {
+  withSubtitle?: boolean;
+  /** Tag do nome da marca. O padrão é h1; use "span" quando a página já tem o próprio h1. */
+  as?: "h1" | "span";
+};
+
+export function Logo({ withSubtitle = false, as: Nome = "h1" }: LogoCompletoProps) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "var(--space-10)" }}>
       <LogoMark />
       <div>
-        <h1
+        <Nome
           style={{
+            display: "block",
             fontSize: "var(--font-size-xl)",
             fontWeight: "var(--font-weight-bold)",
             color: "var(--color-primary)",
@@ -40,7 +47,7 @@ export function Logo({ withSubtitle = false }: { withSubtitle?: boolean }) {
           }}
         >
           Bike Ilha Club
-        </h1>
+        </Nome>
         {withSubtitle && (
           <p
             style={{

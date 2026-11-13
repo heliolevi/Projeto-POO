@@ -84,6 +84,8 @@ Duas famílias, carregadas via `next/font/google` em `src/app/layout.tsx`:
 | `--font-size-lg` | 15px | Texto de botão |
 | `--font-size-xl` | 18px | Nome da marca no cabeçalho |
 | `--font-size-2xl` | 24px | Título de tela |
+| `--font-size-3xl` | 32px | Título da página inicial (celular) |
+| `--font-size-4xl` | 44px | Título da página inicial (telas largas) |
 
 ### Peso
 
