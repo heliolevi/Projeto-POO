@@ -7,7 +7,7 @@
 > os contatos e as regras abaixo são **fictícios**, definidos pela equipe. Não há cobrança real de dinheiro.
 
 Estes termos explicam como funciona o aluguel de bicicletas pelo Bike Ilha Club. Ao criar sua conta e marcar
-"Li e aceito", você concorda com eles. Se algo mudar, avisamos e pedimos um novo aceite.
+"Li e concordo", você concorda com eles. Se algo mudar, avisamos e pedimos um novo aceite.
 
 ## 1. O que é o serviço
 O Bike Ilha Club permite escolher uma bicicleta, reservar um período, pagar o aluguel pelo app e retirar a

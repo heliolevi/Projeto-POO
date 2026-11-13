@@ -17,6 +17,7 @@ novembro de 2026 com a mudança de escopo.
 | Luis Felipe | Tech lead: banco de dados, infraestrutura do banco e revisão de código | `luiscstro` (os commits feitos no computador dele aparecem também como `percyy2021-prog`) |
 | Hélio Levi | Desenvolvimento do back-end: aplicação, módulos, contas e conexão com o banco | `heliolevi` |
 | William | DevOps e QA: integração contínua e validação do backend | `wirsokk` |
+| Renan | Front-end: telas do cliente (cadastro, perfil, busca, reservas e Pix), design system e navegação | `rspgameplay-ui` |
 
 ## Linha do tempo
 

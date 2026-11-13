@@ -1,3 +1,5 @@
+import { MENSAGEM_SEM_CONEXAO, mensagemDoErro } from "./mensagens.ts";
+
 export type ErrosPorCampo = Record<string, string>;
 
 export type UsuarioAutenticado = {
@@ -26,12 +28,22 @@ export class ApiError extends Error {
 }
 
 async function enviar<T>(url: string, init: RequestInit): Promise<T> {
-  const resposta = await fetch(url, init);
+  let resposta: Response;
+  try {
+    resposta = await fetch(url, init);
+  } catch {
+    // fetch só rejeita quando a requisição nem chegou ao servidor (rede caída, offline).
+    throw new ApiError("NETWORK_ERROR", MENSAGEM_SEM_CONEXAO);
+  }
   const json = await resposta.json().catch(() => null);
 
   if (!resposta.ok) {
     const erro = json?.error ?? { code: "UNKNOWN", message: "Não foi possível completar a ação." };
-    throw new ApiError(erro.code, erro.message, erro.details);
+    throw new ApiError(
+      erro.code,
+      mensagemDoErro(resposta.status, erro.code, erro.message),
+      erro.details,
+    );
   }
 
   // 204 (senha, altura, desativar) não tem corpo: sucesso sem dados.

@@ -18,3 +18,9 @@
   flex: 1;
   padding: var(--space-24);
 }
+
+@media (min-width: 768px) {
+  .screen {
+    max-width: 640px;
+  }
+}
