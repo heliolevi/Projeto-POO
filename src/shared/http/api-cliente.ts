@@ -46,7 +46,8 @@ async function enviar<T>(url: string, init: RequestInit): Promise<T> {
     );
   }
 
-  return json.data as T;
+  // 204 (senha, altura, desativar) não tem corpo: sucesso sem dados.
+  return (json?.data ?? undefined) as T;
 }
 
 export function postJson<T>(url: string, corpo: unknown): Promise<T> {
@@ -74,11 +75,23 @@ function sessaoRecusada(): void {
   window.location.assign(login.href);
 }
 
-async function enviarAutenticado<T>(url: string, init: RequestInit): Promise<T> {
+type OpcoesAutenticado = {
+  // Padrão: um 401 derruba a sessão e leva ao login. A troca de senha desliga isso, porque lá
+  // o 401 também quer dizer "senha atual incorreta" e a pessoa deve continuar logada.
+  sairSeNaoAutorizado?: boolean;
+};
+
+async function enviarAutenticado<T>(
+  url: string,
+  init: RequestInit,
+  opcoes: OpcoesAutenticado = {},
+): Promise<T> {
   try {
     return await enviar<T>(url, init);
   } catch (erro) {
-    if (erro instanceof ApiError && erro.code === "UNAUTHORIZED") sessaoRecusada();
+    if (erro instanceof ApiError && erro.code === "UNAUTHORIZED" && opcoes.sairSeNaoAutorizado !== false) {
+      sessaoRecusada();
+    }
     throw erro;
   }
 }
@@ -95,10 +108,18 @@ export function putAutenticado<T>(url: string, corpo: unknown): Promise<T> {
   });
 }
 
-export function postAutenticado<T>(url: string, corpo: unknown = {}): Promise<T> {
-  return enviarAutenticado<T>(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...cabecalhoAutenticado() },
-    body: JSON.stringify(corpo),
-  });
+export function postAutenticado<T>(
+  url: string,
+  corpo: unknown = {},
+  opcoes?: OpcoesAutenticado,
+): Promise<T> {
+  return enviarAutenticado<T>(
+    url,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...cabecalhoAutenticado() },
+      body: JSON.stringify(corpo),
+    },
+    opcoes,
+  );
 }

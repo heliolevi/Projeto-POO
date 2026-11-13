@@ -84,6 +84,33 @@ test("401 apaga a sessão e leva ao login guardando a tela atual", async () => {
   assert.equal(redirecionouPara, "http://localhost:3000/login?next=%2Fapp%2Freservas%3Fx%3D1");
 });
 
+test("resposta 204 sem corpo é sucesso (senha, altura e desativar)", async () => {
+  globais.fetch = async (url: string, init: RequestInit = {}) => {
+    chamadas.push({ url, init });
+    return new Response(null, { status: 204 });
+  };
+  const resultado = await postAutenticado("/api/conta/desativar", {});
+  assert.equal(resultado, undefined);
+  assert.equal(redirecionouPara, null);
+});
+
+test("401 sem redirecionar mostra o erro e mantém a sessão (senha atual errada)", async () => {
+  simularResposta(401, { error: { code: "UNAUTHORIZED", message: "Senha atual incorreta." } });
+  await assert.rejects(
+    () => postAutenticado("/api/conta/senha", {}, { sairSeNaoAutorizado: false }),
+    (erro: unknown) => erro instanceof ApiError && erro.message === "Senha atual incorreta.",
+  );
+  assert.equal(redirecionouPara, null);
+  assert.equal(armazenamento.get("bik_token"), "token-de-teste");
+});
+
+test("401 por padrão ainda apaga a sessão e vai para o login", async () => {
+  simularResposta(401, { error: { code: "UNAUTHORIZED", message: "Não autenticado" } });
+  await assert.rejects(() => postAutenticado("/api/conta/senha", {}));
+  assert.equal(armazenamento.has("bik_token"), false);
+  assert.ok(redirecionouPara?.includes("/login"));
+});
+
 test("rede caída vira ApiError com mensagem de sem conexão", async () => {
   globais.fetch = async () => {
     throw new TypeError("Failed to fetch");
