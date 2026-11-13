@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, beforeEach, test } from "node:test";
-import { ApiError, getAutenticado, postAutenticado } from "./api-cliente.ts";
+import { ApiError, getAutenticado, patchAutenticado, postAutenticado } from "./api-cliente.ts";
 
 type Chamada = { url: string; init: RequestInit };
 
@@ -131,4 +131,57 @@ test("erro 500 mostra o texto amigável, não o da API", async () => {
     assert.match(erro.message, /do nosso lado/);
     return true;
   });
+});
+
+test("patchAutenticado usa PATCH, manda o corpo em JSON e o token", async () => {
+  simularResposta(200, { data: { id: "b1", status: "MANUTENCAO" } });
+  const resultado = await patchAutenticado<{ status: string }>("/api/admin/bicicletas/b1", {
+    status: "MANUTENCAO",
+  });
+  assert.deepEqual(resultado, { id: "b1", status: "MANUTENCAO" });
+  const { url, init } = chamadas[0];
+  assert.equal(url, "/api/admin/bicicletas/b1");
+  assert.equal(init.method, "PATCH");
+  assert.equal(init.body, '{"status":"MANUTENCAO"}');
+  const cabecalhos = init.headers as Record<string, string>;
+  assert.equal(cabecalhos["Content-Type"], "application/json");
+  assert.equal(cabecalhos.Authorization, "Bearer token-de-teste");
+});
+
+test("patchAutenticado sem token não manda Authorization", async () => {
+  armazenamento.clear();
+  simularResposta(200, { data: {} });
+  await patchAutenticado("/api/admin/bicicletas/b1", { status: "DISPONIVEL" });
+  assert.equal((chamadas[0].init.headers as Record<string, string>).Authorization, undefined);
+});
+
+test("patchAutenticado: 400 vira ApiError com os erros por campo", async () => {
+  simularResposta(400, {
+    error: {
+      code: "VALIDATION_ERROR",
+      message: "Dados inválidos.",
+      details: { status: "Status inválido." },
+    },
+  });
+  await assert.rejects(patchAutenticado("/api/admin/bicicletas/b1", { status: "X" }), (erro: unknown) => {
+    assert.ok(erro instanceof ApiError);
+    assert.equal(erro.code, "VALIDATION_ERROR");
+    assert.deepEqual(erro.details, { status: "Status inválido." });
+    return true;
+  });
+  assert.equal(redirecionouPara, null);
+});
+
+test("patchAutenticado: 403 (perfil errado) mostra o erro e mantém a sessão", async () => {
+  simularResposta(403, { error: { code: "FORBIDDEN", message: "Sem permissão." } });
+  await assert.rejects(patchAutenticado("/api/admin/bicicletas/b1", { status: "BAIXADA" }), ApiError);
+  assert.equal(redirecionouPara, null);
+  assert.equal(armazenamento.get("bik_token"), "token-de-teste");
+});
+
+test("patchAutenticado: 401 apaga a sessão e leva ao login", async () => {
+  simularResposta(401, { error: { code: "UNAUTHORIZED", message: "Sessão inválida." } });
+  await assert.rejects(patchAutenticado("/api/admin/bicicletas/b1", { status: "BAIXADA" }), ApiError);
+  assert.equal(armazenamento.has("bik_token"), false);
+  assert.ok(redirecionouPara?.includes("/login?next="));
 });
