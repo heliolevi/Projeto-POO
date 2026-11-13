@@ -132,7 +132,16 @@ for (const rota of ROTAS) {
   });
 
   test(`${rota.nome}: token com assinatura errada ou expirado responde 401`, async () => {
-    const adulterado = token(ID_ADMIN, "ADMIN").replace(/.$/, (c) => (c === "A" ? "B" : "A"));
+    // Troca o PRIMEIRO caractere da assinatura, que usa os 6 bits do base64url e sempre muda os
+    // bytes. Trocar o último não serve: ele carrega só 4 bits úteis, então A, B, C e D decodificam
+    // igual e a "adulteração" some em cerca de 6% dos segundos (o token depende da hora).
+    const [cabecalho, corpo, assinatura] = token(ID_ADMIN, "ADMIN").split(".");
+    const adulterado = `${cabecalho}.${corpo}.${assinatura[0] === "A" ? "B" : "A"}${assinatura.slice(1)}`;
+    assert.notDeepEqual(
+      Buffer.from(adulterado.split(".")[2], "base64url"),
+      Buffer.from(assinatura, "base64url"),
+      "a assinatura adulterada precisa decodificar para bytes diferentes",
+    );
     assert.equal((await chamar(rota, adulterado)).status, 401);
     assert.equal((await chamar(rota, token(ID_ADMIN, "ADMIN", -60))).status, 401, "expirado");
     assert.equal(tocouNoCatalogo(), false);
