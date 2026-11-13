@@ -18,6 +18,7 @@ import {
   type ReservaDetalhada,
 } from "@/shared/reservas/reserva";
 import styles from "@/shared/reservas/reservas.module.css";
+import { Alert } from "@/shared/ui/Alert";
 
 const INTERVALO_DA_CONSULTA_MS = 3000;
 
@@ -175,13 +176,11 @@ export default function PagamentoPixPage() {
 
       <h2 className={styles.titulo}>Pagamento com Pix</h2>
 
-      {estado.tipo === "carregando" && <p className={styles.vazio}>Gerando o seu Pix...</p>}
+      {estado.tipo === "carregando" && <p className={styles.vazio} role="status">Gerando o seu Pix...</p>}
 
       {estado.tipo === "erro" && (
         <>
-          <div className={styles.erro} role="alert">
-            {estado.mensagem}
-          </div>
+          <Alert variant="erro">{estado.mensagem}</Alert>
           {estado.podeTentarDeNovo && (
             <button type="button" className={styles.botaoSecundario} onClick={tentarDeNovo}>
               Tentar de novo

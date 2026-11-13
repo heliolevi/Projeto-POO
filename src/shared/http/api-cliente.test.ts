@@ -83,3 +83,25 @@ test("401 apaga a sessão e leva ao login guardando a tela atual", async () => {
   assert.equal(armazenamento.has("bik_token"), false);
   assert.equal(redirecionouPara, "http://localhost:3000/login?next=%2Fapp%2Freservas%3Fx%3D1");
 });
+
+test("rede caída vira ApiError com mensagem de sem conexão", async () => {
+  globais.fetch = async () => {
+    throw new TypeError("Failed to fetch");
+  };
+  await assert.rejects(getAutenticado("/api/reservas"), (erro: unknown) => {
+    assert.ok(erro instanceof ApiError);
+    assert.equal(erro.code, "NETWORK_ERROR");
+    assert.match(erro.message, /Sem conexão/);
+    return true;
+  });
+  assert.equal(redirecionouPara, null);
+});
+
+test("erro 500 mostra o texto amigável, não o da API", async () => {
+  simularResposta(500, { error: { code: "INTERNAL_ERROR", message: "boom" } });
+  await assert.rejects(getAutenticado("/api/reservas"), (erro: unknown) => {
+    assert.ok(erro instanceof ApiError);
+    assert.match(erro.message, /do nosso lado/);
+    return true;
+  });
+});

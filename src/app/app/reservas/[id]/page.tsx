@@ -9,6 +9,7 @@ import { podeCancelar, type Reserva, type ReservaDetalhada } from "@/shared/rese
 import { ContagemRegressiva } from "@/shared/reservas/ContagemRegressiva";
 import { SeloStatus } from "@/shared/reservas/SeloStatus";
 import styles from "@/shared/reservas/reservas.module.css";
+import { Alert } from "@/shared/ui/Alert";
 
 type Estado =
   | { tipo: "carregando" }
@@ -80,12 +81,10 @@ export default function ReservaDetalhePage() {
         ← Minhas reservas
       </Link>
 
-      {estado.tipo === "carregando" && <p className={styles.vazio}>Carregando a reserva...</p>}
+      {estado.tipo === "carregando" && <p className={styles.vazio} role="status">Carregando a reserva...</p>}
 
       {estado.tipo === "erro" && (
-        <div className={styles.erro} role="alert">
-          {estado.mensagem}
-        </div>
+        <Alert variant="erro">{estado.mensagem}</Alert>
       )}
 
       {estado.tipo === "pronto" && (
@@ -139,9 +138,7 @@ export default function ReservaDetalhePage() {
           </dl>
 
           {erroAcao && (
-            <div className={styles.erro} role="alert">
-              {erroAcao}
-            </div>
+            <Alert variant="erro">{erroAcao}</Alert>
           )}
 
           <div className={styles.acoes}>
