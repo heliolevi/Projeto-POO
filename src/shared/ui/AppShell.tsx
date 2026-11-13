@@ -41,7 +41,7 @@ export function AppShell({ perfil, children }: { perfil: PerfilUsuario; children
                 href={item.href}
                 className={`${styles.navItem} ${ativo ? styles.navItemActive : ""}`}
               >
-                {item.icon}
+                <span className={styles.navIcon}>{item.icon}</span>
                 {item.label}
               </Link>
             );

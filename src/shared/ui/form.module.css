@@ -145,6 +145,15 @@
   transform: scale(0.99);
 }
 
+/* Com "reduzir movimento" o giro fica mais lento, mas não some: o spinner é o único sinal de
+   que o envio está em andamento. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
 .spinner {
   width: 16px;
   height: 16px;

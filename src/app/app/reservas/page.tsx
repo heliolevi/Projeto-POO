@@ -8,6 +8,8 @@ import type { Reserva } from "@/shared/reservas/reserva";
 import { ContagemRegressiva } from "@/shared/reservas/ContagemRegressiva";
 import { SeloStatus } from "@/shared/reservas/SeloStatus";
 import styles from "@/shared/reservas/reservas.module.css";
+import { Alert } from "@/shared/ui/Alert";
+import { EmptyState } from "@/shared/ui/EmptyState";
 
 type Estado =
   | { tipo: "carregando" }
@@ -39,16 +41,23 @@ export default function MinhasReservasPage() {
       <h2 className={styles.titulo}>Minhas reservas</h2>
       <p className={styles.subtitulo}>Acompanhe o que você já reservou.</p>
 
-      {estado.tipo === "carregando" && <p className={styles.vazio}>Carregando suas reservas...</p>}
+      {estado.tipo === "carregando" && <p className={styles.vazio} role="status">Carregando suas reservas...</p>}
 
       {estado.tipo === "erro" && (
-        <div className={styles.erro} role="alert">
-          {estado.mensagem}
-        </div>
+        <Alert variant="erro">{estado.mensagem}</Alert>
       )}
 
       {estado.tipo === "pronto" && estado.reservas.length === 0 && (
-        <p className={styles.vazio}>Você ainda não tem reservas.</p>
+        <EmptyState
+          title="Você ainda não tem reservas"
+          action={
+            <Link href="/app/buscar" className={styles.botaoPrimario}>
+              Buscar uma bicicleta
+            </Link>
+          }
+        >
+          Quando você reservar, ela aparece aqui.
+        </EmptyState>
       )}
 
       {estado.tipo === "pronto" && estado.reservas.length > 0 && (

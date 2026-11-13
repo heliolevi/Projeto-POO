@@ -93,6 +93,10 @@ body {
   color: var(--color-text);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  /* Com viewport-fit=cover, o aparelho deitado deixa o notch por cima do conteúdo nas telas
+     que não usam a área segura (login, cadastro e página inicial). */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 h1,
@@ -117,4 +121,30 @@ button {
 
 input {
   font-family: inherit;
+}
+
+/* Acabamento: foco visível para quem usa teclado, respeito a quem pede menos movimento e
+   campos com 16px no celular (abaixo disso o iOS dá zoom ao focar). */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
