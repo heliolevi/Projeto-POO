@@ -4,11 +4,12 @@ import { ConflictError } from "../../../shared/http/errors.ts";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
 import { Periodo } from "../../../shared/dominio/periodo-aluguel.ts";
 import { Bicicleta, TransicaoDeBicicletaInvalida } from "./bicicleta.ts";
+import { criarCatalogo, type RepositorioCatalogo } from "../application/catalogo.ts";
 import { paraPublico } from "./catalogo.ts";
 import type { BicicletaAdmin, TipoAdmin } from "./catalogo.ts";
 import { somenteDigitos } from "../../../shared/format/cpf.ts";
 import { Empresa, cnpjValido } from "./empresa.ts";
-import { Ponto, type DadosPonto } from "./ponto.ts";
+import { Ponto, horarioDoBanco, type DadosPonto } from "./ponto.ts";
 import { TipoBicicleta } from "./tipo-bicicleta.ts";
 
 const PASSEIO: TipoAdmin = {
@@ -73,7 +74,6 @@ describe("TipoBicicleta", () => {
   test("o construtor recusa dados que o banco também recusaria", () => {
     const ruins: Partial<TipoAdmin>[] = [
       { id: "" },
-      { nome: "  " },
       { atividades: [] },
       { alturaMinCm: 99 },
       { alturaMaxCm: 251 },
@@ -86,6 +86,35 @@ describe("TipoBicicleta", () => {
     ];
     for (const ruim of ruins) {
       assert.throws(() => new TipoBicicleta({ ...PASSEIO, ...ruim }), RangeError, JSON.stringify(ruim));
+    }
+  });
+
+  test("o construtor aceita tudo o que o banco aceita: uma linha válida no banco não derruba a listagem", () => {
+    // o banco não impõe nada ao nome (só NOT NULL e UNIQUE) nem à descrição; isso é da API (validarTipo)
+    for (const aceita of [{ nome: "  " }, { nome: "" }, { nome: "x" }, { descricao: null }, { descricao: "" }]) {
+      assert.doesNotThrow(() => new TipoBicicleta({ ...PASSEIO, ...aceita }), JSON.stringify(aceita));
+    }
+    // os limites exatos das constraints
+    assert.doesNotThrow(() => new TipoBicicleta({ ...PASSEIO, alturaMinCm: 100, alturaMaxCm: 250 }));
+    assert.doesNotThrow(() => new TipoBicicleta({ ...PASSEIO, precoHoraCentavos: 0, precoDiaCentavos: 0, valorCaucaoCentavos: 0 }));
+    assert.doesNotThrow(() => new TipoBicicleta({ ...PASSEIO, precoDiaCentavos: 2_147_483_647 }));
+  });
+
+  test("os seis tipos do seed passam pelo construtor e a visão pública funciona para todos", () => {
+    const seed = [
+      ["Urbana", ["URBANO", "PASSEIO"], 150, 195, "INICIANTE", 1000, 5000, 15000],
+      ["Passeio", ["PASSEIO", "TURISMO"], 145, 190, "INICIANTE", 1200, 6000, 15000],
+      ["Mountain bike", ["TRILHA", "ESPORTE"], 160, 200, "INTERMEDIARIO", 2000, 10000, 30000],
+      ["Speed", ["ESPORTE", "URBANO"], 165, 200, "AVANCADO", 2500, 12000, 40000],
+      ["Elétrica", ["TURISMO", "URBANO", "PASSEIO"], 150, 200, "INICIANTE", 3500, 18000, 60000],
+      ["Infantil", ["PASSEIO"], 100, 140, "INICIANTE", 800, 4000, 10000],
+    ] as const;
+    for (const [nome, atividades, min, max, nivel, hora, dia, caucao] of seed) {
+      const tipo = new TipoBicicleta({
+        id: `id-${nome}`, nome, descricao: null, atividades: [...atividades], alturaMinCm: min, alturaMaxCm: max,
+        nivelRecomendado: nivel, precoHoraCentavos: hora, precoDiaCentavos: dia, valorCaucaoCentavos: caucao, ativo: true,
+      });
+      assert.equal(tipo.paraPublico().nome, nome);
     }
   });
 
@@ -212,6 +241,39 @@ describe("Bicicleta", () => {
       assert.throws(operacao, TransicaoDeBicicletaInvalida);
     }
     assert.equal(b.status, "BAIXADA");
+  });
+
+  test("dar baixa de novo é recusado e não sobrescreve o motivo da primeira baixa", () => {
+    const b = new Bicicleta(BIKE);
+    b.baixar("vendida em 10/11");
+    assert.throws(() => b.baixar("outro motivo"), TransicaoDeBicicletaInvalida);
+    assert.equal(b.status, "BAIXADA");
+    assert.equal(b.observacoes, "vendida em 10/11");
+    const lida = new Bicicleta({ ...BIKE, status: "BAIXADA", observacoes: "perdida" });
+    assert.throws(() => lida.baixar("novo"), TransicaoDeBicicletaInvalida);
+    assert.equal(lida.observacoes, "perdida");
+  });
+
+  test("liberar tira o motivo do bloqueio ou da manutenção das observações", () => {
+    const bloqueada = new Bicicleta(BIKE);
+    bloqueada.bloquear("pneu furado");
+    assert.equal(bloqueada.observacoes, "pneu furado");
+    bloqueada.liberar();
+    assert.equal(bloqueada.status, "DISPONIVEL");
+    assert.equal(bloqueada.observacoes, null);
+
+    const emManutencao = new Bicicleta(BIKE);
+    emManutencao.enviarParaManutencao("revisão dos freios");
+    emManutencao.liberar();
+    assert.equal(emManutencao.observacoes, null);
+    assert.equal(emManutencao.paraAdmin().observacoes, null);
+  });
+
+  test("liberar uma bicicleta que já está disponível não mexe nas observações", () => {
+    const b = new Bicicleta({ ...BIKE, observacoes: "quadro novo" });
+    b.liberar();
+    assert.equal(b.status, "DISPONIVEL");
+    assert.equal(b.observacoes, "quadro novo");
   });
 
   test("baixar exige motivo; bicicleta alugada não é alterada", () => {
@@ -357,6 +419,31 @@ describe("Ponto", () => {
     assert.equal(p.localizacao!.latitude, -2.49);
   });
 
+  test("horarioDoBanco converte dia_semana (jsonb do banco) para diaSemana", () => {
+    assert.deepEqual(horarioDoBanco({ dia_semana: 1, abre: "08:00", fecha: "18:00" }), {
+      diaSemana: 1,
+      abre: "08:00",
+      fecha: "18:00",
+    });
+  });
+
+  test("o horário do seed, como o banco o devolve, monta um Ponto que responde certo", () => {
+    const jsonb = [
+      { dia_semana: 0, abre: "08:00", fecha: "14:00" },
+      { dia_semana: 1, abre: "08:00", fecha: "18:00" },
+      { dia_semana: 2, abre: "08:00", fecha: "18:00" },
+      { dia_semana: 3, abre: "08:00", fecha: "18:00" },
+      { dia_semana: 4, abre: "08:00", fecha: "18:00" },
+      { dia_semana: 5, abre: "08:00", fecha: "18:00" },
+      { dia_semana: 6, abre: "08:00", fecha: "16:00" },
+    ];
+    const p = new Ponto({ ...DADOS_PONTO, horarios: jsonb.map(horarioDoBanco) });
+    assert.ok(p.estaAberto(T(11, 0, 16)), "segunda 08:00");
+    assert.ok(!p.estaAberto(T(21, 0, 16)), "segunda 18:00");
+    assert.ok(!p.estaAberto(T(17, 0, 15)), "domingo 14:00");
+    assert.deepEqual(p.horarios[0], { diaSemana: 0, abre: "08:00", fecha: "14:00" });
+  });
+
   test("sem localização (opcional)", () => {
     assert.equal(new Ponto({ ...DADOS_PONTO, localizacao: null }).localizacao, null);
   });
@@ -422,5 +509,29 @@ describe("Empresa", () => {
     const e = new Empresa(DADOS);
     (e.documentosExigidos as string[]).push("RG");
     assert.equal(e.documentosExigidos.length, 2);
+  });
+});
+
+describe("catálogo público: uma linha que o banco aceita não derruba a listagem", () => {
+  const SESSAO = { perfil: "CLIENTE", usuarioId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } as never;
+  const repositorioCom = (tipos: TipoAdmin[]): RepositorioCatalogo => ({
+    listarTipos: async () => tipos,
+    criarTipo: async () => PASSEIO,
+    atualizarTipo: async () => null,
+    listarBicicletas: async () => [],
+    criarBicicleta: async () => BIKE,
+    atualizarBicicleta: async () => null,
+  });
+
+  test("com um tipo de nome em branco (permitido pelo banco) a lista sai inteira, no mesmo formato de antes", async () => {
+    const tipos = [PASSEIO, { ...PASSEIO, id: "t-branco", nome: "  " }, { ...PASSEIO, id: "t-3", nome: "Urbana", ativo: false }];
+    const lista = await criarCatalogo(repositorioCom(tipos)).listarTiposPublicos(SESSAO);
+    assert.equal(lista.length, 3);
+    assert.deepEqual(lista, tipos.map((t) => paraPublico(t)));
+    assert.ok(lista.every((t) => !("ativo" in t)));
+  });
+
+  test("a lista vazia continua vazia", async () => {
+    assert.deepEqual(await criarCatalogo(repositorioCom([])).listarTiposPublicos(SESSAO), []);
   });
 });

@@ -82,15 +82,22 @@ export class Bicicleta {
     if (motivo !== undefined && motivo.trim() !== "") this.#observacoes = motivo.trim();
   }
 
-  // Volta à circulação. Liberar uma bicicleta já disponível não muda nada.
+  // Volta à circulação. Liberar uma bicicleta já disponível não muda nada. Ao sair do bloqueio ou da
+  // manutenção, o motivo deixa de valer e some das observações.
   liberar(): void {
     this.#exigirAlteravel("liberar");
+    if (this.#status === "DISPONIVEL") return;
     this.#status = "DISPONIVEL";
+    this.#observacoes = null;
   }
 
-  // Saída definitiva da frota (venda, perda): não volta mais.
+  // Saída definitiva da frota (venda, perda): não volta mais. Dar baixa de novo é recusado, para o
+  // motivo da primeira baixa não ser sobrescrito.
   baixar(motivo: string): void {
     if (motivo.trim().length === 0) throw new RangeError("Informe o motivo da baixa.");
+    if (this.#status === "BAIXADA") {
+      throw new TransicaoDeBicicletaInvalida("Esta bicicleta já foi baixada da frota.");
+    }
     if (this.#status === "ALUGADA") {
       throw new TransicaoDeBicicletaInvalida("Não é possível dar baixa numa bicicleta alugada.");
     }

@@ -18,5 +18,5 @@ export type { BicicletaAdmin, TipoAdmin, TipoPublico } from "./domain/catalogo";
 export { STATUS_BICICLETA, type StatusBicicleta } from "./domain/validacao";
 export { Bicicleta, TransicaoDeBicicletaInvalida } from "./domain/bicicleta";
 export { Empresa, cnpjValido } from "./domain/empresa";
-export { Ponto, type Horario } from "./domain/ponto";
+export { Ponto, horarioDoBanco, type Horario, type HorarioDoBanco } from "./domain/ponto";
 export { TipoBicicleta } from "./domain/tipo-bicicleta";

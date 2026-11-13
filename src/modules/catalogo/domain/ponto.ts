@@ -7,6 +7,14 @@ const HORA = /^([01]\d|2[0-3]):([0-5]\d)$/;
 // Um dia da semana com horário de funcionamento; dia 0 é domingo (como no jsonb do banco).
 export type Horario = { diaSemana: number; abre: string; fecha: string };
 
+// Como o horário vem do banco: a coluna ponto.horarios é um jsonb com a chave dia_semana.
+export type HorarioDoBanco = { dia_semana: number; abre: string; fecha: string };
+
+// Converte o jsonb do banco para o Horario do domínio. O repositório do ponto usa isto ao montar o Ponto.
+export function horarioDoBanco(linha: HorarioDoBanco): Horario {
+  return { diaSemana: linha.dia_semana, abre: linha.abre, fecha: linha.fecha };
+}
+
 export type Endereco = {
   logradouro: string;
   numero: string;
