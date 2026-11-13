@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node --import ./scripts/registrar-alias.mjs --test \"src/**/*.test.ts\""
+    "test": "node --import ./scripts/registrar-alias.mjs --test \"src/**/*.test.ts\"",
+    "criar-equipe": "node scripts/criar-equipe.mjs"
   },
   "dependencies": {
     "next": "^16.4.2",
