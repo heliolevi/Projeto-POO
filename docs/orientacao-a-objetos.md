@@ -98,7 +98,7 @@ O diagrama é o ponto de partida. Estes são os pontos em que o código decidiu 
 | `Operador.abrirOcorrencia()` | `OperacaoService.abrirOcorrencia()` | Mesmo motivo. |
 | `Admin.cadastrarTipo()`, `cadastrarBicicleta()`, `consultarAuditoria()` | Casos de uso do catálogo e `AuditoriaLog.consultar()` | O administrador é identificado pela permissão (`catalogo:gerir`), e o caso de uso faz a operação. |
 | `TipoBicicleta.calcularPreco(): number` | Devolve `Dinheiro` | O valor em centavos é um objeto de valor; `.centavos` dá o número. |
-| `Reserva.cancelar(motivo)`, `confirmar()` ... | Recebem também `agora` | O domínio não lê o relógio, para toda regra de tempo ser testável. |
+| `Reserva.cancelar(motivo)`, `confirmar()` ... | Recebem `agora`; `cancelar` não recebe nem guarda motivo | O domínio não lê o relógio, para toda regra de tempo ser testável. O motivo e a data do cancelamento não têm onde ser gravados (o banco grava `cancelada_em` com a própria hora), então o objeto não os carrega. |
 | `Reserva.calcularValor()` | `calcularValor(precos)` | O preço vem do tipo, que a reserva não guarda. |
 | `Pagamento.gerarPix()` e `cobrarCartao(token)` | Estão nas filhas, não na abstrata | Só o Pix gera Pix e só o cartão cobra cartão; a abstrata tem `gerar()`. |
 | `Ocorrencia.abrir()` | A fábrica `abrirOcorrencia(tipo, dados)` | Uma ocorrência já nasce aberta. |

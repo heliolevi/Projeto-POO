@@ -2,6 +2,11 @@ import type { PoolClient } from "pg";
 import { comSessao } from "../../../shared/db/sessao.ts";
 import type { LinhaReserva, OperacoesReservas, Transacao } from "../application/portas.ts";
 import { CodigoRepetido, SobreposicaoDePeriodo } from "../domain/erros.ts";
+import { STATUS_RESERVA, podeCancelar } from "../domain/reserva.ts";
+
+// Os status que podem passar para CANCELADA saem da tabela TRANSICOES (a mesma que a classe Reserva
+// lê), e não de uma lista escrita à mão no SQL: se a regra mudar, muda num lugar só.
+const STATUS_QUE_PODEM_CANCELAR = STATUS_RESERVA.filter(podeCancelar);
 
 type LinhaView = {
   id: string;
@@ -162,19 +167,19 @@ export function operacoesNoBanco(client: PoolClient): OperacoesReservas {
 
     // FOR UPDATE: segura a linha até o fim da transação, então um cancelamento concorrente (ou a
     // retirada) espera e vê o status já mudado. A RLS só deixa ver as reservas do cliente.
-    async travarStatus(id) {
-      const { rows } = await client.query<{ status: LinhaReserva["status"] }>(
-        "SELECT status FROM reserva WHERE id = $1 FOR UPDATE",
-        [id],
-      );
-      return rows[0]?.status ?? null;
+    // A view não se trava (junta várias tabelas): trava-se a linha de `reserva` e, já com a trava,
+    // lê-se a linha completa pela view. Cada comando enxerga o que foi confirmado até ali, então a
+    // leitura vem depois da trava com o status atual.
+    async travarReserva(id) {
+      const { rowCount } = await client.query("SELECT 1 FROM reserva WHERE id = $1 FOR UPDATE", [id]);
+      return rowCount === 0 ? null : lerPorId(id);
     },
 
     async marcarCancelada(id) {
       await client.query(
         `UPDATE reserva SET status = 'CANCELADA', cancelada_em = now()
-          WHERE id = $1 AND status IN ('PENDENTE_PAGAMENTO', 'CONFIRMADA')`,
-        [id],
+          WHERE id = $1 AND status = ANY($2::status_reserva[])`,
+        [id, STATUS_QUE_PODEM_CANCELAR],
       );
     },
   };
