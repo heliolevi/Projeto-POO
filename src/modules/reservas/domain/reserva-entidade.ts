@@ -68,8 +68,6 @@ export class Reserva {
   #valorAluguel: Dinheiro;
   #status: StatusReserva;
   #pagamento: { status: string; metodo: string } | null;
-  #canceladaEm: Date | null = null;
-  #motivoDoCancelamento: string | null = null;
 
   constructor(dados: DadosDeReservaPersistida) {
     if (!dados.id) throw new RangeError("A reserva precisa de um id.");
@@ -116,12 +114,6 @@ export class Reserva {
   get criadaEm(): Date {
     return new Date(this.#criadaEm);
   }
-  get canceladaEm(): Date | null {
-    return this.#canceladaEm === null ? null : new Date(this.#canceladaEm);
-  }
-  get motivoDoCancelamento(): string | null {
-    return this.#motivoDoCancelamento;
-  }
 
   // Só a reserva pendente tem prazo: a criação mais 15 minutos (o mesmo prazo de
   // expirar_reservas_vencidas() no banco).
@@ -149,16 +141,21 @@ export class Reserva {
     this.#status = "CONFIRMADA";
   }
 
-  // Cancelamento pelo cliente (ou pelo balcão) antes da retirada: pendente ou confirmada.
-  cancelar(motivo: string, agora: Date): void {
-    if (motivo.trim().length === 0) throw new RangeError("Informe o motivo do cancelamento.");
+  // Cancelamento pelo cliente (ou pelo balcão) antes da retirada e antes de o período acabar:
+  // pendente ou confirmada.
+  cancelar(agora: Date): void {
     // a mensagem é a do contrato da API (rota 15): é o que o cliente lê no 409
     if (!podeTransitar(this.#status, "CANCELADA")) {
       throw new TransicaoDeReservaInvalida(MENSAGEM_CANCELAMENTO_RECUSADO);
     }
+    // Acabado o período, a reserva que ninguém retirou não se cancela: o destino dela é
+    // NAO_RETIRADA (marcarNaoRetirada). Cancelar depois disso esconderia que o cliente não veio.
+    if (agora.getTime() >= this.#periodo.fim.getTime()) {
+      throw new TransicaoDeReservaInvalida(MENSAGEM_CANCELAMENTO_RECUSADO);
+    }
+    // O banco grava cancelada_em com a própria hora (now()): a data e o motivo não são guardados aqui,
+    // porque este objeto é descartado depois e nada os usaria.
     this.#status = "CANCELADA";
-    this.#motivoDoCancelamento = motivo.trim();
-    this.#canceladaEm = new Date(agora);
   }
 
   // Retirada: CONFIRMADA -> EM_ANDAMENTO, a partir de 30 minutos antes do início e até o fim.

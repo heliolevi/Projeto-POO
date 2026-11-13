@@ -70,7 +70,7 @@ await rodarSuite('blackbox/reservas_api', async (executor, client) => {
       criar: criarCriarReserva({ transacao: t, agora: () => new Date(), gerarCodigo, calcularValorAluguel }),
       listar: criarListarReservas({ transacao: t }),
       buscar: criarBuscarReserva({ transacao: t }),
-      cancelar: criarCancelarReserva({ transacao: t }),
+      cancelar: criarCancelarReserva({ transacao: t, agora: () => new Date() }),
     };
   };
   const { criar, listar, buscar, cancelar } = montar();
@@ -251,6 +251,32 @@ await rodarSuite('blackbox/reservas_api', async (executor, client) => {
       }
     }));
 
+  await teste('cancelar reserva CONFIRMADA depois que o período terminou dá 409 e não muda nada (o destino é NAO_RETIRADA)', () =>
+    comSavepoint(async () => {
+      // período de verdade no passado: terminou há 6 horas (o `periodo()` do teste é relativo a daqui a 3 dias)
+      const id = await criarReserva(client, ctx, {
+        clienteId: ctx.clienteAId, status: 'CONFIRMADA',
+        inicio: new Date(Date.now() - 10 * HORA).toISOString(), fim: new Date(Date.now() - 6 * HORA).toISOString(),
+      });
+      await rejeitaCom(cancelar(sessaoA, id), 'ConflictError');
+      assert((await statusNoBanco(id)) === 'CONFIRMADA', 'continua CONFIRMADA');
+      const { rows } = await client.query('SELECT cancelada_em FROM reserva WHERE id = $1', [id]);
+      assert(rows[0].cancelada_em === null, 'cancelada_em continua nulo');
+    }));
+
+  await teste('cancelar CONFIRMADA dentro do período (ainda não retirada) funciona e grava cancelada_em', () =>
+    comSavepoint(async () => {
+      // dentro do período de verdade: começou há 1 hora e termina daqui a 3
+      const id = await criarReserva(client, ctx, {
+        clienteId: ctx.clienteAId, status: 'CONFIRMADA',
+        inicio: new Date(Date.now() - 1 * HORA).toISOString(), fim: new Date(Date.now() + 3 * HORA).toISOString(),
+      });
+      const r = await cancelar(sessaoA, id);
+      assert(r.status === 'CANCELADA', `status ${r.status}`);
+      const { rows } = await client.query('SELECT cancelada_em FROM reserva WHERE id = $1', [id]);
+      assert(rows[0].cancelada_em !== null, 'cancelada_em preenchido (a constraint reserva_cancelada_em_consistente)');
+    }));
+
   await teste('cancelar pendente já vencida dá 409 (ela virou EXPIRADA antes)', () =>
     comSavepoint(async () => {
       const r = await criar(sessaoA, corpo());
@@ -369,7 +395,7 @@ async function rodarSuiteConcorrencia() {
   };
   const transacao = (sessao, fn) => comSessaoEm(conectar, sessao, (c) => fn(operacoesNoBanco(c)));
   const criar = criarCriarReserva({ transacao, agora: () => new Date(), gerarCodigo: gerarCodigoReserva, calcularValorAluguel });
-  const cancelarReal = criarCancelarReserva({ transacao });
+  const cancelarReal = criarCancelarReserva({ transacao, agora: () => new Date() });
 
   try {
     console.log('\nconcorrência (conexões reais):');

@@ -6,6 +6,7 @@ import { Periodo } from "../../../shared/dominio/periodo-aluguel.ts";
 import { TransicaoDeReservaInvalida } from "./erros.ts";
 import {
   ANTECEDENCIA_DA_RETIRADA_MS,
+  MENSAGEM_CANCELAMENTO_RECUSADO,
   Reserva,
   type DadosDeReservaPersistida,
 } from "./reserva-entidade.ts";
@@ -39,6 +40,15 @@ function dados(parcial: Partial<DadosDeReservaPersistida> = {}): DadosDeReservaP
   };
 }
 const reserva = (status: StatusReserva = "PENDENTE_PAGAMENTO") => new Reserva(dados({ status }));
+// a mensagem do erro lançado por uma operação
+const captar = (f: () => void): string | null => {
+  try {
+    f();
+    return null;
+  } catch (erro) {
+    return (erro as Error).message;
+  }
+};
 
 describe("TRANSICOES (máquina de estados)", () => {
   test("todo status tem uma entrada e só aponta para status que existem", () => {
@@ -168,36 +178,61 @@ describe("Reserva.confirmar", () => {
 });
 
 describe("Reserva.cancelar", () => {
-  test("pendente e confirmada cancelam e guardam motivo e hora", () => {
+  test("pendente e confirmada cancelam antes do fim do período", () => {
     for (const status of ["PENDENTE_PAGAMENTO", "CONFIRMADA"] as const) {
       const r = reserva(status);
-      const agora = depois(CRIADA, 5 * MIN);
-      r.cancelar("  desistiu  ", agora);
+      r.cancelar(depois(CRIADA, 5 * MIN));
       assert.equal(r.status, "CANCELADA", status);
-      assert.equal(r.motivoDoCancelamento, "desistiu");
-      assert.equal(r.canceladaEm?.getTime(), agora.getTime());
       assert.equal(r.estaAtiva(), false);
+      assert.equal(r.expiraEm(), null);
     }
   });
 
-  test("em andamento e os estados finais não cancelam", () => {
+  test("a confirmada ainda se cancela antes da retirada e durante o período não retirado, até o último instante", () => {
+    for (const quando of [CRIADA, INICIO, depois(INICIO, HORA), depois(FIM, -1)]) {
+      const r = reserva("CONFIRMADA");
+      r.cancelar(quando);
+      assert.equal(r.status, "CANCELADA", quando.toISOString());
+    }
+  });
+
+  test("acabado o período (no instante do fim ou depois) a reserva não se cancela: o destino é NAO_RETIRADA", () => {
+    for (const quando of [FIM, depois(FIM, 1), depois(FIM, 3 * HORA), depois(FIM, 48 * HORA)]) {
+      const r = reserva("CONFIRMADA");
+      assert.throws(() => r.cancelar(quando), TransicaoDeReservaInvalida, quando.toISOString());
+      assert.equal(r.status, "CONFIRMADA", "continua confirmada, sem mudar");
+    }
+    const r = reserva("CONFIRMADA");
+    r.marcarNaoRetirada(FIM);
+    assert.equal(r.status, "NAO_RETIRADA");
+  });
+
+  test("a mesma mensagem do contrato vale para os dois motivos de recusa (estado ou período acabado)", () => {
+    const porEstado = captar(() => reserva("CONCLUIDA").cancelar(CRIADA));
+    const porPeriodo = captar(() => reserva("CONFIRMADA").cancelar(FIM));
+    assert.equal(porEstado, MENSAGEM_CANCELAMENTO_RECUSADO);
+    assert.equal(porPeriodo, MENSAGEM_CANCELAMENTO_RECUSADO);
+  });
+
+  test("em andamento e os estados finais não cancelam, e nada muda", () => {
     for (const status of ["EM_ANDAMENTO", "CONCLUIDA", "CANCELADA", "EXPIRADA", "NAO_RETIRADA"] as const) {
       const r = reserva(status);
-      assert.throws(() => r.cancelar("x", CRIADA), TransicaoDeReservaInvalida, status);
+      assert.throws(() => r.cancelar(CRIADA), TransicaoDeReservaInvalida, status);
       assert.equal(r.status, status);
     }
   });
 
-  test("exige motivo e, sem ele, não muda nada", () => {
+  test("não guarda motivo nem data do cancelamento: nada disso é gravado, então o objeto não finge", () => {
     const r = reserva();
-    assert.throws(() => r.cancelar("   ", CRIADA), RangeError);
-    assert.equal(r.status, "PENDENTE_PAGAMENTO");
-    assert.equal(r.canceladaEm, null);
+    r.cancelar(depois(CRIADA, 5 * MIN));
+    assert.ok(!("canceladaEm" in r) && !("motivoDoCancelamento" in r));
+    assert.equal((r as unknown as Record<string, unknown>).canceladaEm, undefined);
+    assert.equal((r as unknown as Record<string, unknown>).motivoDoCancelamento, undefined);
   });
 
   test("a transição inválida é um 409 (ConflictError)", () => {
     assert.throws(
-      () => reserva("CONCLUIDA").cancelar("x", CRIADA),
+      () => reserva("CONCLUIDA").cancelar(CRIADA),
       (erro) => {
         assert.ok(erro instanceof ConflictError);
         assert.equal((erro as ConflictError).status, 409);

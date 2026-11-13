@@ -17,7 +17,7 @@ const INEXISTENTE = "99999999-9999-4999-8999-999999999999";
 
 function montar() {
   const banco = criarBancoFalso(() => AGORA);
-  const dep = { transacao: banco.transacao };
+  const dep = { transacao: banco.transacao, agora: () => AGORA };
   return {
     banco,
     listar: criarListarReservas(dep),
@@ -204,4 +204,33 @@ test("a ordem no banco: expira, trava a reserva, cancela, relê", async () => {
   banco.semear({ id: ID_A1, clienteId: A.usuarioId, bicicletaId: "b1", status: "CONFIRMADA" });
   await cancelar(A, ID_A1);
   assert.deepEqual(banco.log, ["BEGIN", "expirarVencidas", "travarReserva", "marcarCancelada", "buscar", "COMMIT"]);
+});
+
+test("confirmada cujo período já terminou: cancelar dá 409 e a reserva continua confirmada", async () => {
+  const { banco, cancelar } = montar();
+  const id = "44444444-4444-4444-8444-444444444444";
+  banco.semear({
+    id,
+    clienteId: A.usuarioId,
+    bicicletaId: "b1",
+    status: "CONFIRMADA",
+    inicio: new Date(AGORA.getTime() - 6 * 60 * 60 * 1000),
+    fim: new Date(AGORA.getTime() - 2 * 60 * 60 * 1000),
+  });
+  await assert.rejects(cancelar(A, id), ConflictError);
+  assert.equal(banco.todasAsReservas().find((r) => r.id === id)?.status, "CONFIRMADA");
+});
+
+test("confirmada ainda dentro do período: cancelar funciona (o período só barra depois do fim)", async () => {
+  const { banco, cancelar } = montar();
+  const id = "55555555-5555-4555-8555-555555555555";
+  banco.semear({
+    id,
+    clienteId: A.usuarioId,
+    bicicletaId: "b1",
+    status: "CONFIRMADA",
+    inicio: new Date(AGORA.getTime() - 1 * 60 * 60 * 1000),
+    fim: new Date(AGORA.getTime() + 3 * 60 * 60 * 1000),
+  });
+  assert.equal((await cancelar(A, id)).status, "CANCELADA");
 });
