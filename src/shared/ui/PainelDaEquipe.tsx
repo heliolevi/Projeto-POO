@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Card } from "./Card";
 
-// Cartão que a equipe (OPERADOR e ADMIN) vê no início do app enquanto os painéis de
-// retirada e devolução não chegam. Não leva a nenhuma tela que responda com erro.
+// Cartão que a equipe (OPERADOR e ADMIN) vê no início do app, com os atalhos dos painéis.
 export function PainelDaEquipe({ admin }: { admin: boolean }) {
   const linkStyle = {
     display: "inline-block",
@@ -17,9 +16,12 @@ export function PainelDaEquipe({ admin }: { admin: boolean }) {
   return (
     <Card title="Painel da equipe" as="section">
       <p style={{ color: "var(--color-text-support)", marginBottom: "var(--space-16)" }}>
-        Retirada, devolução e gestão do catálogo chegam em 19/11.
+        Reservas do dia, retirada e devolução no balcão{admin ? ", e a gestão do catálogo" : ""}.
       </p>
       <div style={{ display: "flex", gap: "var(--space-12)", flexWrap: "wrap" }}>
+        <Link href="/app/operacao" style={linkStyle}>
+          Operação
+        </Link>
         {admin && (
           <Link href="/admin" style={linkStyle}>
             Catálogo
