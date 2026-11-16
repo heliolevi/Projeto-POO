@@ -72,3 +72,32 @@ test("retiradaEDevolucao recusa data, hora ou duração inválidas", () => {
   assert.equal(retiradaEDevolucao("2026-11-14", "09:00", 0), null);
   assert.equal(retiradaEDevolucao("2026-11-14", "09:00", Number.NaN), null);
 });
+
+test("retiradaEDevolucao devolve null (e não lança) quando a duração leva a uma data impossível", () => {
+  // 1e12 minutos passam do limite de datas do JavaScript: o fim vira "Invalid Date" e o
+  // formatador de datas lançava RangeError dentro do render da tela.
+  assert.equal(retiradaEDevolucao("2026-11-20", "09:00", 1e12), null);
+  assert.equal(retiradaEDevolucao("2026-11-20", "09:00", Number.POSITIVE_INFINITY), null);
+});
+
+test("proximosDias usa o dia de São Luís, não o do servidor, perto da meia-noite", () => {
+  // 22h30 de 14/11 em São Luís já é 01h30 de 15/11 em UTC.
+  const agora = new Date("2026-11-15T01:30:00Z");
+  const [hoje, amanha] = proximosDias(agora, 2);
+  assert.equal(hoje.valor, "2026-11-14");
+  assert.equal(hoje.destaque, "Hoje");
+  assert.equal(amanha.valor, "2026-11-15");
+});
+
+test("horariosDoDia: o horário que está começando agora já não é oferecido", () => {
+  const exatamente9h = new Date("2026-11-17T12:00:00Z"); // 09:00 em São Luís (terça)
+  assert.deepEqual(horariosDoDia("2026-11-17", exatamente9h).slice(0, 2), ["10:00", "11:00"]);
+});
+
+test("horariosDoDia respeita o balcão de cada dia: domingo até 13h, sábado até 15h, semana até 17h", () => {
+  const cedo = new Date("2026-11-01T00:00:00Z");
+  assert.equal(horariosDoDia("2026-11-22", cedo).at(-1), "13:00"); // domingo
+  assert.equal(horariosDoDia("2026-11-21", cedo).at(-1), "15:00"); // sábado
+  assert.equal(horariosDoDia("2026-11-20", cedo).at(-1), "17:00"); // sexta
+  assert.equal(horariosDoDia("2026-11-20", cedo)[0], "08:00");
+});

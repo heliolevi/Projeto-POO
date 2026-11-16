@@ -67,6 +67,9 @@ export default function BuscarPage() {
   const atividadesPorTipo = useAtividadesPorTipo();
   const agora = useRelogio();
   const resultadosRef = useRef<HTMLElement>(null);
+  // Uma busca por vez: Enter apertado duas vezes não dispara duas consultas, e a resposta mais
+  // lenta não sobrescreve a mais nova.
+  const emBusca = useRef(false);
 
   // A conta serve para lembrar a atividade do perfil e avisar quem ainda não o preencheu.
   useEffect(() => {
@@ -140,10 +143,12 @@ export default function BuscarPage() {
 
   async function buscar(evento: FormEvent) {
     evento.preventDefault();
+    if (emBusca.current) return;
     const encontrados = validarBusca(efetivo, agora ?? new Date());
     setErros(encontrados);
     if (Object.keys(encontrados).length > 0) return;
 
+    emBusca.current = true;
     setResultado({ tipo: "buscando" });
     try {
       const resposta = await getAutenticado<RespostaRecomendacao>(
@@ -175,6 +180,8 @@ export default function BuscarPage() {
             ? erro.message
             : "Não foi possível buscar agora. Tente novamente em instantes.",
       });
+    } finally {
+      emBusca.current = false;
     }
   }
 

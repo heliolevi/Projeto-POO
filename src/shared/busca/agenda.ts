@@ -153,6 +153,8 @@ export function retiradaEDevolucao(
   }
   if (!Number.isFinite(duracaoMinutos) || duracaoMinutos <= 0) return null;
   const fim = new Date(inicio.getTime() + duracaoMinutos * 60_000);
+  // Duração gigante estoura o limite de datas do JavaScript; o formatador lançaria RangeError.
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) return null;
 
   const ponta = (instante: Date): PontaDoPeriodo => {
     const p = partesEmSaoLuis(instante);
