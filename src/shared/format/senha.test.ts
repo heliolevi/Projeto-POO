@@ -26,3 +26,17 @@ test("senha com 8 a 128 caracteres, letra e número é aceita", () => {
   assert.equal(senhaAceita(`a1${"x".repeat(126)}`), true);
   assert.equal(senhaAceita(`a1${"x".repeat(127)}`), false);
 });
+
+test("fronteiras do tamanho: 7 não passa, 8 passa, 128 passa, 129 não passa", () => {
+  const tamanho = (n: number) => senhaAceita("a1".padEnd(n, "x"));
+  assert.equal(tamanho(7), false);
+  assert.equal(tamanho(8), true);
+  assert.equal(tamanho(128), true);
+  assert.equal(tamanho(129), false);
+});
+
+test("senha só de números ou só de letras não é aceita, mesmo com tamanho certo", () => {
+  assert.equal(senhaAceita("12345678"), false);
+  assert.equal(senhaAceita("abcdefgh"), false);
+  assert.equal(senhaAceita("abcdefg1"), true);
+});

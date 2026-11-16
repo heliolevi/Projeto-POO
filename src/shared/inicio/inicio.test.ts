@@ -63,3 +63,18 @@ test("saudacao usa a hora de São Luís (UTC-3)", () => {
   assert.equal(saudacao(new Date("2026-11-14T06:00:00Z")), "Boa noite"); // 03:00
   assert.equal(saudacao(new Date("2026-11-14T02:59:00Z")), "Boa noite"); // 23:59 do dia 13
 });
+
+test("saudacao troca nas viradas das 5h, 12h e 18h de São Luís", () => {
+  const emSaoLuis = (hhmm: string) => new Date(`2026-11-14T${hhmm}:00-03:00`);
+  assert.equal(saudacao(emSaoLuis("04:59")), "Boa noite");
+  assert.equal(saudacao(emSaoLuis("05:00")), "Bom dia");
+  assert.equal(saudacao(emSaoLuis("11:59")), "Bom dia");
+  assert.equal(saudacao(emSaoLuis("12:00")), "Boa tarde");
+  assert.equal(saudacao(emSaoLuis("17:59")), "Boa tarde");
+  assert.equal(saudacao(emSaoLuis("18:00")), "Boa noite");
+  assert.equal(saudacao(emSaoLuis("00:00")), "Boa noite");
+});
+
+test("proximaReserva com lista vazia devolve null", () => {
+  assert.equal(proximaReserva([], AGORA), null);
+});
