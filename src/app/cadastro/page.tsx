@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { Button } from "@/shared/ui/Button";
 import { PasswordField } from "@/shared/ui/PasswordField";
 import { TextField } from "@/shared/ui/TextField";
@@ -28,6 +28,10 @@ export default function CadastroPage() {
   const [erros, setErros] = useState<Record<string, string>>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  // Segura o segundo Enter/toque enquanto o primeiro envio não terminou. O estado `enviando` só
+  // vale no próximo desenho; a ref vale na hora. Sem ela, o segundo envio batia no CPF recém-
+  // cadastrado e a tela mostrava "CPF já cadastrado" logo depois de criar a conta.
+  const emEnvio = useRef(false);
 
   const requisitos = requisitosDaSenha(senha);
   const senhasConferem = confirmarSenha !== "" && confirmarSenha === senha;
@@ -52,10 +56,12 @@ export default function CadastroPage() {
 
   async function aoEnviar(evento: FormEvent) {
     evento.preventDefault();
+    if (emEnvio.current) return;
     setErros({});
     setErroGeral(null);
     if (!validarLocalmente()) return;
 
+    emEnvio.current = true;
     setEnviando(true);
     try {
       const sessao = await postJson<ResultadoSessao>("/api/auth/cadastro", {
@@ -76,6 +82,7 @@ export default function CadastroPage() {
         setErroGeral("Não foi possível criar sua conta agora. Tente novamente.");
       }
     } finally {
+      emEnvio.current = false;
       setEnviando(false);
     }
   }
