@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
 import { ApiError, getAutenticado } from "@/shared/http/api-cliente";
+import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
+import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
 import type { Reserva } from "@/shared/reservas/reserva";
 import { ContagemRegressiva } from "@/shared/reservas/ContagemRegressiva";
 import { SeloStatus } from "@/shared/reservas/SeloStatus";
 import styles from "@/shared/reservas/reservas.module.css";
 import { Alert } from "@/shared/ui/Alert";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { FotoCapa } from "@/shared/ui/FotoCapa";
 
 type Estado =
   | { tipo: "carregando" }
@@ -18,6 +21,7 @@ type Estado =
 
 export default function MinhasReservasPage() {
   const [estado, setEstado] = useState<Estado>({ tipo: "carregando" });
+  const atividadesPorTipo = useAtividadesPorTipo();
 
   useEffect(() => {
     let ativo = true;
@@ -64,23 +68,33 @@ export default function MinhasReservasPage() {
         <ul className={styles.lista}>
           {estado.reservas.map((reserva) => (
             <li key={reserva.id}>
-              <Link href={`/app/reservas/${reserva.id}`} className={styles.cartao}>
-                <div className={styles.cartaoTopo}>
-                  <span className={styles.cartaoTitulo}>Bicicleta {reserva.tipo.nome}</span>
-                  <SeloStatus status={reserva.status} />
-                </div>
-                <p className={styles.linha}>
-                  {formatarPeriodo(reserva.periodo.inicio, reserva.periodo.fim)}
-                </p>
-                <p className={styles.linha}>{reserva.ponto.nome}</p>
-                <p className={styles.linha}>{formatarReais(reserva.valorAluguelCentavos)}</p>
-                {reserva.status === "PENDENTE_PAGAMENTO" && (
+              <Link
+                href={`/app/reservas/${reserva.id}`}
+                className={`${styles.cartao} ${styles.cartaoComFoto}`}
+              >
+                <FotoCapa
+                  foto={fotoDoTipoPorId(atividadesPorTipo, reserva.tipo.id)}
+                  formato="miniatura"
+                  sizes="96px"
+                />
+                <div className={styles.cartaoCorpo}>
+                  <div className={styles.cartaoTopo}>
+                    <span className={styles.cartaoTitulo}>Bicicleta {reserva.tipo.nome}</span>
+                    <SeloStatus status={reserva.status} />
+                  </div>
                   <p className={styles.linha}>
-                    <strong>
-                      <ContagemRegressiva expiraEm={reserva.expiraEm} />
-                    </strong>
+                    {formatarPeriodo(reserva.periodo.inicio, reserva.periodo.fim)}
                   </p>
-                )}
+                  <p className={styles.linha}>{reserva.ponto.nome}</p>
+                  <p className={styles.linha}>{formatarReais(reserva.valorAluguelCentavos)}</p>
+                  {reserva.status === "PENDENTE_PAGAMENTO" && (
+                    <p className={styles.linha}>
+                      <strong>
+                        <ContagemRegressiva expiraEm={reserva.expiraEm} />
+                      </strong>
+                    </p>
+                  )}
+                </div>
               </Link>
             </li>
           ))}

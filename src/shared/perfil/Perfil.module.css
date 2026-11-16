@@ -1,0 +1,206 @@
+.pagina {
+  display: grid;
+  gap: var(--space-24);
+}
+
+.cabecalho {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.titulo {
+  font-size: var(--font-size-3xl);
+  line-height: 1.1;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.01em;
+}
+
+.subtitulo {
+  font-size: var(--font-size-md);
+  line-height: 1.45;
+  color: var(--color-text-support);
+}
+
+/* ---- quem está logado ---- */
+.conta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+}
+
+.iniciais {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.02em;
+}
+
+.contaTexto {
+  display: grid;
+  min-width: 0;
+}
+
+.contaNome {
+  font-weight: var(--font-weight-bold);
+  overflow-wrap: anywhere;
+}
+
+.contaEmail {
+  font-size: var(--font-size-md);
+  color: var(--color-text-support);
+  overflow-wrap: anywhere;
+}
+
+/* ---- quanto do perfil já está preenchido ---- */
+.progresso {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.progressoTexto {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-12);
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+}
+
+.progressoTexto strong {
+  color: var(--color-text);
+}
+
+.segmentos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+}
+
+.segmento {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-surface-border-strong);
+  transition: background-color 0.2s ease;
+}
+
+.segmentoCheio {
+  background: var(--color-primary);
+}
+
+.formulario {
+  display: grid;
+  gap: var(--space-24);
+}
+
+/* ---- altura com botões − e + ---- */
+.altura {
+  display: grid;
+  gap: var(--space-10);
+}
+
+.alturaRotulo {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.alturaControle {
+  display: grid;
+  grid-template-columns: 52px 1fr 52px;
+  align-items: stretch;
+  gap: var(--space-8);
+}
+
+.passo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  border: 1.5px solid var(--color-surface-border-strong);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 0.15s ease;
+}
+
+.passo:hover {
+  background: var(--color-surface-soft);
+}
+
+.passo:active {
+  background: var(--color-surface-lavender);
+}
+
+.alturaCampo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--color-surface-border-strong);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.alturaCampo:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 95, 73, 0.15);
+}
+
+.alturaCampoErro {
+  border-color: var(--color-danger);
+}
+
+.alturaEntrada {
+  width: 4ch;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-size: 34px !important;
+  font-weight: var(--font-weight-bold);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.alturaEntrada::placeholder {
+  color: var(--color-border);
+}
+
+.alturaUnidade {
+  margin-left: var(--space-6);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-support);
+}
+
+.dica {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-support);
+}
+
+.erro {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segmento,
+  .passo {
+    transition: none;
+  }
+}
