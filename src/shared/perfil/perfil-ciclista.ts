@@ -89,3 +89,16 @@ export function ajustarAltura(texto: string, passo: number): string {
   const atual = /^\d+$/.test(texto.trim()) ? Number(texto.trim()) : ALTURA_INICIAL_CM - passo;
   return String(Math.min(ALTURA_MAX_CM, Math.max(ALTURA_MIN_CM, atual + passo)));
 }
+
+/**
+ * Devolve o formulário com um campo trocado. O valor pode ser o texto novo ou uma função que
+ * recebe o texto ATUAL do campo: assim, vários toques seguidos nos botões − e + somam sobre o
+ * valor mais recente e nenhum se perde, mesmo que a tela ainda não tenha redesenhado.
+ */
+export function atualizarCampo(
+  form: FormularioPerfil,
+  campo: keyof FormularioPerfil,
+  valor: string | ((atual: string) => string),
+): FormularioPerfil {
+  return { ...form, [campo]: typeof valor === "function" ? valor(form[campo]) : valor };
+}

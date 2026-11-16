@@ -11,6 +11,7 @@ import {
 } from "@/shared/dominio/ciclista-rotulos";
 import {
   ajustarAltura,
+  atualizarCampo,
   dadosInformados,
   formularioInicial,
   montarCorpo,
@@ -104,8 +105,10 @@ export default function PerfilCiclistaPage() {
     };
   }, []);
 
-  function alterar(campo: keyof FormularioPerfil, valor: string) {
-    setForm((atual) => ({ ...atual, [campo]: valor }));
+  // O valor pode ser uma função do texto atual: os botões − e + usam isso para somar sobre o
+  // valor mais recente do campo, e não sobre o que a tela mostrava quando foram desenhados.
+  function alterar(campo: keyof FormularioPerfil, valor: string | ((atual: string) => string)) {
+    setForm((atual) => atualizarCampo(atual, campo, valor));
     setSalvo(false);
     if (erros[campo]) setErros((atual) => ({ ...atual, [campo]: undefined }));
   }
@@ -220,7 +223,7 @@ export default function PerfilCiclistaPage() {
                 <button
                   type="button"
                   className={styles.passo}
-                  onClick={() => alterar("altura", ajustarAltura(form.altura, -1))}
+                  onClick={() => alterar("altura", (atual) => ajustarAltura(atual, -1))}
                   aria-label="Diminuir 1 centímetro"
                 >
                   −
@@ -248,7 +251,7 @@ export default function PerfilCiclistaPage() {
                 <button
                   type="button"
                   className={styles.passo}
-                  onClick={() => alterar("altura", ajustarAltura(form.altura, 1))}
+                  onClick={() => alterar("altura", (atual) => ajustarAltura(atual, 1))}
                   aria-label="Aumentar 1 centímetro"
                 >
                   +
