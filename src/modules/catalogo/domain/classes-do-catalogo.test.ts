@@ -515,6 +515,7 @@ describe("Empresa", () => {
 describe("catálogo público: uma linha que o banco aceita não derruba a listagem", () => {
   const SESSAO = { perfil: "CLIENTE", usuarioId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } as never;
   const repositorioCom = (tipos: TipoAdmin[]): RepositorioCatalogo => ({
+    obterEmpresaPublica: async () => null,
     listarTipos: async () => tipos,
     criarTipo: async () => PASSEIO,
     atualizarTipo: async () => null,

@@ -11,6 +11,7 @@ const handlers = criarHandlersCatalogo({
 });
 
 export const {
+  getEmpresaPublica,
   getTiposPublicos,
   getAdminTipos,
   postAdminTipos,

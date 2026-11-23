@@ -7,6 +7,7 @@
  */
 export {
   getAdminBicicletas,
+  getEmpresaPublica,
   getAdminTipos,
   getTiposPublicos,
   patchAdminBicicleta,
@@ -14,7 +15,7 @@ export {
   postAdminTipos,
   putAdminTipo,
 } from "./http/handlers";
-export type { BicicletaAdmin, TipoAdmin, TipoPublico } from "./domain/catalogo";
+export type { BicicletaAdmin, EmpresaPublica, TipoAdmin, TipoPublico } from "./domain/catalogo";
 export { STATUS_BICICLETA, type StatusBicicleta } from "./domain/validacao";
 export { Bicicleta, TransicaoDeBicicletaInvalida } from "./domain/bicicleta";
 export { Empresa, cnpjValido } from "./domain/empresa";

@@ -47,3 +47,12 @@ export type BicicletaAdmin = {
   status: StatusBicicleta | "ALUGADA";
   observacoes: string | null;
 };
+
+// Como a API devolve a locadora ao público (docs/contrato-api-mvp.md, rota 14). Vem da view
+// empresa_publica: sem CNPJ, razão social nem conta de recebimento.
+export type EmpresaPublica = {
+  nomeFantasia: string;
+  email: string;
+  telefone: string | null;
+  documentosExigidos: string[];
+};

@@ -92,7 +92,31 @@ function codigoDoErro(erro: unknown): { code?: string; constraint?: string } {
   return erro as { code?: string; constraint?: string };
 }
 
+type LinhaEmpresa = {
+  nome_fantasia: string;
+  telefone: string | null;
+  email: string;
+  documentos_exigidos: string[];
+};
+
 export const repositorioCatalogo: RepositorioCatalogo = {
+  // Lê a view empresa_publica (nunca a tabela empresa): a view já esconde CNPJ e conta.
+  obterEmpresaPublica(sessao: SessaoBanco) {
+    return comSessao(sessao, async (client) => {
+      const { rows } = await client.query<LinhaEmpresa>(
+        `SELECT nome_fantasia, telefone, email, documentos_exigidos FROM empresa_publica`,
+      );
+      const linha = rows[0];
+      if (!linha) return null;
+      return {
+        nomeFantasia: linha.nome_fantasia,
+        email: linha.email,
+        telefone: linha.telefone,
+        documentosExigidos: linha.documentos_exigidos,
+      };
+    });
+  },
+
   listarTipos(sessao: SessaoBanco, { apenasAtivos }) {
     return comSessao(sessao, async (client) => {
       const { rows } = await client.query<LinhaTipo>(
