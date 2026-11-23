@@ -72,6 +72,11 @@ test("token com o sub fora do formato é rejeitado", () => {
   assert.equal(verificarToken(token), null);
 });
 
+test("token sem o campo exp é rejeitado (401)", () => {
+  const token = montar(CAB, { sub: ID, perfil: "CLIENTE", iat: agora() });
+  assert.equal(verificarToken(token), null);
+});
+
 test("lixo e partes faltando são rejeitados", () => {
   for (const ruim of ["", "abc", "a.b", "a.b.c.d", "...", "não.é.token"]) {
     assert.equal(verificarToken(ruim), null, ruim);

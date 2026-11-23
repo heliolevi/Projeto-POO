@@ -50,7 +50,9 @@ export function verificarToken(token: string): SessaoToken | null {
     const cab = JSON.parse(Buffer.from(cabecalho, "base64url").toString());
     if (cab.alg !== "HS256") return null;
     const sessao = JSON.parse(Buffer.from(corpo, "base64url").toString()) as SessaoToken;
-    if (typeof sessao.sub !== "string" || sessao.exp <= Date.now() / 1000) return null;
+    if (typeof sessao.sub !== "string") return null;
+    // Sem 'exp' o token não expiraria nunca; exigir o campo evita aceitar token sem prazo.
+    if (typeof sessao.exp !== "number" || sessao.exp <= Date.now() / 1000) return null;
     return sessao;
   } catch {
     return null;
