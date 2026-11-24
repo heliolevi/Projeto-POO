@@ -5,4 +5,17 @@
  * outros módulos ou pelos Route Handlers em src/app/api.
  * Camadas internas: domain → application → infrastructure / http.
  */
-export {};
+export { abrirOcorrencia } from "./domain/abrir-ocorrencia";
+export { Atraso, TOLERANCIA_DE_ATRASO_MS } from "./domain/atraso";
+export { Dano } from "./domain/dano";
+export { Furto } from "./domain/furto";
+export {
+  Ocorrencia,
+  OcorrenciaInvalida,
+  STATUS_DE_OCORRENCIA,
+  TIPOS_DE_OCORRENCIA,
+  type DivisaoDaCobranca,
+  type OcorrenciaDto,
+  type StatusDeOcorrencia,
+  type TipoDeOcorrencia,
+} from "./domain/ocorrencia";
