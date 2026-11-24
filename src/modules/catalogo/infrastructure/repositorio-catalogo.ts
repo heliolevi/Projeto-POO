@@ -3,6 +3,7 @@ import { comSessao, type SessaoBanco } from "@/shared/db/sessao";
 import type { Atividade, Experiencia } from "@/shared/dominio/ciclista";
 import type { RepositorioCatalogo } from "../application/catalogo";
 import type { BicicletaAdmin, TipoAdmin } from "../domain/catalogo";
+import { horarioDoBanco, type HorarioDoBanco } from "../domain/ponto";
 import {
   CodigoDeBicicletaJaExiste,
   NomeDeTipoJaExiste,
@@ -96,23 +97,58 @@ type LinhaEmpresa = {
   nome_fantasia: string;
   telefone: string | null;
   email: string;
-  documentos_exigidos: string[];
+};
+
+type LinhaPonto = {
+  id: string;
+  nome: string;
+  logradouro: string;
+  numero: string;
+  complemento: string | null;
+  bairro: string;
+  cep: string;
+  cidade: string;
+  uf: string;
+  telefone: string | null;
+  horarios: HorarioDoBanco[] | null;
+  ativo: boolean;
 };
 
 export const repositorioCatalogo: RepositorioCatalogo = {
   // Lê a view empresa_publica (nunca a tabela empresa): a view já esconde CNPJ e conta.
+  // Os pontos: a política ponto_publico (USING ativo) já filtra para o visitante, e o WHERE repete
+  // o filtro. O jsonb horarios usa dia_semana; horarioDoBanco converte para diaSemana.
   obterEmpresaPublica(sessao: SessaoBanco) {
     return comSessao(sessao, async (client) => {
       const { rows } = await client.query<LinhaEmpresa>(
-        `SELECT nome_fantasia, telefone, email, documentos_exigidos FROM empresa_publica`,
+        `SELECT nome_fantasia, telefone, email FROM empresa_publica`,
       );
       const linha = rows[0];
       if (!linha) return null;
+      const { rows: pontos } = await client.query<LinhaPonto>(
+        `SELECT id, nome, logradouro, numero, complemento, bairro, cep, cidade, uf, telefone, horarios, ativo
+           FROM ponto
+          WHERE ativo
+          ORDER BY nome`,
+      );
       return {
         nomeFantasia: linha.nome_fantasia,
-        email: linha.email,
         telefone: linha.telefone,
-        documentosExigidos: linha.documentos_exigidos,
+        email: linha.email,
+        pontos: pontos.map((p) => ({
+          id: p.id,
+          nome: p.nome,
+          logradouro: p.logradouro,
+          numero: p.numero,
+          complemento: p.complemento,
+          bairro: p.bairro,
+          cep: p.cep,
+          cidade: p.cidade,
+          uf: p.uf,
+          telefone: p.telefone,
+          horarios: (p.horarios ?? []).map(horarioDoBanco),
+          ativo: p.ativo,
+        })),
       };
     });
   },

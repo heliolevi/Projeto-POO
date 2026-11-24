@@ -1,4 +1,5 @@
 import type { Atividade, Experiencia } from "../../../shared/dominio/ciclista.ts";
+import type { Horario } from "./ponto.ts";
 import type { StatusBicicleta } from "./validacao.ts";
 
 // Como a API devolve um tipo de bicicleta (docs/contrato-api-mvp.md, rotas 10 e 19 a 21).
@@ -48,11 +49,33 @@ export type BicicletaAdmin = {
   observacoes: string | null;
 };
 
-// Como a API devolve a locadora ao público (docs/contrato-api-mvp.md, rota 14). Vem da view
-// empresa_publica: sem CNPJ, razão social nem conta de recebimento.
+// Ponto de retirada como a API mostra ao público (docs/contrato-api-mvp.md, rota 9). Tem que bater
+// com PontoDaEmpresa (src/shared/reservas/nova-reserva.ts), que a tela de reserva usa.
+export type PontoPublico = {
+  id: string;
+  nome: string;
+  logradouro: string;
+  numero: string;
+  complemento: string | null;
+  bairro: string;
+  cep: string;
+  cidade: string;
+  uf: string;
+  telefone: string | null;
+  horarios: Horario[];
+};
+
+// Como a API devolve a locadora ao público (docs/contrato-api-mvp.md, rota 9). Os dados da
+// locadora vêm da view empresa_publica: sem CNPJ, razão social nem conta de recebimento.
 export type EmpresaPublica = {
   nomeFantasia: string;
-  email: string;
   telefone: string | null;
-  documentosExigidos: string[];
+  email: string;
+  pontos: PontoPublico[];
+};
+
+// O que o repositório entrega: o ponto ainda traz "ativo", para o caso de uso filtrar de novo
+// (a RLS e o WHERE já filtram; aqui é a última barreira antes da resposta).
+export type EmpresaDoRepositorio = Omit<EmpresaPublica, "pontos"> & {
+  pontos: (PontoPublico & { ativo: boolean })[];
 };

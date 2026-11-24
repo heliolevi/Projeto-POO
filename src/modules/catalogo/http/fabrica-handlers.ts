@@ -26,7 +26,8 @@ export function criarHandlersCatalogo({ exigirSessao, catalogo }: DependenciasHa
     return exigirPerfil(await exigirSessao(request), "ADMIN");
   }
 
-  // GET /api/empresa (rota 14): público, só os dados públicos da locadora. Ignora qualquer token.
+  // GET /api/empresa (rota 9): público, só os dados públicos da locadora e os pontos ativos.
+  // Ignora qualquer token.
   async function getEmpresaPublica() {
     try {
       return ok(await catalogo.obterEmpresaPublica(VISITANTE), SEM_CACHE);

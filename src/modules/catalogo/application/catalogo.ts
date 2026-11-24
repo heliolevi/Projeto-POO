@@ -7,6 +7,7 @@ import {
 import { TipoBicicleta } from "../domain/tipo-bicicleta.ts";
 import {
   type BicicletaAdmin,
+  type EmpresaDoRepositorio,
   type EmpresaPublica,
   type TipoAdmin,
   type TipoPublico,
@@ -34,7 +35,7 @@ import {
 // consulta dentro de comSessao, com SQL parametrizado; os testes entregam uma de mentira.
 export type RepositorioCatalogo = {
   // null quando a locadora ainda não foi cadastrada
-  obterEmpresaPublica(sessao: SessaoBanco): Promise<EmpresaPublica | null>;
+  obterEmpresaPublica(sessao: SessaoBanco): Promise<EmpresaDoRepositorio | null>;
   listarTipos(sessao: SessaoBanco, filtro: { apenasAtivos: boolean }): Promise<TipoAdmin[]>;
   criarTipo(sessao: SessaoBanco, dados: DadosTipo): Promise<TipoAdmin>;
   // null quando o id não existe
@@ -131,11 +132,31 @@ export function criarCatalogo(repositorio: RepositorioCatalogo) {
     return bicicleta;
   }
 
-  // Rota 14 (visitante): só os dados públicos da locadora.
+  // Rota 9 (visitante): só os dados públicos da locadora e os pontos ativos. A resposta é montada
+  // campo a campo: o que o repositório trouxer a mais (CNPJ, conta, datas de controle) não sai.
   async function obterEmpresaPublica(sessao: SessaoBanco): Promise<EmpresaPublica> {
     const empresa = await repositorio.obterEmpresaPublica(sessao);
     if (!empresa) throw new NotFoundError("Dados da locadora não cadastrados.");
-    return empresa;
+    return {
+      nomeFantasia: empresa.nomeFantasia,
+      telefone: empresa.telefone,
+      email: empresa.email,
+      pontos: empresa.pontos
+        .filter((p) => p.ativo)
+        .map((p) => ({
+          id: p.id,
+          nome: p.nome,
+          logradouro: p.logradouro,
+          numero: p.numero,
+          complemento: p.complemento,
+          bairro: p.bairro,
+          cep: p.cep,
+          cidade: p.cidade,
+          uf: p.uf,
+          telefone: p.telefone,
+          horarios: p.horarios.map((h) => ({ diaSemana: h.diaSemana, abre: h.abre, fecha: h.fecha })),
+        })),
+    };
   }
 
   return {

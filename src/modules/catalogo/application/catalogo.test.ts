@@ -401,10 +401,20 @@ test("cadastrar bicicleta em ponto inativo responde 409, e em ponto que não exi
   assert.equal(bicicletas.size, 1);
 });
 
-test("GET /api/empresa: devolve os dados públicos da locadora e 404 sem cadastro", async () => {
-  const publico = { nomeFantasia: "Bike Ilha", email: "contato@bikeilha.com", telefone: null, documentosExigidos: ["CNH"] };
-  const comDados = criarCatalogo({ obterEmpresaPublica: async () => publico } as unknown as RepositorioCatalogo);
-  assert.deepEqual(await comDados.obterEmpresaPublica(VISITANTE), publico);
+test("GET /api/empresa: devolve os dados públicos da locadora, só com pontos ativos, e 404 sem cadastro", async () => {
+  const ponto = {
+    id: ID_PONTO, nome: "Ponto Litorânea", logradouro: "Av. Litorânea", numero: "100", complemento: null,
+    bairro: "Calhau", cep: "65071380", cidade: "São Luís", uf: "MA", telefone: null,
+    horarios: [{ diaSemana: 1, abre: "08:00", fecha: "18:00" }],
+  };
+  const doRepositorio = {
+    nomeFantasia: "Bike Ilha", email: "contato@bikeilha.com", telefone: null,
+    pontos: [{ ...ponto, ativo: true }, { ...ponto, id: ID_PONTO_INATIVO, nome: "Fechado", ativo: false }],
+  };
+  const comDados = criarCatalogo({ obterEmpresaPublica: async () => doRepositorio } as unknown as RepositorioCatalogo);
+  assert.deepEqual(await comDados.obterEmpresaPublica(VISITANTE), {
+    nomeFantasia: "Bike Ilha", email: "contato@bikeilha.com", telefone: null, pontos: [ponto],
+  });
 
   const semCadastro = criarCatalogo({ obterEmpresaPublica: async () => null } as unknown as RepositorioCatalogo);
   await assert.rejects(semCadastro.obterEmpresaPublica(VISITANTE), NotFoundError);
