@@ -8,9 +8,9 @@
 export {
   calcularValorAluguel,
   horasCobradas,
-  type Periodo,
+  type PeriodoCobravel as Periodo,
   type Precos,
-} from "./domain/preco";
+} from "../../shared/dominio/preco-aluguel";
 export {
   calcularExpiraEm,
   ehStatusReserva,
@@ -19,5 +19,9 @@ export {
   STATUS_RESERVA,
   type StatusReserva,
 } from "./domain/reserva";
-export type { Reserva, ReservaDetalhada } from "./application/reserva-dto";
+export type { ReservaDetalhadaDto, ReservaDto } from "./application/reserva-dto";
+export { TransicaoDeReservaInvalida } from "./domain/erros";
+export { ANTECEDENCIA_DA_RETIRADA_MS, Reserva } from "./domain/reserva-entidade";
+export { podeTransitar, TRANSICOES } from "./domain/reserva";
 export { getReserva, getReservas, postCancelarReserva, postReservas } from "./http/handlers";
+export { ReservaService } from "./application/reserva-service";

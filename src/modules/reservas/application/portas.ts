@@ -1,28 +1,14 @@
 import type { SessaoBanco } from "../../../shared/db/sessao.ts";
+import type { DadosDeReservaPersistida } from "../domain/reserva-entidade.ts";
 import type { StatusReserva } from "../domain/reserva.ts";
 
 // Quem faz a chamada: o cliente logado, como o exigirPerfil devolve. A mesma sessão vai para o
 // comSessao, então as políticas de RLS valem.
 export type SessaoCliente = SessaoBanco & { perfil: "CLIENTE"; usuarioId: string };
 
-// Uma reserva como o banco a devolve (view reserva_detalhada), já com as datas como Date.
-export type LinhaReserva = {
-  id: string;
-  codigo: string;
-  status: StatusReserva;
-  tipoId: string;
-  tipoNome: string;
-  pontoId: string;
-  pontoNome: string;
-  pontoEndereco: string;
-  inicio: Date;
-  fim: Date;
-  valorAluguelCentavos: number;
-  valorCaucaoCentavos: number;
-  criadoEm: Date;
-  pagamentoStatus: string | null;
-  pagamentoMetodo: string | null;
-};
+// Uma reserva como o banco a devolve (view reserva_detalhada), já com as datas como Date. É o mesmo
+// formato que a classe Reserva recebe no construtor.
+export type LinhaReserva = DadosDeReservaPersistida;
 
 export type TipoReservavel = {
   id: string;
@@ -62,8 +48,9 @@ export type OperacoesReservas = {
   inserir(reserva: ReservaParaGravar): Promise<LinhaReserva>;
   listar(status: StatusReserva | null): Promise<LinhaReserva[]>;
   buscar(id: string): Promise<LinhaReserva | null>;
-  // trava a reserva do cliente e devolve o status, ou null se não existe (ou não é dele)
-  travarStatus(id: string): Promise<StatusReserva | null>;
+  // trava a reserva do cliente até o fim da transação e devolve a linha como está depois da trava, ou
+  // null se não existe (ou não é dele). Quem recebe monta a classe Reserva e aplica a regra nela.
+  travarReserva(id: string): Promise<LinhaReserva | null>;
   marcarCancelada(id: string): Promise<void>;
 };
 

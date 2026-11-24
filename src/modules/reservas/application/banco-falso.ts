@@ -133,9 +133,10 @@ export function criarBancoFalso(agora: () => Date) {
         const r = minhas().find((x) => x.id === id);
         return r ? semInterno(r) : null;
       },
-      async travarStatus(id) {
-        log.push("travarStatus");
-        return minhas().find((x) => x.id === id)?.status ?? null;
+      async travarReserva(id) {
+        log.push("travarReserva");
+        const r = minhas().find((x) => x.id === id);
+        return r ? semInterno(r) : null;
       },
       async marcarCancelada(id) {
         log.push("marcarCancelada");

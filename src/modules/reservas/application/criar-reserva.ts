@@ -1,9 +1,9 @@
 import { ConflictError, NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
 import { CodigoRepetido, SobreposicaoDePeriodo } from "../domain/erros.ts";
 import { validarNovaReserva } from "../domain/reserva.ts";
-import type { Periodo, Precos } from "../domain/preco.ts";
+import type { PeriodoCobravel, Precos } from "../../../shared/dominio/preco-aluguel.ts";
 import type { SessaoCliente, Transacao } from "./portas.ts";
-import { montarReserva, type Reserva } from "./reserva-dto.ts";
+import { montarReserva, type ReservaDto } from "./reserva-dto.ts";
 
 // Teto de tentativas de gravar numa mesma requisição. Cada recusa por sobreposição descarta uma
 // unidade, então o laço termina sozinho quando as unidades do tipo acabam; o teto só protege
@@ -16,8 +16,8 @@ export type DependenciasCriarReserva = {
   transacao: Transacao;
   agora: () => Date;
   gerarCodigo: () => string;
-  // a regra de preço é a mesma da recomendação (src/modules/reservas/domain/preco.ts)
-  calcularValorAluguel: (periodo: Periodo, precos: Precos) => number;
+  // a regra de preço é a mesma da recomendação (src/shared/dominio/preco-aluguel.ts)
+  calcularValorAluguel: (periodo: PeriodoCobravel, precos: Precos) => number;
 };
 
 // POST /api/reservas (rota 12): reserva um TIPO de bicicleta num período. O sistema escolhe a
@@ -29,7 +29,7 @@ export type DependenciasCriarReserva = {
 //   4. se o banco recusar por sobreposição (23P01: outra reserva chegou à mesma unidade entre a
 //      escolha e a gravação), tenta outra unidade; se não houver, 409.
 export function criarCriarReserva(deps: DependenciasCriarReserva) {
-  return async function criarReserva(sessao: SessaoCliente, corpo: unknown): Promise<Reserva> {
+  return async function criarReserva(sessao: SessaoCliente, corpo: unknown): Promise<ReservaDto> {
     // valida antes de abrir a transação: um pedido inválido não toca o banco
     const validado = validarNovaReserva(corpo, deps.agora());
     if ("erros" in validado) throw new ValidationError("Dados inválidos.", validado.erros);

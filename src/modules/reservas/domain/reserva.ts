@@ -1,3 +1,4 @@
+import { PRAZO_DE_PAGAMENTO_MS } from "../../../shared/dominio/prazos.ts";
 import { randomBytes } from "node:crypto";
 import { validarBusca, type ErrosPorCampo } from "../../../shared/dominio/periodo.ts";
 
@@ -21,17 +22,34 @@ export function ehStatusReserva(valor: unknown): valor is StatusReserva {
 // A reserva pendente segura a bicicleta por 15 minutos. É o mesmo prazo de
 // expirar_reservas_vencidas() no banco (migration 0008), que conta a partir de criado_em: o banco
 // não tem coluna expira_em, o prazo é sempre a criação + 15 minutos.
-export const PRAZO_PAGAMENTO_MS = 15 * 60 * 1000;
+export const PRAZO_PAGAMENTO_MS = PRAZO_DE_PAGAMENTO_MS;
 
 // Só a reserva pendente tem prazo; nos outros estados o contrato manda null.
 export function calcularExpiraEm(status: StatusReserva, criadaEm: Date): Date | null {
   return status === "PENDENTE_PAGAMENTO" ? new Date(criadaEm.getTime() + PRAZO_PAGAMENTO_MS) : null;
 }
 
+// Máquina de estados da reserva: para cada status, os que podem vir depois. É a fonte única da regra:
+// a classe Reserva e o podeCancelar() leem esta mesma tabela. Expirada, cancelada, concluída e
+// não retirada são finais; só pendente e confirmada podem ser canceladas (antes da retirada).
+export const TRANSICOES: Record<StatusReserva, readonly StatusReserva[]> = {
+  PENDENTE_PAGAMENTO: ["CONFIRMADA", "CANCELADA", "EXPIRADA"],
+  CONFIRMADA: ["EM_ANDAMENTO", "CANCELADA", "NAO_RETIRADA"],
+  EM_ANDAMENTO: ["CONCLUIDA"],
+  CONCLUIDA: [],
+  CANCELADA: [],
+  EXPIRADA: [],
+  NAO_RETIRADA: [],
+};
+
+export function podeTransitar(de: StatusReserva, para: StatusReserva): boolean {
+  return TRANSICOES[de].includes(para);
+}
+
 // Cancelar vale antes da retirada: pendente ou confirmada (a retirada passa a reserva para
 // EM_ANDAMENTO). Qualquer outro estado já terminou ou já começou.
 export function podeCancelar(status: StatusReserva): boolean {
-  return status === "PENDENTE_PAGAMENTO" || status === "CONFIRMADA";
+  return podeTransitar(status, "CANCELADA");
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ConflictError, NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
 import { CodigoRepetido } from "../domain/erros.ts";
-import { calcularValorAluguel } from "../domain/preco.ts";
+import { calcularValorAluguel } from "../../../shared/dominio/preco-aluguel.ts";
 import { criarBancoFalso } from "./banco-falso.ts";
 import { criarCriarReserva } from "./criar-reserva.ts";
 import type { SessaoCliente } from "./portas.ts";
