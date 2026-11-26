@@ -17,7 +17,7 @@ import {
 } from "@/shared/admin/catalogo";
 import type { ResultadoDaEmpresa } from "@/shared/empresa";
 import { useEmpresa } from "@/shared/empresa/use-empresa";
-import { formatarReais } from "@/shared/format/moeda-e-data";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { ApiError, ClienteApi, type ErrosPorCampo } from "@/shared/http/api-cliente";
 import { Alert } from "@/shared/ui/Alert";
 import { AppShell } from "@/shared/ui/AppShell";
@@ -157,7 +157,7 @@ function PainelCatalogo() {
                   chave: "precoHoraCentavos",
                   cabecalho: "Hora / Dia",
                   alinhamento: "direita",
-                  celula: (t) => `${formatarReais(t.precoHoraCentavos)} / ${formatarReais(t.precoDiaCentavos)}`,
+                  celula: (t) => `${Dinheiro.deCentavos(t.precoHoraCentavos).formatar()} / ${Dinheiro.deCentavos(t.precoDiaCentavos).formatar()}`,
                 },
                 {
                   chave: "ativo",

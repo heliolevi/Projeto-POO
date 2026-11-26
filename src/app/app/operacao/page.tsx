@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSessao } from "@/shared/auth/use-sessao";
-import { formatarPeriodo } from "@/shared/format/moeda-e-data";
+import { FormatadorDeData } from "@/shared/format/formatador-de-data";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import {
   ITENS_CHECKLIST,
@@ -178,7 +178,7 @@ function ListaDoBalcao({
               {reserva.tipo.nome}
               {reserva.bicicleta ? ` · ${reserva.bicicleta.codigo}` : ""} · reserva {reserva.codigo}
             </p>
-            <p className={styles.linha}>{formatarPeriodo(reserva.periodo.inicio, reserva.periodo.fim)}</p>
+            <p className={styles.linha}>{FormatadorDeData.saoLuis.periodo(reserva.periodo.inicio, reserva.periodo.fim)}</p>
             {movimento && (
               <div style={{ marginTop: "var(--space-8)" }}>
                 <Button type="button" showArrow={false} onClick={() => onRegistrar(reserva, movimento)}>

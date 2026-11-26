@@ -1,4 +1,4 @@
-import { localParaIso } from "../format/moeda-e-data.ts";
+import { FormatadorDeData } from "../format/formatador-de-data.ts";
 
 // Agenda da busca: os dias que o cliente pode escolher, os horários de retirada de cada dia e o
 // resumo do período (retirada e devolução). Tudo no fuso de São Luís, que é o do balcão.
@@ -132,7 +132,7 @@ export function horariosDoDia(data: string, agora: Date = new Date()): string[] 
   const horarios: string[] = [];
   for (let hora = abre; hora < fecha; hora++) {
     const valor = `${doisDigitos(hora)}:00`;
-    if (new Date(localParaIso(data, valor)).getTime() > agora.getTime()) horarios.push(valor);
+    if (new Date(FormatadorDeData.saoLuis.paraIso(data, valor)).getTime() > agora.getTime()) horarios.push(valor);
   }
   return horarios;
 }
@@ -147,7 +147,7 @@ export function retiradaEDevolucao(
 ): { retirada: PontaDoPeriodo; devolucao: PontaDoPeriodo } | null {
   let inicio: Date;
   try {
-    inicio = new Date(localParaIso(data, hora));
+    inicio = new Date(FormatadorDeData.saoLuis.paraIso(data, hora));
   } catch {
     return null;
   }

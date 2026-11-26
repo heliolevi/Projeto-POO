@@ -1,4 +1,4 @@
-import { somenteDigitos } from "../../../shared/format/cpf.ts";
+import { Cnpj } from "../../../shared/dominio/cnpj.ts";
 
 // A locadora, como "pessoa jurídica": existe um único registro no banco (empresa.id é um boolean
 // fixo em true). O CNPJ, a razão social e a conta de recebimento nunca chegam ao público.
@@ -12,23 +12,6 @@ export type DadosEmpresa = {
   documentosExigidos?: readonly string[];
   contaRecebimentoId?: string | null;
 };
-
-// Valida o CNPJ pelos dois dígitos verificadores (14 dígitos, não todos iguais).
-export function cnpjValido(cnpj: string): boolean {
-  const d = somenteDigitos(cnpj);
-  if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
-  const digito = (base: string): number => {
-    let peso = base.length - 7;
-    let soma = 0;
-    for (const c of base) {
-      soma += Number(c) * peso;
-      peso = peso === 2 ? 9 : peso - 1;
-    }
-    const resto = soma % 11;
-    return resto < 2 ? 0 : 11 - resto;
-  };
-  return digito(d.slice(0, 12)) === Number(d[12]) && digito(d.slice(0, 13)) === Number(d[13]);
-}
 
 export class Empresa {
   #razaoSocial: string;
@@ -76,11 +59,12 @@ export class Empresa {
   atualizarDados(dados: DadosEmpresa): void {
     if (dados.razaoSocial.trim().length === 0) throw new RangeError("Informe a razão social.");
     if (dados.nomeFantasia.trim().length === 0) throw new RangeError("Informe o nome fantasia.");
-    if (!cnpjValido(dados.cnpj)) throw new RangeError("CNPJ inválido.");
+    const cnpj = Cnpj.de(dados.cnpj);
+    if (!cnpj) throw new RangeError("CNPJ inválido.");
     if (!dados.email.includes("@")) throw new RangeError("E-mail inválido.");
     this.#razaoSocial = dados.razaoSocial.trim();
     this.#nomeFantasia = dados.nomeFantasia.trim();
-    this.#cnpj = somenteDigitos(dados.cnpj);
+    this.#cnpj = cnpj.digitos;
     this.#email = dados.email.trim();
     this.#telefone = dados.telefone ?? null;
     this.#documentosExigidos = [...(dados.documentosExigidos ?? [])];

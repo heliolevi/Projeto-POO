@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
+import { FormatadorDeData } from "@/shared/format/formatador-de-data";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
@@ -134,7 +135,7 @@ export default function ReservaDetalhePage() {
             </div>
             <div>
               <dt>Período</dt>
-              <dd>{formatarPeriodo(estado.reserva.periodo.inicio, estado.reserva.periodo.fim)}</dd>
+              <dd>{FormatadorDeData.saoLuis.periodo(estado.reserva.periodo.inicio, estado.reserva.periodo.fim)}</dd>
             </div>
             <div>
               <dt>Retirada</dt>
@@ -146,11 +147,11 @@ export default function ReservaDetalhePage() {
             </div>
             <div>
               <dt>Aluguel</dt>
-              <dd>{formatarReais(estado.reserva.valorAluguelCentavos)}</dd>
+              <dd>{Dinheiro.deCentavos(estado.reserva.valorAluguelCentavos).formatar()}</dd>
             </div>
             <div>
               <dt>Caução (combinada no balcão)</dt>
-              <dd>{formatarReais(estado.reserva.valorCaucaoCentavos)}</dd>
+              <dd>{Dinheiro.deCentavos(estado.reserva.valorCaucaoCentavos).formatar()}</dd>
             </div>
           </dl>
 

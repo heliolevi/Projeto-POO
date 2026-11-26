@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { useEmpresa } from "@/shared/empresa/use-empresa";
+import { FormatadorDeData } from "@/shared/format/formatador-de-data";
 import { ClienteApi } from "@/shared/http/api-cliente";
 import { FOTO_PASSEIO, fotoDoTipo } from "@/shared/landing/fotos";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
@@ -113,7 +114,7 @@ export function InicioCliente() {
               <SeloStatus status={proxima.status} />
               <strong className={styles.reservaTitulo}>Bicicleta {proxima.tipo.nome}</strong>
               <span className={styles.reservaLinha}>
-                {formatarPeriodo(proxima.periodo.inicio, proxima.periodo.fim)}
+                {FormatadorDeData.saoLuis.periodo(proxima.periodo.inicio, proxima.periodo.fim)}
               </span>
               <span className={styles.reservaLinha}>{proxima.ponto.nome}</span>
             </div>
@@ -168,14 +169,14 @@ export function InicioCliente() {
                 <Link href="/app/buscar" className={styles.tipoCartao}>
                   <FotoCapa foto={fotoDoTipo(tipo.atividades)} formato="cartao" sizes="240px">
                     <span className={styles.preco}>
-                      {formatarReais(tipo.precoDiaCentavos)}
+                      {Dinheiro.deCentavos(tipo.precoDiaCentavos).formatar()}
                       <small>/dia</small>
                     </span>
                   </FotoCapa>
                   <span className={styles.tipoNome}>{tipo.nome}</span>
                   <span className={styles.tipoInfo}>{faixaDeAltura(tipo)}</span>
                   <span className={styles.tipoInfo}>
-                    {formatarReais(tipo.precoHoraCentavos)} por hora
+                    {Dinheiro.deCentavos(tipo.precoHoraCentavos).formatar()} por hora
                   </span>
                 </Link>
               </li>

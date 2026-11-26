@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { formatarReais } from "@/shared/format/moeda-e-data";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import {
   imagemDoQrCode,
@@ -237,7 +237,7 @@ export default function PagamentoPixPage() {
                   alt="QR code do Pix"
                 />
                 <span className={pagamentoStyles.valor}>
-                  {formatarReais(estado.cobranca.valorCentavos)}
+                  {Dinheiro.deCentavos(estado.cobranca.valorCentavos).formatar()}
                 </span>
                 <span className={pagamentoStyles.contagem}>
                   Este Pix vale por mais {formatarContagem(restante)}

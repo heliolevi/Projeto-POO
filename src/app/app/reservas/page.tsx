@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
+import { FormatadorDeData } from "@/shared/format/formatador-de-data";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
@@ -83,10 +84,10 @@ export default function MinhasReservasPage() {
                     <SeloStatus status={reserva.status} />
                   </div>
                   <p className={styles.linha}>
-                    {formatarPeriodo(reserva.periodo.inicio, reserva.periodo.fim)}
+                    {FormatadorDeData.saoLuis.periodo(reserva.periodo.inicio, reserva.periodo.fim)}
                   </p>
                   <p className={styles.linha}>{reserva.ponto.nome}</p>
-                  <p className={styles.linha}>{formatarReais(reserva.valorAluguelCentavos)}</p>
+                  <p className={styles.linha}>{Dinheiro.deCentavos(reserva.valorAluguelCentavos).formatar()}</p>
                   {reserva.status === "PENDENTE_PAGAMENTO" && (
                     <p className={styles.linha}>
                       <strong>
