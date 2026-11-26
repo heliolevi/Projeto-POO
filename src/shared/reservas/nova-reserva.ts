@@ -37,22 +37,5 @@ export function lerPedidoDaReserva(parametros: { get(nome: string): string | nul
   return { tipoId, inicio, fim };
 }
 
-// Ponto de retirada de GET /api/empresa (contrato, rota 9).
-export type PontoDaEmpresa = {
-  id: string;
-  nome: string;
-  logradouro: string;
-  numero: string;
-  complemento: string | null;
-  bairro: string;
-  cidade: string;
-  uf: string;
-};
-
-export type Empresa = { nomeFantasia: string; pontos: PontoDaEmpresa[] };
-
-export function enderecoDoPonto(ponto: PontoDaEmpresa): string {
-  const rua = [ponto.logradouro, ponto.numero].filter(Boolean).join(", ");
-  const complemento = ponto.complemento ? ` (${ponto.complemento})` : "";
-  return `${rua}${complemento}, ${ponto.bairro}, ${ponto.cidade}/${ponto.uf}`;
-}
+// O ponto de retirada e o endereço vêm de GET /api/empresa e ficam em src/shared/empresa.
+export { enderecoDoPonto } from "../empresa/empresa";

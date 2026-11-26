@@ -15,6 +15,8 @@ import {
   type StatusBicicleta,
   type TipoAdmin,
 } from "@/shared/admin/catalogo";
+import { opcoesDePonto, type ResultadoEmpresa } from "@/shared/empresa/empresa";
+import { useEmpresa } from "@/shared/empresa/use-empresa";
 import { formatarReais } from "@/shared/format/moeda-e-data";
 import {
   ApiError,
@@ -68,6 +70,9 @@ function PainelCatalogo() {
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  // Os pontos de retirada vêm da locadora (GET /api/empresa), não das bicicletas já cadastradas:
+  // sem isso, com o banco vazio, não haveria ponto para cadastrar a primeira bicicleta.
+  const { resultado: empresa, recarregar: recarregarEmpresa } = useEmpresa();
 
   const carregar = useCallback(async () => {
     try {
@@ -214,7 +219,9 @@ function PainelCatalogo() {
 
           <NovaBicicleta
             tipos={dados.tipos}
-            pontos={pontosDasBicicletas(dados.bicicletas)}
+            empresa={empresa}
+            pontosDoEstoque={pontosDasBicicletas(dados.bicicletas)}
+            aoRecarregarPontos={recarregarEmpresa}
             aoCriar={async (codigo) => { setAviso(`Bicicleta ${codigo} cadastrada.`); await carregar(); }}
           />
         </>
@@ -313,11 +320,15 @@ function NovoTipo({ aoCriar }: { aoCriar: (nome: string) => Promise<void> }) {
 
 function NovaBicicleta({
   tipos,
-  pontos,
+  empresa,
+  pontosDoEstoque,
+  aoRecarregarPontos,
   aoCriar,
 }: {
   tipos: TipoAdmin[];
-  pontos: { id: string; nome: string }[];
+  empresa: ResultadoEmpresa | null;
+  pontosDoEstoque: { id: string; nome: string }[];
+  aoRecarregarPontos: () => void;
   aoCriar: (codigo: string) => Promise<void>;
 }) {
   const [erros, setErros] = useState<ErrosPorCampo>({});
@@ -325,11 +336,24 @@ function NovaBicicleta({
   const [enviando, setEnviando] = useState(false);
 
   if (tipos.length === 0) return null;
+  const pontos = opcoesDePonto(empresa, pontosDoEstoque);
+  if (pontos === null) return <p role="status">Carregando os pontos de retirada...</p>;
+  const tentarDeNovo = (
+    <button type="button" onClick={aoRecarregarPontos}>
+      Tentar de novo
+    </button>
+  );
   if (pontos.length === 0) {
-    return (
+    return empresa?.tipo === "erro" ? (
+      <Alert variant="erro" action={tentarDeNovo}>
+        Não foi possível carregar os pontos de retirada agora.
+      </Alert>
+    ) : (
       <Alert variant="aviso">
-        Para cadastrar bicicletas pelo painel, a locadora precisa ter ao menos uma bicicleta em um
-        ponto de retirada (o ponto vem do banco).
+        {empresa?.tipo === "semCadastro"
+          ? "Os dados da locadora ainda não foram cadastrados no banco."
+          : "A locadora não tem nenhum ponto de retirada ativo."}{" "}
+        Cadastre o ponto no banco antes de cadastrar bicicletas.
       </Alert>
     );
   }
@@ -364,6 +388,11 @@ function NovaBicicleta({
     <Card title="Nova bicicleta" as="section">
       <form onSubmit={enviar} style={{ display: "grid", gap: "var(--space-12)" }} noValidate>
         {(erroGeral ?? erros.corpo) && <Alert variant="erro">{erroGeral ?? erros.corpo}</Alert>}
+        {empresa?.tipo === "erro" && (
+          <Alert variant="aviso" action={tentarDeNovo}>
+            Não foi possível carregar os pontos da locadora. Mostrando os pontos das bicicletas já cadastradas.
+          </Alert>
+        )}
         <Select name="tipoId" label="Tipo" placeholder="Escolha o tipo" error={erros.tipoId}
           opcoes={tipos.map((t) => ({ valor: t.id, rotulo: t.nome }))} />
         <Select name="pontoId" label="Ponto de retirada" error={erros.pontoId}

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
+import { enderecoDoPonto, pontoPrincipal } from "@/shared/empresa/empresa";
+import { useEmpresa } from "@/shared/empresa/use-empresa";
 import { getAutenticado } from "@/shared/http/api-cliente";
 import { FOTO_PASSEIO, fotoDoTipo } from "@/shared/landing/fotos";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
@@ -28,6 +30,8 @@ export function InicioCliente() {
   const [reservas, setReservas] = useState<Carga<Reserva[]>>({ tipo: "carregando" });
   const [tipos, setTipos] = useState<Carga<TipoPublico[]>>({ tipo: "carregando" });
   const atividades = useAtividadesPorTipo();
+  const { resultado: empresa, recarregar: recarregarEmpresa } = useEmpresa();
+  const ponto = empresa?.tipo === "pronto" ? pontoPrincipal(empresa.empresa) : null;
 
   useEffect(() => {
     let ativo = true;
@@ -67,7 +71,7 @@ export function InicioCliente() {
         sizes="(min-width: 768px) 592px, 100vw"
         priority
       >
-        <span className={styles.etiqueta}>São Luís · {LOCADORA.ponto.nome}</span>
+        <span className={styles.etiqueta}>São Luís{ponto ? ` · ${ponto.nome}` : ""}</span>
         <p className={styles.heroiTitulo}>Qual bicicleta combina com o seu passeio?</p>
         <p className={styles.heroiTexto}>Mostramos primeiro a mais indicada para você.</p>
         <Link href="/app/buscar" className={styles.botaoMenta}>
@@ -184,10 +188,26 @@ export function InicioCliente() {
         <h3 id="inicio-retirada" className={styles.secaoTitulo}>
           Retirada e devolução
         </h3>
-        <p>
-          <strong>{LOCADORA.ponto.nome}</strong>
-        </p>
-        <p>{LOCADORA.ponto.endereco}</p>
+        {empresa === null && <p role="status">Carregando o ponto de retirada...</p>}
+        {empresa?.tipo === "erro" && (
+          <p role="alert">
+            Não foi possível carregar o ponto de retirada.{" "}
+            <button type="button" onClick={recarregarEmpresa}>
+              Tentar de novo
+            </button>
+          </p>
+        )}
+        {empresa !== null && empresa.tipo !== "erro" && !ponto && (
+          <p>O ponto de retirada ainda não foi informado.</p>
+        )}
+        {ponto && (
+          <>
+            <p>
+              <strong>{ponto.nome}</strong>
+            </p>
+            {enderecoDoPonto(ponto) && <p>{enderecoDoPonto(ponto)}</p>}
+          </>
+        )}
         <p>Leve {LOCADORA.documentosNaRetirada.toLowerCase()}.</p>
       </section>
     </div>

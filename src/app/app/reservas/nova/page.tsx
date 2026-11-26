@@ -6,14 +6,8 @@ import { Suspense, useEffect, useState } from "react";
 import type { RespostaRecomendacao, Recomendacao } from "@/shared/busca/busca";
 import { formatarDuracao, formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
 import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
-import {
-  enderecoDoPonto,
-  lerPedidoDaReserva,
-  motivoDoErro,
-  type Empresa,
-  type PedidoDeReserva,
-  type PontoDaEmpresa,
-} from "@/shared/reservas/nova-reserva";
+import { buscarEmpresa, enderecoDoPonto, pontoPrincipal, type PontoPublico } from "@/shared/empresa/empresa";
+import { lerPedidoDaReserva, motivoDoErro, type PedidoDeReserva } from "@/shared/reservas/nova-reserva";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
 import type { Reserva } from "@/shared/reservas/reserva";
@@ -28,7 +22,7 @@ type Estado =
   | { tipo: "invalido" }
   | { tipo: "indisponivel"; motivo: "conflito" | "ausente" }
   | { tipo: "erro"; mensagem: string; trocarHorario: boolean }
-  | { tipo: "pronto"; item: Recomendacao; ponto: PontoDaEmpresa | null };
+  | { tipo: "pronto"; item: Recomendacao; ponto: PontoPublico | null };
 
 export default function NovaReservaPage() {
   return (
@@ -59,14 +53,14 @@ function ResumoDaReserva() {
 
     Promise.all([
       getAutenticado<RespostaRecomendacao>(`/api/recomendacao?${consulta}`),
-      getAutenticado<Empresa>("/api/empresa").catch(() => null),
+      buscarEmpresa(),
     ])
       .then(([recomendacao, empresa]) => {
         if (!ativo) return;
         const item = recomendacao.resultados.find((r) => r.tipoId === tipoId);
         setEstado(
           item
-            ? { tipo: "pronto", item, ponto: empresa?.pontos[0] ?? null }
+            ? { tipo: "pronto", item, ponto: pontoPrincipal(empresa.tipo === "pronto" ? empresa.empresa : null) }
             : { tipo: "indisponivel", motivo: "ausente" },
         );
       })
