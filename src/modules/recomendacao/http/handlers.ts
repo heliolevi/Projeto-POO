@@ -1,7 +1,7 @@
 import { exigirSessao, PerfisPermitidos, perfilCiclista } from "@/modules/contas";
 import { calcularValorAluguel, horasCobradas } from "@/modules/reservas";
-import { exigirDentroDoLimite } from "@/shared/db/limite-tentativas";
-import { query } from "@/shared/db/pool";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
 import { ClienteDaRequisicao } from "@/shared/http/cliente-da-requisicao";
 import { Resposta } from "@/shared/http/resposta";
 import { criarBuscarRecomendacoes } from "../application/buscar-recomendacoes";
@@ -14,6 +14,7 @@ import { buscarTiposComUnidadesLivres } from "../infrastructure/repositorio-disp
 const LIMITE_BUSCAS_POR_USUARIO = { max: 60, janelaSegundos: 60 };
 const LIMITE_BUSCAS_POR_IP = { max: 300, janelaSegundos: 60 };
 
+const limite = new LimiteDeTentativas(BancoDeDados.padrao);
 const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
 
 const soCliente = new PerfisPermitidos("CLIENTE");
@@ -31,10 +32,8 @@ const buscar = criarBuscarRecomendacoes({
 export async function getRecomendacao(request: Request) {
   try {
     const sessao = soCliente.exigir(await exigirSessao(request));
-    await exigirDentroDoLimite(query, `recomendacao:usuario:${sessao.usuarioId}`, LIMITE_BUSCAS_POR_USUARIO);
-    await exigirDentroDoLimite(
-      query,
-      `recomendacao:ip:${new ClienteDaRequisicao(request.headers).ip.slice(0, 64)}`,
+    await limite.exigirDentroDoLimite(`recomendacao:usuario:${sessao.usuarioId}`, LIMITE_BUSCAS_POR_USUARIO);
+    await limite.exigirDentroDoLimite(`recomendacao:ip:${new ClienteDaRequisicao(request.headers).ip.slice(0, 64)}`,
       LIMITE_BUSCAS_POR_IP,
     );
 

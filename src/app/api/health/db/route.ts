@@ -1,4 +1,5 @@
-import { verificarBanco } from "@/shared/db/verificar";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import { VerificadorDoBanco } from "@/shared/db/verificar";
 import { AppError, NotFoundError, UnauthorizedError } from "@/shared/http/errors";
 import { Resposta } from "@/shared/http/resposta";
 import { SegredoBearer } from "@/shared/http/segredo";
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    return Resposta.ok(await verificarBanco(), { headers: { "Cache-Control": "no-store" } });
+    return Resposta.ok(await new VerificadorDoBanco(BancoDeDados.padrao).verificar(), { headers: { "Cache-Control": "no-store" } });
   } catch (erro) {
     // O detalhe (host, credenciais, mensagem do driver) fica só no log do servidor.
     console.error("Falha ao verificar o banco:", erro);

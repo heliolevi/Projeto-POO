@@ -1,6 +1,6 @@
 import { exigirSessao, PerfisPermitidos } from "@/modules/contas";
-import { exigirDentroDoLimite } from "@/shared/db/limite-tentativas";
-import { query } from "@/shared/db/pool";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
 import { LeitorDeCorpo } from "@/shared/http/leitor-de-corpo";
 import { Resposta } from "@/shared/http/resposta";
 import { ReservaService } from "../application/reserva-service";
@@ -12,6 +12,7 @@ import { emTransacao } from "../infrastructure/repositorio-reservas";
 // pessoas atrás do mesmo NAT dividem o IP.
 const LIMITE_RESERVAS_POR_USUARIO = { max: 20, janelaSegundos: 60 * 60 };
 
+const limite = new LimiteDeTentativas(BancoDeDados.padrao);
 const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
 
 const leitor = new LeitorDeCorpo();
@@ -34,9 +35,7 @@ async function sessaoDoCliente(request: Request) {
 export async function postReservas(request: Request) {
   try {
     const sessao = await sessaoDoCliente(request);
-    await exigirDentroDoLimite(
-      query,
-      `reservas:usuario:${sessao.usuarioId}`,
+    await limite.exigirDentroDoLimite(`reservas:usuario:${sessao.usuarioId}`,
       LIMITE_RESERVAS_POR_USUARIO,
     );
     return Resposta.criada(await reservas.criarReserva(sessao, await leitor.lerJson(request)), SEM_CACHE);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Executar } from "../../../shared/db/limite-tentativas.ts";
+import { LimiteDeTentativas } from "../../../shared/db/limite-tentativas.ts";
 import {
   TooManyRequestsError,
   UnauthorizedError,
@@ -15,7 +15,7 @@ const CORRETA = "senha-atual-1";
 // O "hash" é a própria senha com um prefixo, para o teste não gastar tempo com scrypt.
 function cenario() {
   const contagens = new Map<string, number>();
-  const executar: Executar = async (sql, valores) => {
+  const consultar = async (sql: string, valores: unknown[] = []) => {
     const chave = String(valores[0]);
     if (sql.includes("INSERT INTO limite_tentativas")) {
       const nova = (contagens.get(chave) ?? 0) + 1;
@@ -27,7 +27,7 @@ function cenario() {
   };
   const senhas = new Map([[ID, `hash:${CORRETA}`]]);
   const alterarSenha = criarAlterarSenha({
-    executar,
+    limite: new LimiteDeTentativas({ consultar }),
     buscarSenhaHash: async (id) => senhas.get(id) ?? null,
     salvarSenhaHash: async (id, hash) => {
       senhas.set(id, hash);

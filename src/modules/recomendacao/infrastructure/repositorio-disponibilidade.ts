@@ -1,4 +1,5 @@
-import { comSessao, type SessaoBanco } from "@/shared/db/sessao";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import type { SessaoBanco } from "@/shared/db/sessao";
 import type { Atividade, Experiencia } from "@/shared/dominio/ciclista";
 import type { TipoCandidato } from "../domain/recomendacao";
 
@@ -58,7 +59,7 @@ export async function buscarTiposComUnidadesLivres(
   inicio: Date,
   fim: Date,
 ): Promise<TipoCandidato[]> {
-  return comSessao(sessao, async (client) => {
+  return BancoDeDados.padrao.comSessao(sessao, async (client) => {
     await client.query(EXPIRAR_VENCIDAS);
     const { rows } = await client.query<LinhaTipo>(BUSCAR_TIPOS, [
       inicio.toISOString(),

@@ -1,4 +1,5 @@
-import { query } from "@/shared/db/pool";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
 import { ClienteDaRequisicao } from "@/shared/http/cliente-da-requisicao";
 import { LeitorDeCorpo } from "@/shared/http/leitor-de-corpo";
 import { PerfisPermitidos } from "@/shared/http/perfis-permitidos";
@@ -23,7 +24,7 @@ const leitor = new LeitorDeCorpo();
 const soCliente = new PerfisPermitidos("CLIENTE");
 
 const alterarSenha = criarAlterarSenha({
-  executar: query,
+  limite: new LimiteDeTentativas(BancoDeDados.padrao),
   buscarSenhaHash: buscarSenhaHashPorId,
   salvarSenhaHash: atualizarSenha,
   verificarSenha,
