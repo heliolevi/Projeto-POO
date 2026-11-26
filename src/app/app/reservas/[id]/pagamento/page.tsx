@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatarReais } from "@/shared/format/moeda-e-data";
 import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
 import {
+  caminhoDaSimulacao,
   imagemDoQrCode,
   situacaoDoPix,
   type CobrancaPix,
@@ -41,6 +42,8 @@ export default function PagamentoPixPage() {
   const [tentativa, setTentativa] = useState(0);
   const [agora, setAgora] = useState(() => new Date());
   const [copiado, setCopiado] = useState(false);
+  const [simulando, setSimulando] = useState(false);
+  const [erroDaSimulacao, setErroDaSimulacao] = useState<string | null>(null);
   const temporizadorDaCopia = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cria (ou reaproveita, a rota é idempotente) a cobrança Pix da reserva.
@@ -160,6 +163,32 @@ export default function PagamentoPixPage() {
     }
   }
 
+  // MVP: o pagamento é simulado, então o cliente aprova o Pix por aqui. A tela confirma pelo
+  // status da rota 17, igual a um pagamento de verdade (a consulta de 3 s segue rodando).
+  async function simularPagamento() {
+    if (simulando) return;
+    setSimulando(true);
+    setErroDaSimulacao(null);
+    try {
+      await postAutenticado<unknown>(caminhoDaSimulacao(id), {});
+      const status = await getAutenticado<StatusDoPagamento>(`/api/pagamentos/${id}/status`);
+      const situacao = situacaoDoPix(status);
+      if (situacao === "confirmado") setEstado({ tipo: "confirmado" });
+      else if (situacao === "encerrado") setEstado({ tipo: "encerrado" });
+      else if (situacao === "pago_sem_reserva") setEstado({ tipo: "pagoSemReserva" });
+    } catch (erro) {
+      if (erro instanceof ApiError && erro.code === "NOT_FOUND") {
+        setErroDaSimulacao("A aprovação simulada ainda não está disponível no servidor.");
+      } else if (erro instanceof ApiError && erro.code === "CONFLICT") {
+        setErroDaSimulacao("Esta reserva não aceita mais pagamento. Volte para a reserva.");
+      } else {
+        setErroDaSimulacao(mensagemDe(erro, "Não foi possível simular o pagamento agora."));
+      }
+    } finally {
+      setSimulando(false);
+    }
+  }
+
   function tentarDeNovo() {
     setEstado({ tipo: "carregando" });
     setTentativa((atual) => atual + 1);
@@ -264,6 +293,21 @@ export default function PagamentoPixPage() {
                   {copiado ? "Código copiado!" : "Copiar código Pix"}
                 </button>
               </div>
+
+              <div className={styles.acoes} style={{ marginTop: "var(--space-12)" }}>
+                <button
+                  type="button"
+                  className={styles.botaoPrimario}
+                  onClick={simularPagamento}
+                  disabled={simulando}
+                >
+                  {simulando ? "Simulando..." : "Simular pagamento"}
+                </button>
+              </div>
+              <p className={styles.subtitulo}>
+                Modo de teste: nenhuma cobrança real é feita.
+              </p>
+              {erroDaSimulacao && <Alert variant="erro">{erroDaSimulacao}</Alert>}
 
               <ol className={pagamentoStyles.passos} style={{ marginTop: "var(--space-20)" }}>
                 <li>Abra o aplicativo do seu banco e escolha pagar com Pix.</li>
