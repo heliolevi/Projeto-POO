@@ -46,9 +46,46 @@ function patternsDoModulo(atual) {
   ];
 }
 
+// Sintaxe de TypeScript que o Node NÃO consegue apagar ao rodar um .ts direto (type stripping, que
+// é como `npm test` executa o código): ela gera JavaScript, então o Node falha ou o código muda de
+// comportamento. Tipos, interfaces, `private`/`readonly` em campo e `#campo` são apagáveis e
+// continuam liberados. Cada regra diz o que escrever no lugar.
+export const sintaxeNaoApagavel = [
+  {
+    selector: "TSParameterProperty",
+    message:
+      "Propriedade de parâmetro (constructor(private x)) não é apagável. Declare o campo (readonly #x) e atribua no corpo do construtor.",
+  },
+  {
+    selector: "TSEnumDeclaration",
+    message:
+      "enum não é apagável. Use um objeto `as const` com um tipo união: const X = { A: \"A\" } as const.",
+  },
+  {
+    selector: "TSModuleDeclaration:not([declare=true])",
+    message:
+      "namespace/module com código não é apagável. Use um arquivo (módulo ES) ou um objeto no lugar.",
+  },
+  {
+    selector: "TSImportEqualsDeclaration",
+    message: "`import x = require(...)` não é apagável. Use `import x from \"...\"`.",
+  },
+  {
+    selector: "TSExportAssignment",
+    message: "`export = x` não é apagável. Use `export default x` ou `export { x }`.",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    // Sintaxe não apagável: vale para todo o código-fonte em TypeScript.
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": ["error", ...sintaxeNaoApagavel],
+    },
+  },
   {
     // Fronteiras entre módulos: outros módulos e rotas só importam pelo index.ts.
     files: ["src/**/*.{ts,tsx}"],
