@@ -1,4 +1,4 @@
-import { MENSAGEM_SEM_CONEXAO, mensagemDoErro } from "./mensagens.ts";
+import { TradutorDeErros } from "./tradutor-de-erros.ts";
 
 export type ErrosPorCampo = Record<string, string>;
 
@@ -36,7 +36,7 @@ async function enviar<T>(url: string, init: RequestInit): Promise<T> {
     resposta = await fetch(url, init);
   } catch {
     // fetch só rejeita quando a requisição nem chegou ao servidor (rede caída, offline).
-    throw new ApiError("NETWORK_ERROR", MENSAGEM_SEM_CONEXAO);
+    throw new ApiError("NETWORK_ERROR", TradutorDeErros.MENSAGEM_SEM_CONEXAO);
   }
   const json = await resposta.json().catch(() => null);
 
@@ -44,7 +44,7 @@ async function enviar<T>(url: string, init: RequestInit): Promise<T> {
     const erro = json?.error ?? { code: "UNKNOWN", message: "Não foi possível completar a ação." };
     throw new ApiError(
       erro.code,
-      mensagemDoErro(resposta.status, erro.code, erro.message),
+      new TradutorDeErros().traduzir(resposta.status, erro.code, erro.message),
       erro.details,
       resposta.status,
     );

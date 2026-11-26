@@ -2,7 +2,7 @@ import type { SessaoBanco } from "../../../shared/db/sessao.ts";
 import type { DadosDeReservaPersistida } from "../domain/reserva-entidade.ts";
 import type { StatusReserva } from "../domain/reserva.ts";
 
-// Quem faz a chamada: o cliente logado, como o exigirPerfil devolve. A mesma sessão vai para o
+// Quem faz a chamada: o cliente logado, como o PerfisPermitidos devolve. A mesma sessão vai para o
 // comSessao, então as políticas de RLS valem.
 export type SessaoCliente = SessaoBanco & { perfil: "CLIENTE"; usuarioId: string };
 

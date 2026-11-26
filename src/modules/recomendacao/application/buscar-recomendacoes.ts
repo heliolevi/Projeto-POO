@@ -14,7 +14,7 @@ export type PerfilDoCliente = {
   atividade: Atividade | null;
 };
 
-// Quem faz a busca: o cliente logado, como o exigirPerfil devolve. A mesma sessão vai para o
+// Quem faz a busca: o cliente logado, como o PerfisPermitidos devolve. A mesma sessão vai para o
 // comSessao, então as políticas de RLS valem. Por isso o caso de uso recebe a sessão a cada busca
 // e pode ser criado uma vez só, no escopo do módulo.
 export type SessaoCliente = SessaoBanco & { perfil: "CLIENTE"; usuarioId: string };

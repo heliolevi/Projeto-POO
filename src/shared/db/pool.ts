@@ -1,5 +1,5 @@
 import { Pool, type QueryResult, type QueryResultRow } from "pg";
-import { requireEnv } from "@/shared/config/env";
+import { Ambiente } from "@/shared/config/ambiente";
 
 // Um único pool por processo. Em desenvolvimento o hot reload recarrega os módulos e
 // criaria um pool novo a cada alteração; guardar no globalThis evita esgotar conexões.
@@ -9,7 +9,7 @@ function criarPool(): Pool {
   // DATABASE_URL é a conexão com pooler (host "-pooler" no Neon), própria para o app.
   // As migrations usam DATABASE_URL_UNPOOLED (ver db/README.md).
   const pool = new Pool({
-    connectionString: requireEnv("DATABASE_URL"),
+    connectionString: Ambiente.padrao.exigir("DATABASE_URL"),
     max: 5,
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 10_000,
