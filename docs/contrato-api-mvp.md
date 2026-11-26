@@ -291,9 +291,12 @@ de sucesso. **Novo.**
                   "horarios": [ { "diaSemana": 1, "abre": "08:00", "fecha": "18:00" } ] } ] } }
 ```
 
-Só pontos ativos. **Nunca** devolve CNPJ, razão social, conta de recebimento nem campos de controle.
+Só pontos ativos (`pontos` pode vir vazio). **Nunca** devolve CNPJ, razão social, conta de recebimento
+nem campos de controle. `horarios[].diaSemana` vai de 0 (domingo) a 6 (sábado); no banco a chave é
+`dia_semana`, e o backend converte.
 
-**Erros:** nenhum esperado além de `500`.
+**Erros:** `404 NOT_FOUND` enquanto a locadora não estiver cadastrada (a tela de reserva trata como
+"sem ponto"); fora isso, só `500`.
 
 ### 10. `GET /api/catalogo/tipos`
 
