@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
 import { useEmpresa } from "@/shared/empresa/use-empresa";
-import { getAutenticado } from "@/shared/http/api-cliente";
+import { ClienteApi } from "@/shared/http/api-cliente";
 import { FOTO_PASSEIO, fotoDoTipo } from "@/shared/landing/fotos";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
 import {
@@ -35,12 +35,12 @@ export function InicioCliente() {
 
   useEffect(() => {
     let ativo = true;
-    getAutenticado<ContaLogada>("/api/conta/me")
+    ClienteApi.padrao.get<ContaLogada>("/api/conta/me")
       .then((dados) => ativo && setConta(dados))
       .catch(() => {
         // O nome é só um carinho: sem ele a saudação fica sem o nome.
       });
-    getAutenticado<Reserva[]>("/api/reservas")
+    ClienteApi.padrao.get<Reserva[]>("/api/reservas")
       .then((dados) => ativo && setReservas({ tipo: "pronto", dados }))
       .catch(() => ativo && setReservas({ tipo: "erro" }));
     carregarTiposPublicos()

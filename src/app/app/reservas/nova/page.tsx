@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import type { RespostaRecomendacao, Recomendacao } from "@/shared/busca/busca";
 import { formatarDuracao, formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
-import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { EmpresaEmCache, type PontoDeRetirada } from "@/shared/empresa";
 import { lerPedidoDaReserva, motivoDoErro, type PedidoDeReserva } from "@/shared/reservas/nova-reserva";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
@@ -52,7 +52,7 @@ function ResumoDaReserva() {
     const consulta = new URLSearchParams({ inicio, fim }).toString();
 
     Promise.all([
-      getAutenticado<RespostaRecomendacao>(`/api/recomendacao?${consulta}`),
+      ClienteApi.padrao.get<RespostaRecomendacao>(`/api/recomendacao?${consulta}`),
       EmpresaEmCache.padrao.obter(),
     ])
       .then(([recomendacao, empresa]) => {
@@ -85,7 +85,7 @@ function ResumoDaReserva() {
     setEnviando(true);
     setErroEnvio(null);
     try {
-      const reserva = await postAutenticado<Reserva>("/api/reservas", dados);
+      const reserva = await ClienteApi.padrao.post<Reserva>("/api/reservas", dados);
       // replace, não push: ao voltar do Pix, o resumo não reaparece com o botão ativo
       // (um segundo clique criaria outra reserva pendente).
       router.replace(`/app/reservas/${reserva.id}/pagamento`);

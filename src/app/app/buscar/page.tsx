@@ -5,7 +5,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { ATIVIDADES, ehAtividade } from "@/shared/dominio/ciclista";
 import { DESCRICAO_ATIVIDADE, ROTULO_ATIVIDADE } from "@/shared/dominio/ciclista-rotulos";
 import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
-import { ApiError, getAutenticado } from "@/shared/http/api-cliente";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { horariosDoDia, proximosDias, retiradaEDevolucao } from "@/shared/busca/agenda";
 import { BilheteDoPeriodo } from "@/shared/busca/BilheteDoPeriodo";
 import {
@@ -77,7 +77,7 @@ export default function BuscarPage() {
   // A conta serve para lembrar a atividade do perfil e avisar quem ainda não o preencheu.
   useEffect(() => {
     let ativo = true;
-    getAutenticado<ContaLogada>("/api/conta/me")
+    ClienteApi.padrao.get<ContaLogada>("/api/conta/me")
       .then((dados) => ativo && setConta(dados))
       .catch(() => {
         // Só uma ajuda: sem a conta, a busca segue normalmente.
@@ -154,7 +154,7 @@ export default function BuscarPage() {
     emBusca.current = true;
     setResultado({ tipo: "buscando" });
     try {
-      const resposta = await getAutenticado<RespostaRecomendacao>(
+      const resposta = await ClienteApi.padrao.get<RespostaRecomendacao>(
         `/api/recomendacao?${montarConsulta(efetivo)}`,
       );
       setResultado({ tipo: "pronto", resposta });

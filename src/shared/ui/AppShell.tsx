@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import type { PerfilUsuario } from "@/shared/auth/sessao";
-import { limparSessao } from "@/shared/auth/sessao";
+import { ArmazemDeSessao } from "@/shared/auth/sessao";
 import styles from "./AppShell.module.css";
 import { itensNavPorPerfil } from "./nav-por-perfil";
 import { Logo } from "./Logo";
@@ -16,7 +16,7 @@ export function AppShell({ perfil, children }: { perfil: PerfilUsuario; children
   const itens = itensNavPorPerfil(perfil);
 
   function sair() {
-    limparSessao();
+    ArmazemDeSessao.navegador.limpar();
     router.push("/login");
   }
 

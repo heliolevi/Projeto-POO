@@ -10,10 +10,10 @@ import { AuthLayout } from "@/shared/ui/AuthLayout";
 import { IdCardIcon, MailIcon, UserIcon } from "@/shared/ui/icons";
 import styles from "@/shared/ui/form.module.css";
 import authStyles from "@/shared/ui/AuthLayout.module.css";
-import { ApiError, postJson, type ResultadoSessao } from "@/shared/http/api-cliente";
+import { ApiError, ClienteApi, type ResultadoSessao } from "@/shared/http/api-cliente";
 import { cpfValido, maskCpf, somenteDigitos } from "@/shared/format/cpf";
 import { requisitosDaSenha, senhaAceita } from "@/shared/format/senha";
-import { salvarSessao } from "@/shared/auth/sessao";
+import { ArmazemDeSessao } from "@/shared/auth/sessao";
 
 export default function CadastroPage() {
   const router = useRouter();
@@ -64,14 +64,14 @@ export default function CadastroPage() {
     emEnvio.current = true;
     setEnviando(true);
     try {
-      const sessao = await postJson<ResultadoSessao>("/api/auth/cadastro", {
+      const sessao = await ClienteApi.padrao.postJson<ResultadoSessao>("/api/auth/cadastro", {
         nome,
         email,
         cpf: somenteDigitos(cpf),
         senha,
         aceiteTermos,
       });
-      salvarSessao(sessao.token);
+      ArmazemDeSessao.navegador.salvar(sessao.token);
       router.push("/app");
     } catch (erro) {
       if (erro instanceof ApiError) {

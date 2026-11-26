@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
-import { ApiError, getAutenticado } from "@/shared/http/api-cliente";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
 import type { Reserva } from "@/shared/reservas/reserva";
@@ -25,7 +25,7 @@ export default function MinhasReservasPage() {
 
   useEffect(() => {
     let ativo = true;
-    getAutenticado<Reserva[]>("/api/reservas")
+    ClienteApi.padrao.get<Reserva[]>("/api/reservas")
       .then((reservas) => ativo && setEstado({ tipo: "pronto", reservas }))
       .catch((erro) => {
         if (!ativo) return;
