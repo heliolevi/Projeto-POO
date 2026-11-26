@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { problemaDoSegredoDeSessao } from "../../../shared/config/ambiente.ts";
 import { requireEnv } from "../../../shared/config/env.ts";
 import type { PerfilUsuario } from "../domain/usuario";
 
@@ -9,18 +10,10 @@ export const DURACAO_SESSAO_SEGUNDOS = 60 * 60 * 24;
 
 export type SessaoToken = { sub: string; perfil: PerfilUsuario; iat: number; exp: number };
 
-// Valor de exemplo do .env.example: tem mais de 32 caracteres e passaria na checagem de
-// tamanho, mas qualquer pessoa o conhece e poderia forjar tokens.
-const SEGREDO_DE_EXEMPLO = "troque-por-um-valor-aleatorio";
-
 function segredo(): string {
   const valor = requireEnv("SESSION_SECRET");
-  if (valor.length < 32) {
-    throw new Error("SESSION_SECRET precisa ter ao menos 32 caracteres.");
-  }
-  if (valor.startsWith(SEGREDO_DE_EXEMPLO)) {
-    throw new Error("SESSION_SECRET ainda está com o valor de exemplo. Gere um valor aleatório.");
-  }
+  const problema = problemaDoSegredoDeSessao(valor);
+  if (problema) throw new Error(problema);
   return valor;
 }
 

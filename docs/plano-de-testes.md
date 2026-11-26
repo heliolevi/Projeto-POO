@@ -130,7 +130,7 @@ PR ou issue do defeito.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
-| CT-SEG-01 | P0 | Subir o app sem `SESSION_SECRET` | Erro claro; login e cadastro não funcionam em silêncio | Auto | Automatizado |
+| CT-SEG-01 | P0 | Subir o app sem `SESSION_SECRET` (ou sem `DATABASE_URL`, `APP_URL`, `PAGAMENTO_MODO` em produção) | O servidor não sobe e mostra uma mensagem em português com todas as variáveis que faltam, sem mostrar valores | Auto | Automatizado (`ambiente.test.ts`; o gancho é `src/instrumentation.ts`) |
 | CT-SEG-02 | P0 | `SESSION_SECRET` curto ou igual ao exemplo do `.env.example` | Recusado | Auto | Automatizado |
 | CT-SEG-03 | P0 | `/api/health/db` sem segredo configurado, com segredo errado e com o segredo certo | 404 sem segredo configurado; 401 com segredo errado; 200 com o certo | Integração | Pendente (a função `bearerConfere` tem teste, a rota não) |
 | CT-SEG-04 | P0 | `/api/health` | Responde 200 sem dados sensíveis | Manual | Pendente |
@@ -139,7 +139,7 @@ PR ou issue do defeito.
 | CT-SEG-07 | P1 | Logs de erro e de requisição | Sem senha, token, CPF ou outros dados pessoais | Manual | Aguarda fase 6 |
 | CT-SEG-08 | P1 | Erro inesperado em qualquer rota | 500 `INTERNAL_ERROR` com mensagem genérica, sem stack nem SQL | Integração | Pendente |
 | CT-SEG-09 | P1 | Formato de erro de todas as rotas | `{ error: { code, message, details } }`, com os `code` da tabela do contrato | Integração | Pendente |
-| CT-SEG-10 | P1 | Variáveis usadas pelo código (incluindo `MP_WEBHOOK_SECRET` e `PAGAMENTO_MODO`) | Todas listadas no `.env.example`, sem valor real | Manual | Pendente |
+| CT-SEG-10 | P1 | Variáveis usadas pelo código (incluindo `PAGAMENTO_MODO`; `MP_WEBHOOK_SECRET` entra com o webhook) | Todas listadas no `.env.example`, sem valor real | Auto | Automatizado (`ambiente.test.ts` varre `src`, `db` e `scripts`) |
 | CT-SEG-11 | P1 | Função `bearerConfere` | Aceita o formato `Bearer` certo; recusa segredo errado, de outro tamanho, sem header ou com outro esquema; sem segredo configurado ou curto demais, nada passa | Auto | Automatizado (`segredo.test.ts`) |
 
 ### 4.6 Banco de dados, migrations e RLS

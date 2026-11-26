@@ -49,6 +49,8 @@ Copy-Item .env.example .env.local     # PowerShell
 | `DATABASE_URL` | Conexão do app: usuário **`app_login`**, host com `-pooler`. |
 | `DATABASE_URL_UNPOOLED` | Conexão direta (sem `-pooler`), do dono do banco. Usada por migrations, seed e `criar-equipe`. |
 | `SESSION_SECRET` | Valor aleatório com 32+ caracteres. Gere com o comando abaixo. O valor de exemplo é recusado. |
+| `APP_URL` | Endereço público do app (`http://localhost:3000` em desenvolvimento). Em production é obrigatório e precisa ser `https`. |
+| `PAGAMENTO_MODO` | `simulado` (único modo no MVP). Em production é obrigatório; em desenvolvimento, se faltar, vale `simulado`. |
 | `HEALTH_DB_SECRET` | Opcional (16+ caracteres). Sem ele, `/api/health/db` fica desligada. |
 | `SEED_ADMIN_SENHA`, `SEED_OPERADOR_SENHA` | Senhas de teste das contas do seed (8+ caracteres, com letra e número). Invente as suas. |
 
@@ -134,6 +136,7 @@ para o Neon `dev`, e **nunca** para production.
 |---|---|---|
 | `password authentication failed for user 'USUARIO'` | `.env.local` ainda com o texto do modelo | Preencha as conexões reais (passo 3). |
 | Login dá erro 500 | `SESSION_SECRET` ausente, curto ou igual ao exemplo | Gere um valor novo e reinicie o `npm run dev`. |
+| O app não sobe e mostra "Configuração do ambiente inválida" | Falta ou está errada uma variável da tabela acima | A mensagem lista cada variável com o problema (sem mostrar o valor). Corrija o `.env.local` e reinicie. |
 | `criar-equipe` recusa a conexão | `DATABASE_URL_UNPOOLED` com `-pooler` | Use a conexão direta, sem `-pooler`. |
 | Erro com arquivos `.ts` ao rodar scripts ou testes | Node anterior a 22.18 | Instale o Node 22 LTS (`node -v`). |
 | Aviso `MODULE_TYPELESS_PACKAGE_JSON` | Node importando `.ts` do app | Só informativo, pode ignorar. |
