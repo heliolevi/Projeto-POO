@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
-import { enderecoDoPonto, pontoPrincipal } from "@/shared/empresa/empresa";
 import { useEmpresa } from "@/shared/empresa/use-empresa";
 import { getAutenticado } from "@/shared/http/api-cliente";
 import { FOTO_PASSEIO, fotoDoTipo } from "@/shared/landing/fotos";
@@ -31,7 +30,7 @@ export function InicioCliente() {
   const [tipos, setTipos] = useState<Carga<TipoPublico[]>>({ tipo: "carregando" });
   const atividades = useAtividadesPorTipo();
   const { resultado: empresa, recarregar: recarregarEmpresa } = useEmpresa();
-  const ponto = empresa?.tipo === "pronto" ? pontoPrincipal(empresa.empresa) : null;
+  const ponto = empresa?.pontoPrincipal() ?? null;
 
   useEffect(() => {
     let ativo = true;
@@ -205,7 +204,7 @@ export function InicioCliente() {
             <p>
               <strong>{ponto.nome}</strong>
             </p>
-            {enderecoDoPonto(ponto) && <p>{enderecoDoPonto(ponto)}</p>}
+            {ponto.endereco() && <p>{ponto.endereco()}</p>}
           </>
         )}
         <p>Leve {LOCADORA.documentosNaRetirada.toLowerCase()}.</p>

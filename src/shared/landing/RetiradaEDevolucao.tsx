@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment } from "react";
-import { enderecoDoPonto, resumirHorarios, type EmpresaPublica } from "@/shared/empresa/empresa";
+import { EmpresaCarregada, type EmpresaDaLocadora } from "@/shared/empresa";
 import { useEmpresa } from "@/shared/empresa/use-empresa";
 import { Alert } from "@/shared/ui/Alert";
 import { Card } from "@/shared/ui/Card";
@@ -40,7 +40,7 @@ export function RetiradaEDevolucao() {
 
       {resultado?.tipo === "semCadastro" && <SemPonto />}
 
-      {resultado?.tipo === "pronto" &&
+      {resultado instanceof EmpresaCarregada &&
         (resultado.empresa.pontos.length === 0 ? <SemPonto /> : <PontosDaEmpresa empresa={resultado.empresa} />)}
 
       <Card title="Na retirada, leve">
@@ -65,14 +65,14 @@ function SemPonto() {
   );
 }
 
-function PontosDaEmpresa({ empresa }: { empresa: EmpresaPublica }) {
+function PontosDaEmpresa({ empresa }: { empresa: EmpresaDaLocadora }) {
   const varios = empresa.pontos.length > 1;
   return (
     <>
       {empresa.pontos.map((ponto) => {
-        const horarios = resumirHorarios(ponto.horarios);
-        const endereco = enderecoDoPonto(ponto);
-        const telefone = ponto.telefone ?? empresa.telefone;
+        const horarios = ponto.horarios.resumir();
+        const endereco = ponto.endereco();
+        const telefone = empresa.telefoneDoPonto(ponto);
         return (
           <Fragment key={ponto.id}>
             <Card title={ponto.nome}>

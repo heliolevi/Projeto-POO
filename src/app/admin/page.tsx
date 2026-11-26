@@ -15,7 +15,7 @@ import {
   type StatusBicicleta,
   type TipoAdmin,
 } from "@/shared/admin/catalogo";
-import { opcoesDePonto, type ResultadoEmpresa } from "@/shared/empresa/empresa";
+import type { ResultadoDaEmpresa } from "@/shared/empresa";
 import { useEmpresa } from "@/shared/empresa/use-empresa";
 import { formatarReais } from "@/shared/format/moeda-e-data";
 import {
@@ -326,7 +326,7 @@ function NovaBicicleta({
   aoCriar,
 }: {
   tipos: TipoAdmin[];
-  empresa: ResultadoEmpresa | null;
+  empresa: ResultadoDaEmpresa | null;
   pontosDoEstoque: { id: string; nome: string }[];
   aoRecarregarPontos: () => void;
   aoCriar: (codigo: string) => Promise<void>;
@@ -336,7 +336,7 @@ function NovaBicicleta({
   const [enviando, setEnviando] = useState(false);
 
   if (tipos.length === 0) return null;
-  const pontos = opcoesDePonto(empresa, pontosDoEstoque);
+  const pontos = empresa?.opcoesDePonto(pontosDoEstoque) ?? null;
   if (pontos === null) return <p role="status">Carregando os pontos de retirada...</p>;
   const tentarDeNovo = (
     <button type="button" onClick={aoRecarregarPontos}>

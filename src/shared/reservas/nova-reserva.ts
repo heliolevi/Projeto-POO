@@ -36,6 +36,3 @@ export function lerPedidoDaReserva(parametros: { get(nome: string): string | nul
   if (new Date(fim).getTime() <= new Date(inicio).getTime()) return null;
   return { tipoId, inicio, fim };
 }
-
-// O ponto de retirada e o endereço vêm de GET /api/empresa e ficam em src/shared/empresa.
-export { enderecoDoPonto } from "../empresa/empresa";

@@ -22,6 +22,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `operacao` | `Movimentacao`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo`, `OperacaoService` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
 | `administracao` | `AuditoriaLog` |
+| `shared/empresa` (telas) | `EmpresaDaLocadora`, `PontoDeRetirada`, `GradeDeHorarios`, `HorarioDoDia`, `LeitorDeObjeto`, `BuscadorDeEmpresa`, `ResultadoDaEmpresa` (abstrata), `EmpresaCarregada`, `EmpresaSemCadastro`, `EmpresaIndisponivel` |
 
 ## Os quatro pilares
 
@@ -156,3 +157,28 @@ passarem juntos pela regra; um teste com conexões reais confere isso (um respon
   não muda o JSON das respostas, as rotas nem as migrations.
 - Os testes de banco (`db/tests`) conferem o cancelamento de reserva em conexões reais, inclusive a corrida
   de dois cancelamentos ao mesmo tempo.
+
+## As telas (front-end)
+
+A regra vale também para o que roda no navegador: a lógica das telas mora em classes, e o componente
+React só desenha. Os componentes são funções porque o React pede isso; eles não decidem nada, só
+perguntam aos objetos.
+
+O exemplo é `src/shared/empresa`, que lê `GET /api/empresa`:
+
+- **Encapsulamento.** `EmpresaDaLocadora`, `PontoDeRetirada`, `GradeDeHorarios` e `HorarioDoDia` têm campos
+  privados (`#`), só existem válidos (o construtor lança `RangeError`) e devolvem cópia. O JSON sai por
+  `paraDto()` e `toJSON()`, e só com os campos do contrato.
+- **Resposta da rede sem confiança.** `LeitorDeObjeto` embrulha o valor desconhecido e só deixa ler campo
+  próprio, já no tipo certo; cada classe tem um `static deResposta(...)` que devolve `null` quando o
+  dado não serve. Ponto ou horário inválido é descartado sozinho.
+- **Herança e polimorfismo.** `ResultadoDaEmpresa` é abstrata e tem três filhas: `EmpresaCarregada`,
+  `EmpresaSemCadastro` e `EmpresaIndisponivel`. Todas respondem a `pontoPrincipal()` e
+  `opcoesDePonto(...)`, então a tela pergunta ao objeto em vez de repetir um `if` por situação. Só a
+  escolha do que desenhar usa `instanceof`.
+- **Injeção de dependência.** `BuscadorDeEmpresa` recebe o `fetch` e o tempo limite no construtor; nos
+  testes entra um `fetch` de mentira.
+
+Essas classes não reaproveitam `Empresa` e `Ponto` do módulo `catalogo` de propósito: aquelas ficam do
+lado do servidor (junto do `pg`), e o navegador não pode importá-las. Estas modelam a resposta pública
+da API do lado do cliente.
