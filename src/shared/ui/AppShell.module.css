@@ -86,3 +86,32 @@
     max-width: 640px;
   }
 }
+
+/* Barra de navegação: o item da tela atual ganha uma pílula verde atrás do ícone (a cor sozinha
+   não basta para quem não distingue cores) e todos têm 56px de altura de toque. */
+.navItem {
+  min-height: 56px;
+  justify-content: center;
+}
+
+.navIcon {
+  width: 52px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  transition: background-color 0.18s ease;
+}
+
+.navItemActive .navIcon {
+  background: var(--color-mint-badge);
+  color: var(--color-text-on-mint);
+}
+
+.navItemActive {
+  font-weight: var(--font-weight-bold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navIcon {
+    transition: none;
+  }
+}

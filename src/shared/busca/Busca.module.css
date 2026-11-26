@@ -1,0 +1,333 @@
+.pagina {
+  display: grid;
+  gap: var(--space-24);
+}
+
+.cabecalho {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.titulo {
+  font-size: var(--font-size-3xl);
+  line-height: 1.1;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.01em;
+}
+
+.subtitulo {
+  font-size: var(--font-size-md);
+  line-height: 1.45;
+  color: var(--color-text-support);
+}
+
+.formulario {
+  display: grid;
+  gap: var(--space-24);
+}
+
+/* ---- conteúdo do botão de dia ---- */
+.diaSemana {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  opacity: 0.8;
+}
+
+.diaNumero {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.diaMes {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  opacity: 0.8;
+}
+
+.diaDestaque {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--cor-destaque);
+}
+
+.esqueletoDias {
+  height: 86px;
+  border-radius: 14px;
+  background: var(--color-surface-soft);
+}
+
+.semHorario {
+  padding: var(--space-12) var(--space-14);
+  border-radius: 12px;
+  background: var(--color-surface-soft);
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+}
+
+/* ---- bilhete de retirada e devolução ---- */
+.bilhete {
+  position: relative;
+  padding: var(--space-16) var(--space-20) var(--space-14);
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.bilheteTrecho {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.bilhetePonta {
+  display: grid;
+  gap: 2px;
+}
+
+.bilhetePontaFim {
+  text-align: right;
+}
+
+.bilheteRotulo {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-mint-highlight);
+}
+
+.bilheteHora {
+  font-family: var(--font-heading);
+  font-size: 30px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.bilheteDia {
+  font-size: var(--font-size-md);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* O trajeto entre as duas horas: pontilhado com uma bolinha em cada ponta. */
+.bilheteTrajeto {
+  position: relative;
+  flex: 1;
+  height: 2px;
+  margin-top: 4px;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.6) 1px, transparent 1.5px);
+  background-size: 7px 2px;
+  background-repeat: repeat-x;
+}
+
+.bilheteTrajeto::before,
+.bilheteTrajeto::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.bilheteTrajeto::before {
+  left: -2px;
+  background: var(--color-mint-highlight);
+}
+
+.bilheteTrajeto::after {
+  right: -2px;
+  border: 2px solid var(--color-mint-highlight);
+}
+
+/* Picote com dois recortes nas laterais, como o canhoto de um bilhete. */
+.bilhetePicote {
+  position: relative;
+  margin: var(--space-14) calc(var(--space-20) * -1) var(--space-10);
+  border-top: 2px dashed rgba(255, 255, 255, 0.3);
+}
+
+.bilhetePicote::before,
+.bilhetePicote::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-surface);
+}
+
+.bilhetePicote::before {
+  left: -9px;
+}
+
+.bilhetePicote::after {
+  right: -9px;
+}
+
+.bilheteRodape {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-12);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ---- resultados ---- */
+.resultados {
+  display: grid;
+  gap: var(--space-16);
+  scroll-margin-top: var(--space-16);
+}
+
+.resultadosTitulo {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.resultadosTexto {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-md);
+  color: var(--color-text-support);
+}
+
+.lista {
+  display: grid;
+  gap: var(--space-16);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resultado {
+  overflow: hidden;
+  border: 1px solid var(--color-surface-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.resultado > :first-child {
+  border-radius: 0;
+}
+
+.aderencia {
+  align-self: flex-start;
+  padding: var(--space-4) var(--space-10);
+  border-radius: 8px;
+  background: var(--color-mint-highlight);
+  color: var(--color-text-on-mint);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.aderenciaMedia {
+  background: #ffffff;
+  color: var(--color-text);
+}
+
+.resultadoCorpo {
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-16);
+}
+
+.resultadoTopo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.resultadoNome {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+}
+
+.resultadoDescricao {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-md);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.preco {
+  display: grid;
+  justify-items: end;
+  flex-shrink: 0;
+}
+
+.precoValor {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.precoNota {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-support);
+}
+
+.motivos {
+  display: grid;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.motivos li {
+  display: flex;
+  gap: var(--space-8);
+  font-size: var(--font-size-md);
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.motivos svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-12);
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--color-surface-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-support);
+}
+
+.reservar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  min-height: 48px;
+  border-radius: 12px;
+  background: var(--color-primary);
+  color: #ffffff;
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.reservar:hover {
+  background: #004c3a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reservar {
+    transition: none;
+  }
+}

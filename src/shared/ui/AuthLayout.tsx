@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { FOTO_PASSEIO } from "@/shared/landing/fotos";
 import styles from "./AuthLayout.module.css";
+import { FotoCapa } from "./FotoCapa";
 import { Logo } from "./Logo";
 
 type AuthLayoutProps = {
@@ -45,7 +47,9 @@ export function AuthLayout({
         <div className={styles.content}>
           {showBanner && (
             <div className={styles.banner}>
-              <span className={styles.bannerTag}>📍 Sua ilha, no seu ritmo</span>
+              <FotoCapa foto={FOTO_PASSEIO} formato="faixa" sizes="430px" priority>
+                <span className={styles.bannerTag}>São Luís · Avenida Litorânea</span>
+              </FotoCapa>
             </div>
           )}
 

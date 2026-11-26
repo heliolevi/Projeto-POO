@@ -81,6 +81,28 @@
   gap: var(--space-16);
 }
 
+.heroiFotos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-12);
+  margin-top: var(--space-16);
+}
+
+.heroiFoto,
+.fotoCartao {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-lg, 16px);
+}
+
+.fotoCartao {
+  margin-bottom: var(--space-12);
+  aspect-ratio: 16 / 10;
+}
+
 .selo {
   justify-self: start;
   padding: var(--space-4) var(--space-12);

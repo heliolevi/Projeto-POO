@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { ROTULO_ATIVIDADE } from "@/shared/dominio/ciclista-rotulos";
 import { ehAtividade } from "@/shared/dominio/ciclista";
@@ -8,6 +9,7 @@ import { Alert } from "@/shared/ui/Alert";
 import { Badge } from "@/shared/ui/Badge";
 import { Card } from "@/shared/ui/Card";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { fotoDoTipo } from "./fotos";
 import { faixaDeAltura, ordenarPorPreco, type TipoPublico } from "./locadora";
 import styles from "./landing.module.css";
 
@@ -72,9 +74,19 @@ export function TiposEmDestaque() {
 
   return (
     <ul className={`${styles.grade} ${styles.grade3}`}>
-      {estado.tipos.map((tipo) => (
+      {estado.tipos.map((tipo) => {
+        const foto = fotoDoTipo(tipo.atividades);
+        return (
         <li key={tipo.id}>
           <Card className={styles.cartaoDaLista} title={tipo.nome} action={<Badge variant="sucesso">{formatarReais(tipo.precoDiaCentavos)}/dia</Badge>}>
+            <Image
+              className={styles.fotoCartao}
+              src={foto.src}
+              alt={foto.alt}
+              width={foto.largura}
+              height={foto.altura}
+              sizes="(min-width: 720px) 330px, 100vw"
+            />
             {tipo.descricao && <p style={{ margin: 0 }}>{tipo.descricao}</p>}
             <p className={styles.precoCartao}>
               <strong>{formatarReais(tipo.precoHoraCentavos)}</strong> por hora
@@ -89,7 +101,8 @@ export function TiposEmDestaque() {
             </div>
           </Card>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }
