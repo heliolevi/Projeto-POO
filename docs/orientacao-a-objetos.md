@@ -17,7 +17,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `contas` | `Usuario` (abstrata), `Cliente`, `Operador`, `Admin` |
 | `catalogo` | `Empresa`, `Ponto`, `TipoBicicleta`, `Bicicleta` |
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia` |
-| `reservas` | `Reserva`, `ReservaService` |
+| `reservas` | `Reserva`, `ReservaService`, `FiltroDoPainel`, `ReservaDoPainel`, `PainelDeReservas`, `RepositorioDoPainel`, `ControladorDoPainel` |
 | `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService` |
 | `operacao` | `Movimentacao`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo`, `OperacaoService` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |

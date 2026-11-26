@@ -125,7 +125,7 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 22 | `GET /api/admin/bicicletas` | ADMIN | existe | Hélio | Hélio |
 | 23 | `POST /api/admin/bicicletas` | ADMIN | existe | Hélio | Hélio |
 | 24 | `PATCH /api/admin/bicicletas/{id}` | ADMIN | existe | Hélio | Hélio |
-| 25 | `GET /api/admin/reservas` | OPERADOR, ADMIN | novo | Hélio | Luis |
+| 25 | `GET /api/admin/reservas` | OPERADOR, ADMIN | existe | Luis | Luis |
 | 26 | `POST /api/operacao/reservas/{id}/retirada` | OPERADOR, ADMIN | novo | Hélio | Luis |
 | 27 | `POST /api/operacao/reservas/{id}/devolucao` | OPERADOR, ADMIN | novo | Hélio | Luis |
 
@@ -596,7 +596,12 @@ Reservas para o painel, com o nome do cliente e a unidade escolhida.
               "valorAluguelCentavos": 4000 } ] }
 ```
 
-**Erros:** `400`, `401`, `403`.
+**Erros:** `400` (`details`: `status` ou `data`), `401`, `403`.
+
+A lista vem do mais cedo para o mais tarde (`inicio`) e traz no máximo 1.000 reservas. Antes de listar, o
+servidor marca como `EXPIRADA` as pendentes vencidas, então o painel nunca mostra como pendente uma reserva
+que já caiu. `data` precisa ser uma data que exista, entre 2000 e 2100. Texto vazio em `status` ou `data` vale
+como "sem esse filtro".
 
 ### 26. `POST /api/operacao/reservas/{id}/retirada`
 
