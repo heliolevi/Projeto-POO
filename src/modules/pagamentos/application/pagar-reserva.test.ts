@@ -135,10 +135,12 @@ function montar(opcoes: OpcoesDoMontar = {}) {
   const erros: unknown[] = [];
   const limites: number[] = [];
   let emTransacao = 0;
+  let transacoes = 0;
   const deps: DependenciasPagarReserva = {
     // sem banco de verdade: a "transação" só repassa as operações (o rollback é testado no banco)
     transacao: async (_sessao, fn) => {
       emTransacao += 1;
+      transacoes += 1;
       try {
         return await fn(op);
       } finally {
@@ -161,6 +163,8 @@ function montar(opcoes: OpcoesDoMontar = {}) {
   const servico = new PagarReservaService(deps);
 
   return {
+    servico,
+    totalDeTransacoes: () => transacoes,
     reservas,
     pagamentos,
     criadas,
@@ -423,5 +427,44 @@ describe("revisão do #80: concorrência, pagamento tardio, limite e Pix órfão
     assert.deepEqual([...new Set(avisos)], ["ignorado"]);
     assert.equal(m.reservas.get(RESERVA_ID)?.status, "CONFIRMADA");
     assert.equal(m.estornos.length, 0);
+  });
+});
+
+describe("PagarReservaService: regras como membros da classe e encapsulamento", () => {
+  test("as constantes da regra moram na classe", () => {
+    assert.equal(PagarReservaService.VALIDADE_MINIMA_DO_PIX_MS, 60_000);
+    assert.equal(PagarReservaService.INTERVALO_DE_CONSULTA_MS, 6_000);
+    assert.equal(PagarReservaService.MENSAGEM_RESERVA_NAO_ENCONTRADA, "Reserva não encontrada.");
+    assert.equal(
+      PagarReservaService.MENSAGEM_PRAZO_TERMINANDO,
+      "O prazo para pagar esta reserva está terminando. Faça uma nova reserva para pagar com calma.",
+    );
+    assert.equal(
+      PagarReservaService.MENSAGEM_RESERVA_NAO_ACEITA_PAGAMENTO,
+      "Esta reserva não aceita mais pagamento: ela não está pendente de pagamento.",
+    );
+  });
+
+  test("nenhum campo é visível", () => {
+    assert.deepEqual(Object.keys(montar().servico), []);
+  });
+
+  test("a validação do corpo vem antes de tocar no banco: corpo inválido não abre transação nem limite", async () => {
+    const m = montar();
+    const antes = m.limites.length;
+    for (const ruim of [null, [], "texto", {}, { reservaId: "nao-uuid", metodo: "PIX" }, { reservaId: RESERVA_ID, metodo: "CARTAO_CREDITO" }]) {
+      await assert.rejects(m.servico.iniciar(SESSAO, ruim), ValidationError);
+    }
+    assert.equal(m.limites.length, antes);
+    assert.equal(m.totalDeTransacoes(), 0, "corpo inválido nem abre transação");
+    assert.equal(m.criadas.length, 0);
+  });
+
+  test("consultar status com id que não é UUID é 404 sem abrir transação", async () => {
+    const m = montar();
+    await assert.rejects(m.servico.consultarStatus(SESSAO, "xyz"), NotFoundError);
+    await assert.rejects(m.servico.consultarStatus(SESSAO, 42), NotFoundError);
+    assert.equal(m.consultas.length, 0);
+    assert.equal(m.totalDeTransacoes(), 0, "nem a conexão do banco é aberta");
   });
 });

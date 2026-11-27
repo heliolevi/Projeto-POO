@@ -4,7 +4,8 @@ import { ConflictError, NotFoundError, ValidationError } from "../../../shared/h
 import { CodigoRepetido } from "../domain/erros.ts";
 import { CalculadoraDeAluguel } from "../../../shared/dominio/preco-aluguel.ts";
 import { criarBancoFalso } from "./banco-falso.ts";
-import { criarCriarReserva } from "./criar-reserva.ts";
+import { ValidadorDeNovaReserva } from "../domain/validador-de-nova-reserva.ts";
+import { CriadorDeReserva } from "./criar-reserva.ts";
 import type { SessaoCliente } from "./portas.ts";
 
 const A: SessaoCliente = { perfil: "CLIENTE", usuarioId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" };
@@ -26,13 +27,15 @@ function montar({ unidades = 2, codigos = ["BIC-AAAAAA", "BIC-BBBBBB", "BIC-CCCC
     banco.adicionarUnidade({ id: `bike-${i}`, tipoId: TIPO, codigo: `BIC-00${i}` });
   }
   const fila = [...codigos];
-  const criar = criarCriarReserva({
-    transacao: banco.transacao,
+  const criador = new CriadorDeReserva({
+    executor: banco.executor,
     agora: () => AGORA,
-    gerarCodigo: () => fila.shift() ?? `BIC-EXTRA${fila.length}`,
-    calcularValorAluguel: (periodo, precos) => CalculadoraDeAluguel.padrao.calcularValorAluguel(periodo, precos),
+    geradorDeCodigo: { gerar: () => fila.shift() ?? `BIC-EXTRA${fila.length}` },
+    calculadora: CalculadoraDeAluguel.padrao,
+    validador: ValidadorDeNovaReserva.padrao,
   });
-  return { banco, criar };
+  const criar = (sessao: SessaoCliente, corpo: unknown) => criador.criar(sessao, corpo);
+  return { banco, criar, criador };
 }
 
 test("cria a reserva pendente com período, valor e caução congelados e o prazo de 15 minutos", async () => {
@@ -223,20 +226,23 @@ test("unidade fora de DISPONIVEL (manutenção, bloqueada, baixada) não é rese
 test("erro inesperado do banco sobe como está (vira 500) e desfaz a transação", async () => {
   const { banco } = montar();
   const boom = new Error("conexão caiu");
-  const criarComFalha = criarCriarReserva({
-    transacao: (sessao, fn) =>
-      banco.transacao(sessao, (op) =>
-        fn({
-          ...op,
-          inserir: async () => {
-            throw boom;
-          },
-        }),
-      ),
+  const criarComFalha = new CriadorDeReserva({
+    executor: {
+      executar: (sessao, fn) =>
+        banco.executor.executar(sessao, (op) =>
+          fn({
+            ...op,
+            inserir: async () => {
+              throw boom;
+            },
+          }),
+        ),
+    },
     agora: () => AGORA,
-    gerarCodigo: () => "BIC-AAAAAA",
-    calcularValorAluguel: (periodo, precos) => CalculadoraDeAluguel.padrao.calcularValorAluguel(periodo, precos),
+    geradorDeCodigo: { gerar: () => "BIC-AAAAAA" },
+    calculadora: CalculadoraDeAluguel.padrao,
+    validador: ValidadorDeNovaReserva.padrao,
   });
-  await assert.rejects(criarComFalha(A, CORPO), boom);
+  await assert.rejects(criarComFalha.criar(A, CORPO), boom);
   assert.equal(banco.todasAsReservas().length, 0);
 });

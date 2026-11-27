@@ -12,9 +12,6 @@ export const TAMANHO_MAXIMO_DAS_OBSERVACOES = 1000;
 
 export type ItemDoChecklistDto = { nome: string; ok: boolean };
 
-const ehObjeto = (valor: unknown): valor is Record<string, unknown> =>
-  typeof valor === "object" && valor !== null && !Array.isArray(valor);
-
 // Um item conferido: o que foi olhado (freios, pneus...) e se estava em ordem.
 export class ItemDoChecklist {
   readonly #nome: string;
@@ -78,10 +75,14 @@ export class Checklist {
    * Lê o corpo das rotas 26 e 27: `{ "checklist": { "itens": [{ "nome", "ok" }], "observacoes" } }`.
    * Junta todos os problemas num ValidationError (400) com o campo de cada um, como a API responde.
    */
+  static #ehObjeto(valor: unknown): valor is Record<string, unknown> {
+    return typeof valor === "object" && valor !== null && !Array.isArray(valor);
+  }
+
   static deCorpo(corpo: unknown): Checklist {
-    if (!ehObjeto(corpo)) throw new ValidationError("O corpo precisa ser um objeto JSON.");
+    if (!Checklist.#ehObjeto(corpo)) throw new ValidationError("O corpo precisa ser um objeto JSON.");
     const bruto = corpo.checklist;
-    if (!ehObjeto(bruto)) {
+    if (!Checklist.#ehObjeto(bruto)) {
       throw new ValidationError("Dados inválidos.", { checklist: "Envie o checklist com a lista de itens." });
     }
 
@@ -92,12 +93,12 @@ export class Checklist {
       erros.itens = `Envie de 1 a ${MAXIMO_DE_ITENS} itens no checklist.`;
     } else {
       brutos.forEach((itemBruto, i) => {
-        const nome = ehObjeto(itemBruto) && typeof itemBruto.nome === "string" ? itemBruto.nome.trim() : "";
+        const nome = Checklist.#ehObjeto(itemBruto) && typeof itemBruto.nome === "string" ? itemBruto.nome.trim() : "";
         if (!nome || nome.length > TAMANHO_MAXIMO_DO_NOME) {
           erros[`itens[${i}].nome`] = `Informe o nome do item (até ${TAMANHO_MAXIMO_DO_NOME} caracteres).`;
           return;
         }
-        if (!ehObjeto(itemBruto) || typeof itemBruto.ok !== "boolean") {
+        if (!Checklist.#ehObjeto(itemBruto) || typeof itemBruto.ok !== "boolean") {
           erros[`itens[${i}].ok`] = "Marque o item como ok (true) ou com problema (false).";
           return;
         }

@@ -1,4 +1,5 @@
 import type { SessaoBanco } from "../../../shared/db/sessao.ts";
+import type { PeriodoCobravel, Precos } from "../../../shared/dominio/preco-aluguel.ts";
 import type { DadosDeReservaPersistida } from "../domain/reserva-entidade.ts";
 import type { StatusReserva } from "../domain/reserva.ts";
 
@@ -31,7 +32,7 @@ export type ReservaParaGravar = {
 
 // O que se pode fazer dentro de UMA transação do banco (a que o comSessao abre). Os casos de uso
 // só falam com esta interface, então os testes trocam o banco por uma versão em memória.
-export type OperacoesReservas = {
+export interface OperacoesReservas {
   // marca como EXPIRADA toda pendente vencida (função expirar_reservas_vencidas, migration 0008)
   expirarVencidas(): Promise<void>;
   // tipo ATIVO ou null
@@ -52,9 +53,26 @@ export type OperacoesReservas = {
   // null se não existe (ou não é dele). Quem recebe monta a classe Reserva e aplica a regra nela.
   travarReserva(id: string): Promise<LinhaReserva | null>;
   marcarCancelada(id: string): Promise<void>;
-};
+}
 
-export type Transacao = <T>(
-  sessao: SessaoCliente,
-  fn: (operacoes: OperacoesReservas) => Promise<T>,
-) => Promise<T>;
+// Abre a transação com a sessão declarada (o comSessao) e entrega as operações. O
+// RepositorioDeReservas faz isso de verdade; o teste entrega um de mentira (banco-falso.ts).
+export interface ExecutorDeReservas {
+  executar<T>(sessao: SessaoCliente, fn: (operacoes: OperacoesReservas) => Promise<T>): Promise<T>;
+}
+
+// Sorteia o código curto da reserva (GeradorDeCodigoDeReserva, ou um de mentira nos testes).
+export interface GeradorDeCodigo {
+  gerar(): string;
+}
+
+// A regra de preço mora em shared/dominio/preco-aluguel.ts e é a mesma da recomendação: o valor é
+// sempre calculado no servidor.
+export interface CalculoDePreco {
+  calcularValorAluguel(periodo: PeriodoCobravel, precos: Precos): number;
+}
+
+// O limite de reservas por usuário (a LimiteDeTentativas de verdade, ou uma de mentira nos testes).
+export interface LimiteDeReservas {
+  exigirDentroDoLimite(chave: string, regra: { max: number; janelaSegundos: number }): Promise<void>;
+}

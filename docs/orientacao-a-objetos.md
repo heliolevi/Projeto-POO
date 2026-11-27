@@ -17,9 +17,9 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `contas` | `Usuario` (abstrata), `Cliente`, `Operador`, `Admin`, `FabricaDeUsuario`, `ValidadorDeConta`, `CadastroDeCliente`, `Autenticador`, `PerfilDoCiclista`, `ManutencaoDaConta`, `SessaoDaRequisicao`, `EmissorDeSessao`, `RepositorioDeUsuarios`, `ScryptDeSenha`, `ServicoDeToken`, `ControladorDeContas` |
 | `catalogo` | `Empresa`, `Ponto`, `TipoBicicleta`, `Bicicleta`, `ValidadorDoCatalogo`, `ServicoDoCatalogo`, `RepositorioDoCatalogo`, `ControladorDoCatalogo` |
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia`, `BuscaDeRecomendacoes`, `RepositorioDeDisponibilidade`, `ControladorDeRecomendacao` |
-| `reservas` | `Reserva`, `ReservaService`, `FiltroDoPainel`, `ReservaDoPainel`, `PainelDeReservas`, `RepositorioDoPainel`, `ControladorDoPainel` |
-| `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService`, `PagarReservaService`, `IntervaloDeConsulta`, `GatewayPix` (interface), `GatewayStripe`, `CodigoPix` (objeto de valor) |
-| `operacao` | `Movimentacao`, `Checklist`, `ItemDoChecklist`, `OperacaoService`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo` |
+| `reservas` | `Reserva`, `RegrasDeReserva` (status, transições, prazo), `ValidadorDeNovaReserva`, `GeradorDeCodigoDeReserva`, `ReservaService`, `CriadorDeReserva`, `ConsultaDeReservas`, `CancelamentoDeReserva`, `MontadorDeReserva`, `RepositorioDeReservas`, `OperacoesDeReservasNoBanco`, `ControladorDeReservas`, `FiltroDoPainel`, `ReservaDoPainel`, `PainelDeReservas`, `RepositorioDoPainel`, `ControladorDoPainel` |
+| `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `FabricaDePagamento`, `CodigoPix` (objeto de valor), `PagamentoService`, `PagarReservaService`, `IntervaloDeConsulta`, `GatewayPix` (interface), `GatewayStripe` (fetch e chave injetados), `LeitorDeAvisoDaStripe` (webhook assinado), `TraducaoDaStripe`, `QrCodePng`, `OperacoesDePagamentoNoBanco`, `RepositorioDePagamentosNoBanco`, `ControladorDePagamentos` |
+| `operacao` | `Movimentacao`, `Checklist`, `ItemDoChecklist`, `OperacaoService`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `FabricaDeOcorrencia`, `Arquivo`, `RepositorioDeOperacao`, `OperacoesNoBanco`, `ControladorDeOperacao` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
 | `administracao` | `AuditoriaLog` |
 | `shared/empresa` (telas) | `EmpresaDaLocadora`, `PontoDeRetirada`, `Telefone` (objeto de valor), `GradeDeHorarios`, `HorarioDoDia`, `LeitorDeObjeto`, `BuscadorDeEmpresa`, `ResultadoDaEmpresa` (abstrata), `EmpresaCarregada`, `EmpresaSemCadastro`, `EmpresaIndisponivel` |
@@ -94,8 +94,8 @@ validar o código não mexe no pagamento, e `pix.pagavelEmBanco` na resposta é 
   `APP_URL` tem a sua (`UrlDoApp`), as chaves da Stripe usam `ChaveComPrefixo`, e uma variável nova entra na lista de regras sem mexer no validador.
 - `EnviadorDeNotificacao.enviar()`: o `RoteadorDeEnvio` escolhe o enviador pelo canal (web push, WhatsApp
   ou e-mail), e a `Notificacao` só conhece a interface.
-- Fábricas escolhem a subclasse certa: `FabricaDeUsuario.criar(linha)`, `criarPagamento(metodo, dados)` e
-  `abrirOcorrencia(tipo, dados)`.
+- Fábricas escolhem a subclasse certa: `FabricaDeUsuario.criar(linha)`, `FabricaDePagamento.criar(metodo, dados)` e
+  `FabricaDeOcorrencia.abrir(tipo, dados)`.
 
 ### Abstração e interfaces
 
@@ -128,7 +128,7 @@ O diagrama é o ponto de partida. Estes são os pontos em que o código decidiu 
 | `Reserva.cancelar(motivo)`, `confirmar()` ... | Recebem `agora`; `cancelar` não recebe nem guarda motivo | O domínio não lê o relógio, para toda regra de tempo ser testável. O motivo e a data do cancelamento não têm onde ser gravados (o banco grava `cancelada_em` com a própria hora), então o objeto não os carrega. |
 | `Reserva.calcularValor()` | `calcularValor(precos)` | O preço vem do tipo, que a reserva não guarda. |
 | `Pagamento.gerarPix()` e `cobrarCartao(token)` | Estão nas filhas, não na abstrata | Só o Pix gera Pix e só o cartão cobra cartão; a abstrata tem `gerar()`. |
-| `Ocorrencia.abrir()` | A fábrica `abrirOcorrencia(tipo, dados)` | Uma ocorrência já nasce aberta. |
+| `Ocorrencia.abrir()` | A fábrica `FabricaDeOcorrencia.abrir(tipo, dados)` | Uma ocorrência já nasce aberta. |
 | `Ocorrencia.cobrarCliente(valor): Pagamento` | Devolve a divisão `{ daCaucao, adicional }` | Criar o `Pagamento` é do módulo de pagamentos; a operação só diz quanto sai da caução e quanto passa dela. |
 | `Notificacao.enviar()` | `enviar(enviador, agora)` | O canal de envio entra como dependência (a interface). |
 | `AuditoriaLog.registrar(...)` | Método estático que cria o registro | Cada registro é imutável depois de criado. |
@@ -234,5 +234,7 @@ construtor (injeção de dependência):
 
 ### O que ainda não foi convertido
 
-Estes grupos ainda têm funções soltas e entram nas próximas fases: os módulos `reservas`, `pagamentos` e `operacao`
-(casos de uso, repositórios e handlers; `contas`, `catalogo` e `recomendacao` já foram convertidos) e as rotas `route.ts`, que passam a só chamar classes.
+Todos os módulos (`contas`, `catalogo`, `recomendacao`, `reservas`, `pagamentos` e `operacao`), as regras
+compartilhadas e a lógica das telas já são classes. O que fica fora das classes é o que o framework
+exige como função ou configuração: as rotas `route.ts` (que só chamam os handlers e os controladores),
+os hooks do React, `instrumentation.ts`, `manifest.ts`, os componentes de interface e as constantes de dados e tipos.

@@ -60,7 +60,9 @@ function montar(status: LinhaReserva["status"], agora: Date, opcoes: Opcoes = {}
   const movimentacoes: MovimentacaoParaPersistir[] = [];
   const travas: string[] = [];
   const op: OperacoesOperacao = {
-    expirarVencidas: async () => {},
+    expirarVencidas: async () => {
+      travas.push("expirar");
+    },
     travarReserva: async (id) => {
       travas.push("reserva");
       return id === ID ? { ...linha } : null;
@@ -173,10 +175,10 @@ describe("POST /api/operacao/reservas/{id}/retirada (rota 26)", () => {
     await assert.rejects(() => montar("CONFIRMADA", INICIO, { semBicicleta: true }).retirar(), MovimentacaoInvalida);
   });
 
-  test("trava a reserva antes da bicicleta (mesma ordem em todo caminho, sem deadlock)", async () => {
+  test("expira as vencidas, trava a reserva e só depois a bicicleta (mesma ordem em todo caminho, sem deadlock)", async () => {
     const m = montar("CONFIRMADA", INICIO);
     await m.retirar();
-    assert.deepEqual(m.travas, ["reserva", "bicicleta"]);
+    assert.deepEqual(m.travas, ["expirar", "reserva", "bicicleta"]);
   });
 });
 
@@ -192,7 +194,7 @@ describe("POST /api/operacao/reservas/{id}/devolucao (rota 27)", () => {
   test("a devolução não depende do status da bicicleta (ela pode voltar com problema)", async () => {
     const m = montar("EM_ANDAMENTO", FIM, { statusDaBicicleta: "MANUTENCAO" });
     assert.equal((await m.devolver()).status, "CONCLUIDA");
-    assert.deepEqual(m.travas, ["reserva"]);
+    assert.deepEqual(m.travas, ["expirar", "reserva"]);
   });
 
   test("retirada e devolução seguidas levam CONFIRMADA a CONCLUIDA", async () => {
@@ -219,4 +221,42 @@ test("estresse: 2 mil ciclos de retirada e devolução em reservas diferentes", 
     assert.equal(m.linha.status, "CONCLUIDA");
   }
   assert.ok(performance.now() - inicio < 5000, "2 mil ciclos passaram de 5 s");
+});
+
+test("o serviço é encapsulado: nenhum campo visível", () => {
+  const servico = new OperacaoService({
+    transacao: (_s, fn) => fn({} as OperacoesOperacao),
+    agora: () => INICIO,
+    montarReserva: (l) => new Reserva(l),
+    montarBicicleta: (b) => new Bicicleta(b),
+  });
+  assert.deepEqual(Object.keys(servico), []);
+});
+
+test("ordem: o id é conferido antes de ler o corpo, e o corpo antes de abrir a transação", async () => {
+  const eventos: string[] = [];
+  const servico = new OperacaoService({
+    transacao: async () => {
+      eventos.push("transacao");
+      throw new NotFoundError("x");
+    },
+    agora: () => INICIO,
+    montarReserva: (l) => new Reserva(l),
+    montarBicicleta: (b) => new Bicicleta(b),
+  });
+  const ler = (valor: unknown) => async () => {
+    eventos.push("corpo");
+    return valor;
+  };
+  await assert.rejects(() => servico.registrarRetirada(SESSAO, "abc", ler(corpo())), NotFoundError);
+  await assert.rejects(() => servico.registrarRetirada(SESSAO, ID, ler({ checklist: { itens: [] } })), ValidationError);
+  await assert.rejects(() => servico.registrarDevolucao(SESSAO, ID, ler(corpo())), NotFoundError);
+  assert.deepEqual(eventos, ["corpo", "corpo", "transacao"]);
+});
+
+test("a segunda retirada da mesma reserva é 409 e só uma movimentação fica gravada", async () => {
+  const m = montar("CONFIRMADA", INICIO);
+  await m.retirar();
+  await assert.rejects(() => m.retirar(), ConflictError);
+  assert.equal(m.movimentacoes.length, 1);
 });

@@ -93,6 +93,9 @@ export class OperacoesDoPainelNoBanco implements OperacoesDoPainel {
 
 // Abre a transação no banco do app, com a sessão da equipe, e entrega as operações do painel.
 export class RepositorioDoPainel implements ExecutorDoPainel {
+  /** O do app. */
+  static readonly padrao = new RepositorioDoPainel(BancoDeDados.padrao);
+
   readonly #banco: Pick<BancoDeDados, "comSessao">;
 
   constructor(banco: Pick<BancoDeDados, "comSessao"> = BancoDeDados.padrao) {
