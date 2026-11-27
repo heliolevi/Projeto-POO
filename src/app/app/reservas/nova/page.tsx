@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import type { RespostaRecomendacao, Recomendacao } from "@/shared/busca/busca";
 import { formatarDuracao, formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
 import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
-import { BuscadorDeEmpresa, type PontoDeRetirada } from "@/shared/empresa";
+import { EmpresaEmCache, type PontoDeRetirada } from "@/shared/empresa";
 import { lerPedidoDaReserva, motivoDoErro, type PedidoDeReserva } from "@/shared/reservas/nova-reserva";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
@@ -53,7 +53,7 @@ function ResumoDaReserva() {
 
     Promise.all([
       getAutenticado<RespostaRecomendacao>(`/api/recomendacao?${consulta}`),
-      new BuscadorDeEmpresa().buscar(),
+      EmpresaEmCache.padrao.obter(),
     ])
       .then(([recomendacao, empresa]) => {
         if (!ativo) return;

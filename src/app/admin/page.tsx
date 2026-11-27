@@ -29,6 +29,7 @@ import {
 import { Alert } from "@/shared/ui/Alert";
 import { AppShell } from "@/shared/ui/AppShell";
 import { Badge } from "@/shared/ui/Badge";
+import { BotaoSecundario } from "@/shared/ui/BotaoSecundario";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/ui/Card";
 import { EmptyState } from "@/shared/ui/EmptyState";
@@ -136,7 +137,7 @@ function PainelCatalogo() {
       </div>
 
       {erro && (
-        <Alert variant="erro" action={<button type="button" onClick={() => void carregar()}>Tentar de novo</button>}>
+        <Alert variant="erro" action={<BotaoSecundario onClick={() => void carregar()}>Tentar de novo</BotaoSecundario>}>
           {erro}
         </Alert>
       )}
@@ -338,11 +339,7 @@ function NovaBicicleta({
   if (tipos.length === 0) return null;
   const pontos = empresa?.opcoesDePonto(pontosDoEstoque) ?? null;
   if (pontos === null) return <p role="status">Carregando os pontos de retirada...</p>;
-  const tentarDeNovo = (
-    <button type="button" onClick={aoRecarregarPontos}>
-      Tentar de novo
-    </button>
-  );
+  const tentarDeNovo = <BotaoSecundario onClick={aoRecarregarPontos}>Tentar de novo</BotaoSecundario>;
   if (pontos.length === 0) {
     return empresa?.tipo === "erro" ? (
       <Alert variant="erro" action={tentarDeNovo}>

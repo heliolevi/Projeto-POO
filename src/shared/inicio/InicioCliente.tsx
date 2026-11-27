@@ -17,6 +17,7 @@ import { carregarTiposPublicos, useAtividadesPorTipo } from "@/shared/landing/us
 import type { ContaLogada } from "@/shared/perfil/perfil-ciclista";
 import type { Reserva } from "@/shared/reservas/reserva";
 import { SeloStatus } from "@/shared/reservas/SeloStatus";
+import { BotaoSecundario } from "@/shared/ui/BotaoSecundario";
 import { FotoCapa } from "@/shared/ui/FotoCapa";
 import { primeiroNome, proximaReserva, saudacao } from "./inicio";
 import styles from "./Inicio.module.css";
@@ -191,9 +192,7 @@ export function InicioCliente() {
         {empresa?.tipo === "erro" && (
           <p role="alert">
             Não foi possível carregar o ponto de retirada.{" "}
-            <button type="button" onClick={recarregarEmpresa}>
-              Tentar de novo
-            </button>
+            <BotaoSecundario onClick={recarregarEmpresa}>Tentar de novo</BotaoSecundario>
           </p>
         )}
         {empresa !== null && empresa.tipo !== "erro" && !ponto && (

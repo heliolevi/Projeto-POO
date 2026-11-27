@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BuscadorDeEmpresa } from "./buscador-de-empresa";
+import { EmpresaEmCache } from "./empresa-em-cache";
 import type { ResultadoDaEmpresa } from "./resultado-da-empresa";
 
 /**
  * Dados da locadora vindos de GET /api/empresa. `resultado` é null enquanto carrega. Uma resposta
- * que chega depois de a tela sair (ou depois de um novo "tentar de novo") é ignorada.
+ * que chega depois de a tela sair (ou depois de um novo "tentar de novo") é ignorada. A busca é
+ * dividida entre as telas pelo EmpresaEmCache; recarregar() descarta o que ele guardou.
  */
 export function useEmpresa(): { resultado: ResultadoDaEmpresa | null; recarregar: () => void } {
   const [resultado, setResultado] = useState<ResultadoDaEmpresa | null>(null);
@@ -14,7 +15,7 @@ export function useEmpresa(): { resultado: ResultadoDaEmpresa | null; recarregar
 
   useEffect(() => {
     let ativo = true;
-    void new BuscadorDeEmpresa().buscar().then((r) => {
+    void EmpresaEmCache.padrao.obter().then((r) => {
       if (ativo) setResultado(r);
     });
     return () => {
@@ -23,6 +24,7 @@ export function useEmpresa(): { resultado: ResultadoDaEmpresa | null; recarregar
   }, [tentativa]);
 
   const recarregar = useCallback(() => {
+    EmpresaEmCache.padrao.invalidar();
     setResultado(null);
     setTentativa((atual) => atual + 1);
   }, []);

@@ -117,7 +117,7 @@ test("HorarioDoDia guarda dia, abertura e fechamento e escreve a hora com dois d
 
 test("HorarioDoDia não existe inválido: dia fora de 0 a 6, hora impossível ou que fecha antes de abrir", () => {
   for (const dia of [7, -1, 1.5, NaN, Infinity]) assert.throws(() => h(dia, "08:00", "18:00"), RangeError, String(dia));
-  for (const [abre, fecha] of [["25:00", "26:00"], ["08:60", "18:00"], ["8h", "18h"], ["", ""], ["18:00", "08:00"], ["08:00", "08:00"], ["08:00:00", "18:00"]]) {
+  for (const [abre, fecha] of [["25:00", "26:00"], ["08:60", "18:00"], ["8h", "18h"], ["", ""], ["18:00", "08:00"], ["08:00", "08:00"], ["08:00:60", "18:00"], ["08:00:5", "18:00"], ["08:00:000", "18:00"], ["08:00:", "18:00"], ["08:00:30", "08:00:45"]]) {
     assert.throws(() => h(1, abre, fecha), RangeError, `${abre}-${fecha}`);
   }
 });
@@ -126,6 +126,20 @@ test("HorarioDoDia.deResposta devolve null para item que não serve, sem lançar
   const ruins: unknown[] = [null, "x", 3, [], {}, { diaSemana: "1", abre: "08:00", fecha: "18:00" }, { diaSemana: 1, abre: null, fecha: "18:00" }, { diaSemana: 9, abre: "08:00", fecha: "18:00" }];
   for (const bruto of ruins) assert.equal(HorarioDoDia.deResposta(bruto), null, JSON.stringify(bruto));
   assert.ok(HorarioDoDia.deResposta({ diaSemana: 3, abre: "08:00", fecha: "18:00" }));
+});
+
+test("HorarioDoDia aceita HH:MM:SS (como um banco ou uma API pode devolver) e descarta os segundos", () => {
+  const horario = h(1, "08:00:00", "18:30:59");
+  assert.equal(horario.abre, "08:00");
+  assert.equal(horario.fecha, "18:30");
+  assert.equal(horario.intervalo, "08:00 às 18:30");
+  assert.deepEqual(HorarioDoDia.deResposta({ diaSemana: 2, abre: "9:00:00", fecha: "17:00:00" })?.paraDto(), { diaSemana: 2, abre: "09:00", fecha: "17:00" });
+});
+
+test("a grade não perde todos os horários quando a API manda HH:MM:SS", () => {
+  const empresa = EmpresaDaLocadora.deResposta(corpoApi({ pontos: [pontoApi({ horarios: [1, 2, 3].map((d) => ({ diaSemana: d, abre: "08:00:00", fecha: "18:00:00" })) })] }));
+  assert.ok(empresa);
+  assert.deepEqual(empresa.pontos[0].horarios.resumir(), [{ dias: "Segunda a quarta", horario: "08:00 às 18:00" }]);
 });
 
 test("HorarioDoDia compara só a hora, não o dia", () => {

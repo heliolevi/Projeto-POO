@@ -3,7 +3,8 @@ import { LeitorDeObjeto } from "./leitor-de-objeto";
 /** Como o horário sai da API (contrato, rota 9). */
 export type HorarioDoPonto = { diaSemana: number; abre: string; fecha: string };
 
-const HORA = /^(\d{1,2}):(\d{2})$/;
+// HH:MM, ou HH:MM:SS como um banco ou uma API pode devolver; os segundos são descartados.
+const HORA = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
 
 // O horário de funcionamento de um dia da semana. O objeto só existe válido: dia de 0 a 6
 // (0 = domingo, como no banco) e abertura antes do fechamento. Os campos são privados e a hora é
@@ -20,7 +21,7 @@ export class HorarioDoDia {
     const aberturaEmMinutos = HorarioDoDia.#minutos(abre);
     const fechamentoEmMinutos = HorarioDoDia.#minutos(fecha);
     if (aberturaEmMinutos === null || fechamentoEmMinutos === null) {
-      throw new RangeError("A hora precisa ter o formato HH:MM, de 00:00 a 23:59.");
+      throw new RangeError("A hora precisa ter o formato HH:MM (ou HH:MM:SS), de 00:00 a 23:59.");
     }
     if (fechamentoEmMinutos <= aberturaEmMinutos) {
       throw new RangeError("O horário de abertura precisa ser antes do de fechamento.");
@@ -50,7 +51,8 @@ export class HorarioDoDia {
     if (!partes) return null;
     const hora = Number(partes[1]);
     const minuto = Number(partes[2]);
-    return hora > 23 || minuto > 59 ? null : hora * 60 + minuto;
+    const segundo = partes[3] === undefined ? 0 : Number(partes[3]);
+    return hora > 23 || minuto > 59 || segundo > 59 ? null : hora * 60 + minuto;
   }
 
   static #escrever(minutos: number): string {
