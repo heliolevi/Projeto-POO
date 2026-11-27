@@ -19,3 +19,11 @@ export {
   type StatusDeOcorrencia,
   type TipoDeOcorrencia,
 } from "./domain/ocorrencia";
+export {
+  criarRegistrarDevolucao,
+  criarRegistrarRetirada,
+  validarChecklist,
+  type ChecklistValidado,
+  type ReservaComBicicleta,
+} from "./application/registrar-movimentacao";
+export { postDevolucao, postRetirada } from "./http/handlers";
