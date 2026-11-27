@@ -93,24 +93,44 @@ for (const [nome, codigo] of Object.entries(PERMITIDOS)) {
 // avisa. As duas exceções são decisões do projeto: o Node apagaria, mas o projeto reprova.
 const ESTRITO_DE_PROPOSITO = new Set(["namespace só com tipos", "import type x = require"]);
 
-function nodeRoda(codigo: string): boolean {
+// "roda": saiu sem erro. "recusa": o Node não aceitou a sintaxe (SyntaxError, inclusive o
+// ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX). Qualquer outra coisa (erro em tempo de execução, timeout,
+// sinal) não prova nada sobre a sintaxe, e o teste falha mostrando o que houve.
+type VeredictoDoNode = "roda" | "recusa" | { inesperado: string };
+
+function veredictoDoNode(codigo: string): VeredictoDoNode {
   const execucao = spawnSync(process.execPath, ["--input-type=module-typescript", "--eval", codigo], {
     encoding: "utf8",
     timeout: 15_000,
   });
-  return execucao.status === 0;
+  if (execucao.error || execucao.signal) {
+    return { inesperado: `${execucao.error?.message ?? ""} ${execucao.signal ?? ""}`.trim() };
+  }
+  if (execucao.status === 0) return "roda";
+  if (/SyntaxError|ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/.test(execucao.stderr)) return "recusa";
+  return { inesperado: execucao.stderr.split("\n").find((linha) => /Error/.test(linha)) ?? `status ${execucao.status}` };
 }
 
 test("o Node recusa cada trecho de PROIBIDOS (fora as decisões de projeto) e roda cada um de PERMITIDOS", () => {
   const erradas: string[] = [];
+  const conferir = (lista: string, nome: string, esperado: "roda" | "recusa", codigo: string) => {
+    const veredicto = veredictoDoNode(codigo);
+    if (veredicto !== esperado) {
+      const visto = typeof veredicto === "string" ? veredicto : `resultado inesperado: ${veredicto.inesperado}`;
+      erradas.push(`${lista} "${nome}": esperava "${esperado}", veio ${visto}`);
+    }
+  };
   for (const [nome, codigo] of Object.entries(PROIBIDOS)) {
-    const roda = nodeRoda(codigo);
-    if (ESTRITO_DE_PROPOSITO.has(nome) ? !roda : roda) erradas.push(`PROIBIDOS "${nome}": o Node ${roda ? "roda" : "recusa"}`);
+    conferir("PROIBIDOS", nome, ESTRITO_DE_PROPOSITO.has(nome) ? "roda" : "recusa", codigo);
   }
-  for (const [nome, codigo] of Object.entries(PERMITIDOS)) {
-    if (!nodeRoda(codigo)) erradas.push(`PERMITIDOS "${nome}": o Node recusa`);
-  }
+  for (const [nome, codigo] of Object.entries(PERMITIDOS)) conferir("PERMITIDOS", nome, "roda", codigo);
   assert.deepEqual(erradas, []);
+});
+
+test("um erro em tempo de execução não conta como o Node recusando a sintaxe", () => {
+  assert.equal(veredictoDoNode("export const a = 1;"), "roda");
+  assert.equal(veredictoDoNode("export enum E { A }"), "recusa");
+  assert.equal(typeof veredictoDoNode("throw new ReferenceError('x');"), "object");
 });
 
 // Segunda barreira: o próprio TypeScript (job typecheck) recusa a sintaxe não apagável em todo .ts
@@ -125,8 +145,11 @@ test("o tsconfig liga erasableSyntaxOnly", () => {
 
 // A opção existe a partir do TypeScript 5.8: a faixa do package.json não pode aceitar uma versão sem ela.
 // Vale a menor versão que a faixa aceita (o primeiro número dela: "^5.8", ">=5.8", "~5.9", "^6");
-// "x" ou parte ausente contam como 0 ("5.x" aceita a 5.0 e é recusada).
+// "x" ou parte ausente contam como 0 ("5.x" aceita a 5.0 e é recusada). Faixas com limite de cima ou
+// alternativas ("<6", "a || b", "a - b") não têm o mínimo no primeiro número: são recusadas, para o
+// teste nunca aprovar uma faixa que não entende.
 function menorVersaoDaFaixa(faixa: string): [number, number] {
+  if (/<|\|\||\s-\s/.test(faixa)) throw new Error(`faixa de versão que o teste não sabe ler: ${faixa}`);
   const partes = /(\d+)(?:\.(\d+|x|\*))?/i.exec(faixa);
   if (!partes) throw new Error(`faixa de versão ilegível: ${faixa}`);
   return [Number(partes[1]), Number.isNaN(Number(partes[2])) ? 0 : Number(partes[2] ?? 0)];
@@ -138,6 +161,9 @@ test("a menor versão de cada formato de faixa é lida certo", () => {
   assert.deepEqual(menorVersaoDaFaixa("~5.9.3"), [5, 9]);
   assert.deepEqual(menorVersaoDaFaixa("^6"), [6, 0]);
   assert.deepEqual(menorVersaoDaFaixa("5.x"), [5, 0]);
+  for (const faixa of ["<6", "<=5.9", "^5.8 || ^4.9", "4.9 - 5.9"]) {
+    assert.throws(() => menorVersaoDaFaixa(faixa), /não sabe ler/, faixa);
+  }
 });
 
 test("o package.json pede um TypeScript que tem erasableSyntaxOnly (5.8 ou mais novo)", () => {
