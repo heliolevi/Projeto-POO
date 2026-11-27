@@ -156,10 +156,25 @@ test("a regra vale em .ts, .tsx, .mts e .cts, dentro e fora de src", async () =>
   }
 });
 
-test("arquivo de declaração não passa pela regra (é todo ambiente): .d.ts, .d.mts, .d.cts e .d.<ext>.ts", async () => {
-  for (const arquivo of ["src/tipos.d.ts", "src/tipos.d.mts", "src/tipos.d.cts", "src/estilos/botao.d.css.ts"]) {
+test("arquivo de declaração não passa pela regra (é todo ambiente): .d.ts, .d.mts e .d.cts", async () => {
+  for (const arquivo of ["src/tipos.d.ts", "src/tipos.d.mts", "src/tipos.d.cts"]) {
     assert.deepEqual(await errosDaRegra("export enum E { A }", arquivo), [], arquivo);
   }
+});
+
+// O tsc trata qualquer *.d.<algo>.ts como declaração (conferido), inclusive um "pedido.d.test.ts", que
+// o npm test executa: o lint é a única barreira para esses nomes, então eles não ficam de fora.
+test("um arquivo com .d. no meio do nome (pedido.d.test.ts) continua passando pela regra", async () => {
+  for (const arquivo of ["src/pedido.d.test.ts", "src/estilos/botao.d.css.ts"]) {
+    assert.equal((await errosDaRegra("export enum E { A }", arquivo)).length, 1, arquivo);
+  }
+});
+
+test("a fronteira entre módulos vale também para o import type de um .cts", async () => {
+  const [resultado] = await eslint.lintText("import type { X } from '@/modules/reservas/domain/x';\nexport type Y = X;", {
+    filePath: "src/app/x.cts",
+  });
+  assert.ok(resultado.messages.some((m) => m.ruleId === "no-restricted-imports"), JSON.stringify(resultado.messages));
 });
 
 test("a conferência no Node ignora o NODE_OPTIONS de quem roda o teste", () => {

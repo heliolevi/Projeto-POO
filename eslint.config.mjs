@@ -122,16 +122,17 @@ const eslintConfig = defineConfig([
     // Sintaxe não apagável: vale para todo TypeScript do projeto (src, scripts, next.config.ts...).
     // Um .d.ts é todo ambiente. .next, out e build já ficam de fora pelos globalIgnores.
     files: ["**/*.{ts,tsx,mts,cts}"],
-    // .d.ts, .d.mts, .d.cts e .d.<ext>.ts (allowArbitraryExtensions): todos são só declaração
-    ignores: ["**/*.d.*ts"],
+    // Só as formas reais de declaração. Um *.d.<algo>.ts (como pedido.d.test.ts) o tsc também trata
+    // como declaração, mas o npm test executa: aqui o lint é a única barreira, e ele não fica de fora.
+    ignores: ["**/*.d.ts", "**/*.d.mts", "**/*.d.cts"],
     rules: {
       "no-restricted-syntax": ["error", ...sintaxeNaoApagavel],
     },
   },
   {
     // Fronteiras entre módulos: outros módulos e rotas só importam pelo index.ts.
-    // .cts fica de fora: ele importa por require, que no-restricted-imports não confere
-    files: ["src/**/*.{ts,tsx,mts}"],
+    // Em .cts, o import type é conferido; um require(...) não (no-restricted-imports não olha require).
+    files: ["src/**/*.{ts,tsx,mts,cts}"],
     ignores: ["src/modules/**"],
     rules: {
       "no-restricted-imports": [
@@ -141,7 +142,7 @@ const eslintConfig = defineConfig([
     },
   },
   ...modulos.map((modulo) => ({
-    files: [`src/modules/${modulo}/**/*.{ts,tsx,mts}`],
+    files: [`src/modules/${modulo}/**/*.{ts,tsx,mts,cts}`],
     rules: {
       "no-restricted-imports": [
         "error",
