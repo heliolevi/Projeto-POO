@@ -82,7 +82,7 @@ const sintaxeNaoApagavel = [
     // erasableSyntaxOnly recusa, e o lint acompanha o tsc.
     selector: `TSImportEqualsDeclaration:not(${DENTRO_DE_DECLARE})`,
     message:
-      "`import x = ...` não é apagável. Para um módulo (`import x = require(\"...\")`), use `import x from \"...\"`; para um apelido (`import T = N.Y`), use `type T = N.Y` ou uma `const`.",
+      "`import x = ...` não é apagável. Para um módulo, use `import x from \"...\"` (num .cts, que roda como CommonJS, `const x = require(\"...\")`); para um apelido (`import T = N.Y`), use `type T = N.Y` ou uma `const`.",
   },
   {
     // `accessor` é sintaxe de JavaScript que o V8 ainda não roda (o tsc não pega). Sem corpo de
@@ -96,6 +96,13 @@ const sintaxeNaoApagavel = [
     message: "Asserção `<T>x` não é apagável: o Node não aceita esse formato. Use `x as T`.",
   },
   {
+    // `using` e `await using` rodam no Node 24, mas não no Node 22 da CI (SyntaxError): passariam na
+    // máquina de quem escreveu e quebrariam na CI.
+    selector: 'VariableDeclaration[kind="using"], VariableDeclaration[kind="await using"]',
+    message:
+      "`using` não é apagável no Node 22 da CI: o `npm test` quebra com SyntaxError lá. Use try/finally para liberar o recurso.",
+  },
+  {
     // decorator é sintaxe de JavaScript que o V8 ainda não roda: com type stripping o Node dá
     // SyntaxError. O tsc com erasableSyntaxOnly não pega este caso, então ele mora só aqui.
     selector: "Decorator",
@@ -104,7 +111,7 @@ const sintaxeNaoApagavel = [
   },
   {
     selector: `TSExportAssignment:not(${DENTRO_DE_DECLARE})`,
-    message: "`export = x` não é apagável. Use `export default x` ou `export { x }`.",
+    message: "`export = x` não é apagável. Use `export default x` ou `export { x }` (num .cts, `module.exports = x`).",
   },
 ];
 
@@ -112,8 +119,9 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    // Sintaxe não apagável: vale para todo o código-fonte em TypeScript. Um .d.ts é todo ambiente.
-    files: ["src/**/*.{ts,tsx,mts,cts}"],
+    // Sintaxe não apagável: vale para todo TypeScript do projeto (src, scripts, next.config.ts...).
+    // Um .d.ts é todo ambiente. .next, out e build já ficam de fora pelos globalIgnores.
+    files: ["**/*.{ts,tsx,mts,cts}"],
     ignores: ["**/*.d.ts", "**/*.d.mts", "**/*.d.cts"],
     rules: {
       "no-restricted-syntax": ["error", ...sintaxeNaoApagavel],

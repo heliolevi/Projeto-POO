@@ -13,10 +13,8 @@ import ts from "typescript";
 const RAIZ = fileURLToPath(new URL("../../../", import.meta.url));
 const eslint = new ESLint({ cwd: RAIZ });
 
-async function errosDaRegra(codigo: string): Promise<string[]> {
-  const [resultado] = await eslint.lintText(codigo, {
-    filePath: "src/shared/qualidade/amostra.ts",
-  });
+async function errosDaRegra(codigo: string, arquivo = "src/shared/qualidade/amostra.ts"): Promise<string[]> {
+  const [resultado] = await eslint.lintText(codigo, { filePath: arquivo });
   // um trecho que nem compila não pode passar por "aceito": a regra nem chegaria a rodar
   const fatal = resultado.messages.find((mensagem) => mensagem.fatal);
   if (fatal) throw new Error(`o trecho não compila: ${fatal.message}`);
@@ -46,6 +44,10 @@ const PROIBIDOS: Record<string, string> = {
   accessor: "export class A { accessor x = 1 }",
   // <T>x: o Node recusa no type stripping (use x as T); o tsc também recusa
   "<T>x": "const v: unknown = 1;\nexport const n = <number>v;",
+  // using roda no Node 24, mas não no Node 22 da CI (SyntaxError, conferido): passa na máquina de
+  // quem escreveu e quebra na CI. Por depender da versão, fica fora da conferência no Node abaixo.
+  using: "function abrir() { return { [Symbol.dispose]() {} }; }\n{ using c = abrir(); }\nexport {};",
+  "await using": "async function abrir() { return { async [Symbol.asyncDispose]() {} }; }\n{ await using c = await abrir(); }\nexport {};",
 };
 
 for (const [nome, codigo] of Object.entries(PROIBIDOS)) {
@@ -88,32 +90,40 @@ for (const [nome, codigo] of Object.entries(PERMITIDOS)) {
   });
 }
 
-// As listas acima afirmam o que o Node apaga ou não. Aqui cada trecho roda de verdade no Node que
+// As listas acima afirmam o que o Node apaga ou não. Aqui cada trecho passa de verdade pelo Node que
 // executa o teste (na CI, o Node 22): se uma versão do Node mudar o que consegue apagar, este teste
 // avisa. As duas exceções são decisões do projeto: o Node apagaria, mas o projeto reprova.
 const ESTRITO_DE_PROPOSITO = new Set(["namespace só com tipos", "import type x = require"]);
+// aceito ou não conforme a versão do Node (ver o comentário em PROIBIDOS)
+const DEPENDE_DA_VERSAO = new Set(["using", "await using"]);
 
-// "roda": saiu sem erro. "recusa": o Node não aceitou a sintaxe (SyntaxError, inclusive o
-// ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX). Qualquer outra coisa (erro em tempo de execução, timeout,
-// sinal) não prova nada sobre a sintaxe, e o teste falha mostrando o que houve.
-type VeredictoDoNode = "roda" | "recusa" | { inesperado: string };
+// Só a sintaxe interessa, não o que o código faz. A primeira linha do trecho lança uma sentinela: se
+// o Node chegou a executá-la, ele aceitou a sintaxe do trecho inteiro, e o resto nunca roda (nenhum
+// erro de execução se mistura). Se a sentinela não aparece e há SyntaxError (inclusive o
+// ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX), o Node recusou. Qualquer outra coisa (timeout, sinal) não
+// prova nada, e o teste falha mostrando o que houve.
+const SENTINELA = "__SINTAXE_ACEITA__";
+type VeredictoDoNode = "aceita" | "recusa" | { inesperado: string };
 
 function veredictoDoNode(codigo: string): VeredictoDoNode {
-  const execucao = spawnSync(process.execPath, ["--input-type=module-typescript", "--eval", codigo], {
-    encoding: "utf8",
-    timeout: 15_000,
-  });
+  const execucao = spawnSync(
+    process.execPath,
+    ["--input-type=module-typescript", "--eval", `throw new Error("${SENTINELA}");\n${codigo}`],
+    { encoding: "utf8", timeout: 15_000 },
+  );
   if (execucao.error || execucao.signal) {
     return { inesperado: `${execucao.error?.message ?? ""} ${execucao.signal ?? ""}`.trim() };
   }
-  if (execucao.status === 0) return "roda";
-  if (/SyntaxError|ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/.test(execucao.stderr)) return "recusa";
+  // a linha do erro lançado ("Error: __SINTAXE_ACEITA__"), e não o eco do código-fonte: quando o Node
+  // recusa a sintaxe, ele imprime as linhas em volta do erro, e a da sentinela vem junto
+  if (new RegExp(`^Error: ${SENTINELA}$`, "m").test(execucao.stderr)) return "aceita";
+  if (/SyntaxError|ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX|ERR_INVALID_TYPESCRIPT_SYNTAX/.test(execucao.stderr)) return "recusa";
   return { inesperado: execucao.stderr.split("\n").find((linha) => /Error/.test(linha)) ?? `status ${execucao.status}` };
 }
 
-test("o Node recusa cada trecho de PROIBIDOS (fora as decisões de projeto) e roda cada um de PERMITIDOS", () => {
+test("o Node recusa cada trecho de PROIBIDOS (fora as decisões de projeto) e aceita cada um de PERMITIDOS", () => {
   const erradas: string[] = [];
-  const conferir = (lista: string, nome: string, esperado: "roda" | "recusa", codigo: string) => {
+  const conferir = (lista: string, nome: string, esperado: "aceita" | "recusa", codigo: string) => {
     const veredicto = veredictoDoNode(codigo);
     if (veredicto !== esperado) {
       const visto = typeof veredicto === "string" ? veredicto : `resultado inesperado: ${veredicto.inesperado}`;
@@ -121,16 +131,31 @@ test("o Node recusa cada trecho de PROIBIDOS (fora as decisões de projeto) e ro
     }
   };
   for (const [nome, codigo] of Object.entries(PROIBIDOS)) {
-    conferir("PROIBIDOS", nome, ESTRITO_DE_PROPOSITO.has(nome) ? "roda" : "recusa", codigo);
+    if (DEPENDE_DA_VERSAO.has(nome)) continue;
+    conferir("PROIBIDOS", nome, ESTRITO_DE_PROPOSITO.has(nome) ? "aceita" : "recusa", codigo);
   }
-  for (const [nome, codigo] of Object.entries(PERMITIDOS)) conferir("PERMITIDOS", nome, "roda", codigo);
+  for (const [nome, codigo] of Object.entries(PERMITIDOS)) conferir("PERMITIDOS", nome, "aceita", codigo);
   assert.deepEqual(erradas, []);
 });
 
 test("um erro em tempo de execução não conta como o Node recusando a sintaxe", () => {
-  assert.equal(veredictoDoNode("export const a = 1;"), "roda");
+  assert.equal(veredictoDoNode("export const a = 1;"), "aceita");
   assert.equal(veredictoDoNode("export enum E { A }"), "recusa");
-  assert.equal(typeof veredictoDoNode("throw new ReferenceError('x');"), "object");
+  // SyntaxError em tempo de execução (JSON quebrado) não é recusa de sintaxe: o código nem roda
+  assert.equal(veredictoDoNode("export const x: unknown = JSON.parse('{');"), "aceita");
+  assert.equal(veredictoDoNode("throw new ReferenceError('x');"), "aceita");
+});
+
+// A regra vale para .ts, .tsx, .mts e .cts (e não para .d.ts, que é todo ambiente). Se o `files` ou
+// o `ignores` do eslint.config.mjs mudarem, estes casos acusam.
+test("a regra vale em .ts, .tsx, .mts e .cts, dentro e fora de src", async () => {
+  for (const arquivo of ["src/x.tsx", "src/x.mts", "src/x.cts", "scripts/x.ts", "x.config.ts"]) {
+    assert.equal((await errosDaRegra("export enum E { A }", arquivo)).length, 1, arquivo);
+  }
+});
+
+test("um .d.ts não passa pela regra (é todo ambiente)", async () => {
+  assert.deepEqual(await errosDaRegra("export enum E { A }", "src/tipos.d.ts"), []);
 });
 
 // Segunda barreira: o próprio TypeScript (job typecheck) recusa a sintaxe não apagável em todo .ts
