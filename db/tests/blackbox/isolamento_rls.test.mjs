@@ -168,7 +168,10 @@ await rodarSuite('blackbox/isolamento_rls', async (executor, client) => {
       assert((await como(clienteA, () => cancelarReserva(reservaB))).rowCount === 0, 'o cliente A alterou a reserva do cliente B');
       assert((await como(clienteA, () => recusarPagamento(pagamentoB))).rowCount === 0, 'o cliente A alterou o pagamento do cliente B');
 
-      // controle: nas próprias linhas a mesma operação funciona
+      // controle: nas próprias linhas a mesma operação funciona. Atenção: o controle do pagamento só
+      // prova que a política ATUAL deixa o cliente alterar o próprio pagamento (é o servidor quem muda
+      // o status, com a sessão do cliente). Não é uma regra desejada: se um dia a política for apertada
+      // para só o servidor mudar o status, ajuste este controle junto.
       assert((await como(clienteA, () => cancelarReserva(reservaA))).rowCount === 1, 'controle: o cliente A deveria cancelar a própria reserva');
       assert((await como(clienteA, () => recusarPagamento(pagamentoA))).rowCount === 1, 'controle: o cliente A deveria alterar o próprio pagamento');
 
@@ -220,5 +223,27 @@ await rodarSuite('blackbox/isolamento_rls', async (executor, client) => {
         (await como(visitante, () => client.query(`UPDATE pagamento SET status = 'RECUSADO' WHERE id = $1`, [pagamentoA]))).rowCount === 0,
         'visitante alterou um pagamento',
       );
+    }));
+
+  // Duas barreiras seguram este caso: o WITH CHECK de pagamento_cliente e, como o UPDATE tem WHERE e
+  // precisa ler a linha, o USING da mesma política aplicado à linha nova. Tirar só o WITH CHECK não
+  // abre o buraco; o teste falha quando as duas deixam passar (conferido sabotando as políticas).
+  await teste('o cliente não consegue mover o próprio pagamento para a reserva de outro', () =>
+    comSavepoint(async () => {
+      await esperarErro(
+        () => como(clienteA, () => client.query('UPDATE pagamento SET reserva_id = $2 WHERE id = $1', [pagamentoA, reservaB])),
+        '42501',
+      );
+      const { rows: [p] } = await client.query('SELECT reserva_id FROM pagamento WHERE id = $1', [pagamentoA]);
+      assert(p.reserva_id === reservaA, 'o pagamento do cliente A mudou de reserva');
+    }));
+
+  await teste('o cliente não consegue apagar reserva nem pagamento (nem os próprios)', () =>
+    comSavepoint(async () => {
+      for (const [tabela, id] of [['reserva', reservaB], ['pagamento', pagamentoB], ['pagamento', pagamentoA]]) {
+        await esperarErro(() => como(clienteA, () => client.query(`DELETE FROM ${tabela} WHERE id = $1`, [id])), '42501');
+      }
+      const { rowCount } = await client.query('SELECT 1 FROM pagamento WHERE id = ANY($1::uuid[])', [[pagamentoA, pagamentoB]]);
+      assert(rowCount === 2, 'algum pagamento sumiu');
     }));
 });

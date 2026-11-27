@@ -144,7 +144,7 @@ PR ou issue do defeito.
 
 ### 4.6 Banco de dados, migrations e RLS
 
-Os casos CT-BD-06 a CT-BD-17, CT-BD-20 e CT-BD-22 a CT-BD-37 correspondem aos testes de `db/tests` (unit, whitebox e
+Os casos CT-BD-06 a CT-BD-17, CT-BD-20 e CT-BD-22 a CT-BD-39 correspondem aos testes de `db/tests` (unit, whitebox e
 blackbox), que a CI roda com `npm run teste:banco`.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
@@ -186,6 +186,8 @@ blackbox), que a CI roda com `npm run teste:banco`.
 | CT-BD-35 | P0 | Cliente registra pagamento em reserva de outro cliente | Recusado pela RLS (`42501`); na própria reserva funciona | Auto | Automatizado (db/tests: `isolamento_rls`) |
 | CT-BD-36 | P0 | Cliente passa a própria reserva para outro cliente (`UPDATE` de `cliente_id`) | Recusado pela RLS (`42501`); a reserva continua dele | Auto | Automatizado (db/tests: `isolamento_rls`) |
 | CT-BD-37 | P0 | Visitante cria reserva ou pagamento e altera um pagamento | Criação recusada (`42501`); alteração não atinge nenhuma linha | Auto | Automatizado (db/tests: `isolamento_rls`) |
+| CT-BD-38 | P0 | Cliente move o próprio pagamento para a reserva de outro cliente (`UPDATE` de `reserva_id`) | Recusado pela RLS (`42501`); o pagamento continua na reserva dele | Auto | Automatizado (db/tests: `isolamento_rls`) |
+| CT-BD-39 | P0 | Cliente apaga reserva ou pagamento (de outro ou o próprio) | Recusado (`42501`): o app não tem permissão de `DELETE` nessas tabelas | Auto | Automatizado (db/tests: `isolamento_rls`) |
 
 ### 4.7 Empresa, catálogo e painel do administrador (rotas 9, 10 e 19 a 24)
 
@@ -421,7 +423,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 | 2 | As rotas 6 (altura) e 7 (termos) listam só `CLIENTE` e os erros 400, 401 e 413. O PR #15 faz a equipe receber 403 | Acrescentar o 403 ao contrato |
 | 3 | O contrato diz que `inicio` "não pode estar no passado"; o PR #14 aceita 5 minutos de folga | Alinhar o texto do contrato com o código |
 | 4 | O cadastro responde 409 para e-mail ou CPF já cadastrado, enquanto o login é cuidadoso para não revelar se a conta existe | Risco de descobrir quem tem conta. Decidir se é aceito no MVP |
-| 5 | Os testes de banco usam uma conexão com savepoint, então não provam concorrência (a disputa pela mesma bicicleta já é coberta com conexões reais, CT-BD-20); a RLS de `pagamento` e o acesso da equipe agora também são exercitados com consultas e escritas reais (CT-BD-29 a CT-BD-37), mas sempre com `SET ROLE app_backend` na conexão do dono, não com o login do `app_login` | Casos CT-BD-18, CT-BD-19 e CT-BD-04 |
+| 5 | Os testes de banco usam uma conexão com savepoint, então não provam concorrência (a disputa pela mesma bicicleta já é coberta com conexões reais, CT-BD-20); a RLS de `pagamento` e o acesso da equipe agora também são exercitados com consultas e escritas reais (CT-BD-29 a CT-BD-39), mas sempre com `SET ROLE app_backend` na conexão do dono, não com o login do `app_login` | Casos CT-BD-18, CT-BD-19 e CT-BD-04 |
 | 6 | O `npm test` da raiz agora roda só `src/**/*.test.ts`; os testes de banco rodam apenas no job de banco da CI | Quem mexer em migration precisa rodar os testes de `db` ou esperar a CI |
 | 7 | A RLS só vale com o papel `app_login`, e o `.env` de desenvolvimento conecta como dono do banco | CT-BD-04 fica `Bloqueado` até o tech lead fechar a pendência |
 | 8 | `src/shared/http/api-cliente.ts` ainda declara `GERENTE_LOCADORA` e `ADMIN_PLATAFORMA` no tipo do perfil, e `lerSessao` aceita token sem `exp` (sugestões do tech lead no PR #19, para outro PR) | Alinhar os tipos com o modelo novo; caso CT-UI-10 |
