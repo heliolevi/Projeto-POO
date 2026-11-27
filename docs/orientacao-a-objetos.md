@@ -19,9 +19,10 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia` |
 | `reservas` | `Reserva`, `ReservaService` |
 | `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService`, `PagarReservaService`, `IntervaloDeConsulta`, `GatewayPix` (interface), `GatewayStripe` |
-| `operacao` | `Movimentacao`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo`, `OperacaoService` |
+| `operacao` | `Movimentacao`, `Checklist`, `ItemDoChecklist`, `OperacaoService`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
 | `administracao` | `AuditoriaLog` |
+| `shared/empresa` (telas) | `EmpresaDaLocadora`, `PontoDeRetirada`, `GradeDeHorarios`, `HorarioDoDia`, `LeitorDeObjeto`, `BuscadorDeEmpresa`, `ResultadoDaEmpresa` (abstrata), `EmpresaCarregada`, `EmpresaSemCadastro`, `EmpresaIndisponivel` |
 
 ## Os quatro pilares
 
@@ -132,11 +133,12 @@ classe é a que está rodando quando ela ainda não está:
 | `RecomendacaoService` e os critérios | `GET /api/recomendacao`. |
 | `Pagamento`, `PagamentoPix`, `PagamentoService`, `PagarReservaService`, `GatewayStripe` | As rotas 16 a 18 (Pix pela Stripe). `GatewayStripe` implementa a interface `GatewayPix`, que é tudo o que os casos de uso conhecem. |
 | `Dinheiro`, `Periodo` | Dentro de `Reserva` e `TipoBicicleta`. |
+| `OperacaoService`, `Movimentacao`, `Checklist`, `ItemDoChecklist` | As rotas 26 e 27 (retirada e devolução). O serviço coordena `Reserva` (`iniciar()`/`concluir()`), `Bicicleta` (`estaDisponivel()`) e `Movimentacao`. |
 
 | Modelo de domínio com testes, ainda sem rota | O que falta para ligar |
 |---|---|
 | `PagamentoCartao` | A rota de pagamento com cartão (o MVP só tem Pix). |
-| `OperacaoService`, `Movimentacao`, `Ocorrencia` (`Dano`, `Atraso`, `Furto`), `Arquivo` | As rotas de retirada e devolução e o armazenamento de arquivos (fase 5 do plano). |
+| `Ocorrencia` (`Dano`, `Atraso`, `Furto`), `Arquivo` | A tabela `ocorrencia` e o armazenamento de arquivos (fase 5 do plano). A devolução com atraso ainda não abre `Atraso`. |
 | `Notificacao`, `RoteadorDeEnvio` | Os canais de envio reais (fase de avisos). |
 | `AuditoriaLog` | A gravação da trilha pelo servidor. |
 | `Empresa`, `Ponto`, `Bicicleta` | Os repositórios que leem do banco para objeto e as rotas que os usam. |
@@ -157,3 +159,28 @@ passarem juntos pela regra; um teste com conexões reais confere isso (um respon
   não muda o JSON das respostas, as rotas nem as migrations.
 - Os testes de banco (`db/tests`) conferem o cancelamento de reserva em conexões reais, inclusive a corrida
   de dois cancelamentos ao mesmo tempo.
+
+## As telas (front-end)
+
+A regra vale também para o que roda no navegador: a lógica das telas mora em classes, e o componente
+React só desenha. Os componentes são funções porque o React pede isso; eles não decidem nada, só
+perguntam aos objetos.
+
+O exemplo é `src/shared/empresa`, que lê `GET /api/empresa`:
+
+- **Encapsulamento.** `EmpresaDaLocadora`, `PontoDeRetirada`, `GradeDeHorarios` e `HorarioDoDia` têm campos
+  privados (`#`), só existem válidos (o construtor lança `RangeError`) e devolvem cópia. O JSON sai por
+  `paraDto()` e `toJSON()`, e só com os campos do contrato.
+- **Resposta da rede sem confiança.** `LeitorDeObjeto` embrulha o valor desconhecido e só deixa ler campo
+  próprio, já no tipo certo; cada classe tem um `static deResposta(...)` que devolve `null` quando o
+  dado não serve. Ponto ou horário inválido é descartado sozinho.
+- **Herança e polimorfismo.** `ResultadoDaEmpresa` é abstrata e tem três filhas: `EmpresaCarregada`,
+  `EmpresaSemCadastro` e `EmpresaIndisponivel`. Todas respondem a `pontoPrincipal()` e
+  `opcoesDePonto(...)`, então a tela pergunta ao objeto em vez de repetir um `if` por situação. Só a
+  escolha do que desenhar usa `instanceof`.
+- **Injeção de dependência.** `BuscadorDeEmpresa` recebe o `fetch` e o tempo limite no construtor; nos
+  testes entra um `fetch` de mentira.
+
+Essas classes não reaproveitam `Empresa` e `Ponto` do módulo `catalogo` de propósito: aquelas ficam do
+lado do servidor (junto do `pg`), e o navegador não pode importá-las. Estas modelam a resposta pública
+da API do lado do cliente.

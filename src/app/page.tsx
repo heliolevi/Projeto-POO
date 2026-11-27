@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { ChamadasDoHeroi, LandingHeader } from "@/shared/landing/LandingHeader";
 import { FOTO_PASSEIO, FOTO_TRILHA } from "@/shared/landing/fotos";
+import { RetiradaEDevolucao } from "@/shared/landing/RetiradaEDevolucao";
 import { TiposEmDestaque } from "@/shared/landing/TiposEmDestaque";
 import { LOCADORA, PASSOS } from "@/shared/landing/locadora";
 import styles from "@/shared/landing/landing.module.css";
@@ -84,33 +85,8 @@ export default function Home() {
           <h2 id="titulo-retirada" className={styles.secaoTitulo}>
             Retirada e devolução
           </h2>
-          <p className={styles.secaoTexto}>Um único ponto, onde ficam todas as bicicletas.</p>
-          <div className={`${styles.grade} ${styles.grade2}`}>
-            <Card title={LOCADORA.ponto.nome}>
-              <ul className={styles.listaSimples}>
-                <li>{LOCADORA.ponto.endereco}</li>
-                <li>Telefone e WhatsApp: {LOCADORA.telefone}</li>
-                <li>E-mail: {LOCADORA.email}</li>
-              </ul>
-            </Card>
-            <Card title="Horário de funcionamento">
-              <ul className={styles.listaSimples}>
-                {LOCADORA.horarios.map((linha) => (
-                  <li key={linha.dias}>
-                    <strong>{linha.dias}:</strong> {linha.horario}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-            <Card title="Na retirada, leve">
-              <p style={{ margin: 0 }}>{LOCADORA.documentosNaRetirada}.</p>
-            </Card>
-            <Card title="Pagamento">
-              <p style={{ margin: 0 }}>
-                O aluguel é pago por Pix na hora da reserva. A caução é combinada no balcão.
-              </p>
-            </Card>
-          </div>
+          <p className={styles.secaoTexto}>Onde ficam as bicicletas, para retirar e devolver.</p>
+          <RetiradaEDevolucao />
         </section>
       </main>
 
