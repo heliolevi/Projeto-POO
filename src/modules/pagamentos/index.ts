@@ -29,12 +29,11 @@ export {
   type RepositorioDePagamentos,
   type ReservaParaPagar,
 } from "./application/pagamento-service";
+export { IntervaloDeConsulta } from "./application/intervalo-de-consulta";
 export {
-  aplicarSituacao,
-  criarConsultarStatus,
-  criarIniciarPagamento,
-  criarProcessarAviso,
+  PagarReservaService,
   type CobrancaPixComQrCode,
+  type DependenciasPagarReserva,
   type ResultadoDoAviso,
   type StatusDoPagamento,
 } from "./application/pagar-reserva";

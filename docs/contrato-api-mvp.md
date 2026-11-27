@@ -506,21 +506,6 @@ eventos ou cobranças desconhecidas (ignorados), para a Stripe não ficar reenvi
 
 **Erros:** `401` (assinatura ausente ou inválida), `413`, `502` (webhook não configurado no ambiente).
 
----|---|
-| **Quem** | Mercado Pago (sem token de usuário; a autenticação é a **assinatura** do aviso) |
-| **Cabeçalhos** | `x-signature` e `x-request-id` (o servidor valida com `MP_WEBHOOK_SECRET`) |
-
-**Corpo (do Mercado Pago):** `{ "type": "payment", "action": "payment.updated", "data": { "id": "123456789" } }`
-
-O servidor **não confia no corpo**: com o `data.id`, consulta o pagamento na API do Mercado Pago. Se
-estiver aprovado, na mesma transação marca o pagamento como `APROVADO` e a reserva como `CONFIRMADA`.
-É **idempotente** (o mesmo aviso repetido não duplica nada, garantido pelo `mp_payment_id` único).
-
-**Sucesso `200`:** `{ "data": { "recebido": true } }`. Também `200` para avisos de outros tipos ou de
-pagamentos desconhecidos (ignorados), para o Mercado Pago não ficar reenviando.
-
-**Erros:** `401` (assinatura ausente ou inválida), `413`.
-
 ---
 
 ## Painel da locadora

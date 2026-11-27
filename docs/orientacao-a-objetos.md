@@ -18,7 +18,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `catalogo` | `Empresa`, `Ponto`, `TipoBicicleta`, `Bicicleta` |
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia` |
 | `reservas` | `Reserva`, `ReservaService` |
-| `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService` |
+| `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService`, `PagarReservaService`, `IntervaloDeConsulta`, `GatewayPix` (interface), `GatewayStripe` |
 | `operacao` | `Movimentacao`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo`, `OperacaoService` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
 | `administracao` | `AuditoriaLog` |
@@ -114,8 +114,8 @@ Dados e regras que a documentação marca como assumidos (não há locadora real
   como hora cheia e, a cada 24 horas de atraso, o valor não passa de uma diária. É a mesma conta do aluguel.
 - **Dano e furto:** o custo sai da caução e, se passar dela, o resto é cobrado do cliente.
 - **Retirada:** a partir de 30 minutos antes do início da reserva e até o fim do período.
-- **Pagamento:** simulado no MVP (a integração com o Mercado Pago está em stand by); `mp_payment_id` fica vazio.
-  O Pix vale 15 minutos, como a reserva pendente.
+- **Pagamento:** Pix pela Stripe; `mp_payment_id` guarda o id do PaymentIntent (`pi_...`). O Pix vale 15 minutos,
+  como a reserva pendente. Pix pago depois de a reserva cair é devolvido inteiro (`ESTORNADO`).
 - **Tipos de ocorrência:** `ACIDENTE` e `OUTRO` existem no banco, mas ainda não têm classe nem regra de cobrança.
 
 ## O que já roda nas rotas e o que é modelo ainda não ligado
@@ -130,11 +130,12 @@ classe é a que está rodando quando ela ainda não está:
 | `ReservaService` | É o que as quatro rotas de reservas chamam. |
 | `TipoBicicleta` | O catálogo público monta cada tipo por `TipoBicicleta` e devolve `paraPublico()`. |
 | `RecomendacaoService` e os critérios | `GET /api/recomendacao`. |
+| `Pagamento`, `PagamentoPix`, `PagamentoService`, `PagarReservaService`, `GatewayStripe` | As rotas 16 a 18 (Pix pela Stripe). `GatewayStripe` implementa a interface `GatewayPix`, que é tudo o que os casos de uso conhecem. |
 | `Dinheiro`, `Periodo` | Dentro de `Reserva` e `TipoBicicleta`. |
 
 | Modelo de domínio com testes, ainda sem rota | O que falta para ligar |
 |---|---|
-| `Pagamento`, `PagamentoPix`, `PagamentoCartao`, `PagamentoService` | As rotas 16 a 18 (pagamento) ainda não existem; o MVP usa pagamento simulado. |
+| `PagamentoCartao` | A rota de pagamento com cartão (o MVP só tem Pix). |
 | `OperacaoService`, `Movimentacao`, `Ocorrencia` (`Dano`, `Atraso`, `Furto`), `Arquivo` | As rotas de retirada e devolução e o armazenamento de arquivos (fase 5 do plano). |
 | `Notificacao`, `RoteadorDeEnvio` | Os canais de envio reais (fase de avisos). |
 | `AuditoriaLog` | A gravação da trilha pelo servidor. |

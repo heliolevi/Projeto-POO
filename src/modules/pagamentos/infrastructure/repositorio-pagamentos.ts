@@ -132,6 +132,14 @@ export function operacoesNoBanco(client: PoolClient): OperacoesPagamento {
       return rows[0] ?? null;
     },
 
+    async buscarPorIdExterno(idExterno) {
+      const { rows } = await client.query<LinhaPagamento>(
+        `SELECT ${COLUNAS} FROM pagamento WHERE mp_payment_id = $1`,
+        [idExterno],
+      );
+      return rows[0] ? paraPagamento(rows[0]) : null;
+    },
+
     async travarPorIdExterno(idExterno) {
       const { rows } = await client.query<LinhaPagamento>(
         `SELECT ${COLUNAS} FROM pagamento WHERE mp_payment_id = $1 FOR UPDATE`,

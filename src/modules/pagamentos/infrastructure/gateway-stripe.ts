@@ -58,8 +58,10 @@ export function situacaoDoPaymentIntent(pi: Pick<Stripe.PaymentIntent, "status" 
   }
 }
 
-export const gatewayStripe: GatewayPix = {
-  async criarCobrancaPix(dados: NovaCobrancaPix) {
+// O meio de pagamento de verdade: implementa a interface GatewayPix, que é tudo o que os casos de uso
+// conhecem (os testes usam outra implementação, em memória).
+export class GatewayStripe implements GatewayPix {
+  async criarCobrancaPix(dados: NovaCobrancaPix): Promise<{ idExterno: string; copiaECola: string }> {
     return semVazarErro("criar a cobrança Pix", async () => {
       const pi = await stripe().paymentIntents.create(
         {
@@ -87,23 +89,31 @@ export const gatewayStripe: GatewayPix = {
       }
       return { idExterno: pi.id, copiaECola };
     });
-  },
+  }
 
-  async consultar(idExterno: string) {
+  async consultar(idExterno: string): Promise<SituacaoNoGateway> {
     return semVazarErro("consultar a cobrança", async () =>
       situacaoDoPaymentIntent(await stripe().paymentIntents.retrieve(idExterno)),
     );
-  },
+  }
 
-  async estornar(idExterno: string) {
+  async estornar(idExterno: string): Promise<void> {
     await semVazarErro("estornar a cobrança", async () => {
       await stripe().refunds.create(
         { payment_intent: idExterno, reason: "requested_by_customer", metadata: { motivo: "reserva_inativa" } },
         { idempotencyKey: `estorno-${idExterno}` },
       );
     });
-  },
-};
+  }
+
+  // Cancela um Pix que nasceu na Stripe mas não chegou ao banco (a transação falhou depois de criar).
+  // Se ele já tiver sido pago ou cancelado, a Stripe recusa, e o erro vai para o log.
+  async cancelar(idExterno: string): Promise<void> {
+    await semVazarErro("cancelar a cobrança", async () => {
+      await stripe().paymentIntents.cancel(idExterno, {}, { idempotencyKey: `cancelamento-${idExterno}` });
+    });
+  }
+}
 
 // Eventos do webhook que interessam: o resto é ignorado (responde 200 para a Stripe não reenviar).
 const EVENTOS: Record<string, SituacaoNoGateway> = {
@@ -126,7 +136,8 @@ export function lerAvisoDaStripe(
   if (!assinatura) throw new AssinaturaInvalida("Aviso sem assinatura.");
   let evento: Stripe.Event;
   try {
-    evento = stripe().webhooks.constructEvent(corpo, assinatura, segredo);
+    // estático: conferir a assinatura só precisa do STRIPE_WEBHOOK_SECRET, não da chave secreta
+    evento = Stripe.webhooks.constructEvent(corpo, assinatura, segredo);
   } catch {
     throw new AssinaturaInvalida("Assinatura do aviso inválida.");
   }

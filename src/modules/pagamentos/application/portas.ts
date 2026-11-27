@@ -33,7 +33,10 @@ export type OperacoesPagamento = RepositorioDePagamentos & {
   confirmarReserva(reservaId: string): Promise<boolean>;
   // nome e e-mail do cliente da sessão
   pagador(): Promise<Pagador | null>;
-  // o pagamento ligado a uma cobrança do meio de pagamento (id do PaymentIntent), travado
+  // o pagamento ligado a uma cobrança do meio de pagamento (id do PaymentIntent), SEM trava: serve
+  // para descobrir a reserva e travá-la primeiro (a ordem é sempre reserva, depois pagamento)
+  buscarPorIdExterno(idExterno: string): Promise<Pagamento | null>;
+  // o mesmo, travado (FOR UPDATE). Só depois de travarReserva da reserva dele.
   travarPorIdExterno(idExterno: string): Promise<Pagamento | null>;
 };
 
@@ -65,4 +68,6 @@ export type GatewayPix = {
   consultar(idExterno: string): Promise<SituacaoNoGateway>;
   // devolve ao cliente o valor inteiro de uma cobrança paga
   estornar(idExterno: string): Promise<void>;
+  // cancela uma cobrança ainda não paga (a que nasceu na Stripe mas não chegou ao banco)
+  cancelar(idExterno: string): Promise<void>;
 };

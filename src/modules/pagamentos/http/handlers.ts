@@ -6,13 +6,8 @@ import { lerTextoLimitado } from "@/shared/http/corpo";
 import { UnauthorizedError } from "@/shared/http/errors";
 import { lerJson } from "@/shared/http/json";
 import { created, errorResponse, ok } from "@/shared/http/response";
-import {
-  criarConsultarStatus,
-  criarIniciarPagamento,
-  criarProcessarAviso,
-  type DependenciasPagarReserva,
-} from "../application/pagar-reserva";
-import { AssinaturaInvalida, gatewayStripe, lerAvisoDaStripe } from "../infrastructure/gateway-stripe";
+import { PagarReservaService } from "../application/pagar-reserva";
+import { AssinaturaInvalida, GatewayStripe, lerAvisoDaStripe } from "../infrastructure/gateway-stripe";
 import { gerarQrCodeBase64 } from "../infrastructure/qr-code";
 import { clienteDoPagamento, emTransacao } from "../infrastructure/repositorio-pagamentos";
 
@@ -24,19 +19,20 @@ const LIMITE_CORPO_WEBHOOK_BYTES = 64 * 1024;
 
 const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
 
-const deps: DependenciasPagarReserva = {
+const gateway = new GatewayStripe();
+
+const pagamentos = new PagarReservaService({
   transacao: emTransacao,
   agora: () => new Date(),
   gerarId: randomUUID,
   gerarQrCode: gerarQrCodeBase64,
-  gateway: () => gatewayStripe,
+  gateway: () => gateway,
   clienteDoPagamento,
   registrarErro: (erro) => console.error("[pagamentos] consulta à Stripe falhou:", erro),
-};
-
-const iniciarPagamento = criarIniciarPagamento(deps);
-const consultarStatus = criarConsultarStatus(deps);
-const processarAviso = criarProcessarAviso(deps);
+  // o limite só conta quando uma cobrança nova vai ser criada (reabrir a tela não conta)
+  limitarCriacao: (sessao) =>
+    exigirDentroDoLimite(query, `pagamentos:usuario:${sessao.usuarioId}`, LIMITE_PAGAMENTOS_POR_USUARIO),
+});
 
 // As rotas 16 e 17 são do CLIENTE dono da reserva: 401 sem sessão válida, 403 para a equipe.
 async function sessaoDoCliente(request: Request) {
@@ -47,8 +43,7 @@ async function sessaoDoCliente(request: Request) {
 export async function postPagamentos(request: Request) {
   try {
     const sessao = await sessaoDoCliente(request);
-    await exigirDentroDoLimite(query, `pagamentos:usuario:${sessao.usuarioId}`, LIMITE_PAGAMENTOS_POR_USUARIO);
-    const { cobranca, criada } = await iniciarPagamento(sessao, await lerJson(request));
+    const { cobranca, criada } = await pagamentos.iniciar(sessao, await lerJson(request));
     return criada ? created(cobranca, SEM_CACHE) : ok(cobranca, SEM_CACHE);
   } catch (erro) {
     return errorResponse(erro);
@@ -60,7 +55,7 @@ export async function postPagamentos(request: Request) {
 export async function getStatusDoPagamento(request: Request, reservaId: string) {
   try {
     const sessao = await sessaoDoCliente(request);
-    return ok(await consultarStatus(sessao, reservaId), SEM_CACHE);
+    return ok(await pagamentos.consultarStatus(sessao, reservaId), SEM_CACHE);
   } catch (erro) {
     return errorResponse(erro);
   }
@@ -78,7 +73,7 @@ export async function postWebhookDePagamento(request: Request) {
       if (erro instanceof AssinaturaInvalida) throw new UnauthorizedError(erro.message);
       throw erro;
     }
-    const resultado = aviso ? await processarAviso(aviso.idExterno, aviso.situacao) : "ignorado";
+    const resultado = aviso ? await pagamentos.processarAviso(aviso.idExterno, aviso.situacao) : "ignorado";
     return ok({ recebido: true, resultado }, SEM_CACHE);
   } catch (erro) {
     return errorResponse(erro);

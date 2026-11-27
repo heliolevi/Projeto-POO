@@ -1,7 +1,8 @@
 import { ConflictError, NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
 import { PagamentoPix, type CobrancaPix } from "../domain/formas-de-pagamento.ts";
 import type { Pagamento, StatusPagamento } from "../domain/pagamento.ts";
-import { PagamentoService } from "./pagamento-service.ts";
+import { IntervaloDeConsulta } from "./intervalo-de-consulta.ts";
+import { PagamentoService, type ReservaParaPagar } from "./pagamento-service.ts";
 import type {
   GatewayPix,
   OperacoesPagamento,
@@ -12,8 +13,14 @@ import type {
 
 // Casos de uso das rotas 16, 17 e 18 (docs/contrato-api-mvp.md), com a Stripe como meio de
 // pagamento. As regras do pagamento (um pendente por reserva, idempotência, prazo do Pix, ciclo de
-// vida) são da classe Pagamento e do PagamentoService; aqui ficam a validação do corpo, a transação,
-// a conversa com a Stripe e a ponte com a reserva (travar, expirar as vencidas, confirmar).
+// vida) são da classe Pagamento e do PagamentoService; aqui ficam a validação do corpo, as
+// transações, a conversa com a Stripe e a ponte com a reserva (travar, expirar as vencidas, confirmar).
+//
+// Duas regras de concorrência valem para todo caminho:
+// 1. A ordem das travas é sempre RESERVA, depois PAGAMENTO, a mesma de expirar_reservas_vencidas()
+//    (migration 0008). Ordem invertida entre o aviso da Stripe e a consulta de status dava deadlock.
+// 2. A consulta à Stripe da rota 17 acontece FORA da transação: a conexão do banco não fica presa
+//    esperando a rede (o pool do app é pequeno).
 
 export const MENSAGEM_RESERVA_NAO_ENCONTRADA = "Reserva não encontrada.";
 export const MENSAGEM_PRAZO_TERMINANDO =
@@ -23,6 +30,9 @@ export const MENSAGEM_RESERVA_NAO_ACEITA_PAGAMENTO =
 
 // A Stripe só aceita Pix que vença pelo menos 60 segundos depois da criação.
 export const VALIDADE_MINIMA_DO_PIX_MS = 60 * 1000;
+
+// A rota 17 pergunta à Stripe sobre a mesma cobrança no máximo a cada 6 s (a tela consulta a cada 3 s).
+export const INTERVALO_DE_CONSULTA_MS = 6 * 1000;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -57,6 +67,12 @@ export type DependenciasPagarReserva = {
   clienteDoPagamento: (idExterno: string) => Promise<string | null>;
   // erros que não devem derrubar a consulta de status (a Stripe fora do ar, por exemplo)
   registrarErro?: (erro: unknown) => void;
+  // limite de cobranças NOVAS por cliente (contrato, rota 16: 10 por hora). Só conta quando uma
+  // cobrança vai mesmo ser criada; reabrir a tela e reaproveitar o Pix pendente não conta. Roda
+  // fora de qualquer transação (usa a sua própria conexão).
+  limitarCriacao?: (sessao: SessaoCliente) => Promise<void>;
+  // de quanto em quanto tempo a rota 17 pode perguntar à Stripe sobre a mesma cobrança
+  intervaloDeConsulta?: IntervaloDeConsulta;
 };
 
 // Corpo da rota 16: { "reservaId": "uuid", "metodo": "PIX" }. Por enquanto só PIX.
@@ -71,188 +87,237 @@ function validarCorpo(corpo: unknown): { reservaId: string } {
   return { reservaId: reservaId as string };
 }
 
-// O serviço de domínio montado sobre as operações desta transação: a aprovação confirma a reserva
-// na mesma transação em que o pagamento é gravado.
-function servicoNaTransacao(
-  op: OperacoesPagamento,
-  deps: DependenciasPagarReserva,
-  extras: { gerarId?: () => string; registrarCobranca?: (p: Pagamento) => Promise<void> } = {},
-) {
-  return new PagamentoService({
-    repositorio: op,
-    agora: deps.agora,
-    gerarId: extras.gerarId ?? deps.gerarId,
-    registrarCobranca:
-      extras.registrarCobranca ??
-      (async () => {
-        throw new Error("Cobrança nova só nasce na rota 16.");
-      }),
-    aoAprovar: async (reservaId) => {
-      if (!(await op.confirmarReserva(reservaId))) {
-        throw new ConflictError(MENSAGEM_RESERVA_NAO_ACEITA_PAGAMENTO);
-      }
-    },
-  });
-}
-
 async function lerSituacao(op: OperacoesPagamento, reservaId: string): Promise<StatusDoPagamento> {
   const situacao = await op.situacao(reservaId);
   if (!situacao) throw new NotFoundError(MENSAGEM_RESERVA_NAO_ENCONTRADA);
   return { reservaId, statusPagamento: situacao.statusPagamento, statusReserva: situacao.statusReserva };
 }
 
-// Aplica ao pagamento o que a Stripe diz da cobrança. Usado pelo aviso (rota 18) e pela consulta de
-// status (rota 17), dentro da transação do cliente dono do pagamento e com o pagamento travado:
-// - aprovado e a reserva ainda pendente: pagamento APROVADO e reserva CONFIRMADA;
-// - aprovado mas a reserva já caiu (expirou ou foi cancelada enquanto o Pix estava aberto): o
-//   dinheiro entrou sem bicicleta garantida, então é estornado na hora, inteiro;
-// - recusado ou expirado: o pagamento pendente acompanha.
-// Idempotente: o mesmo aviso de novo não muda nada.
-export async function aplicarSituacao(
-  op: OperacoesPagamento,
-  deps: Pick<DependenciasPagarReserva, "agora" | "gerarId" | "gateway">,
-  pagamento: Pagamento,
-  situacao: SituacaoNoGateway,
-): Promise<ResultadoDoAviso> {
-  const idExterno = pagamento.mpPaymentId;
-  if (situacao === "pendente" || idExterno === null) return "ignorado";
+export class PagarReservaService {
+  readonly #deps: DependenciasPagarReserva;
+  readonly #intervalo: IntervaloDeConsulta;
 
-  if (situacao === "recusado" || situacao === "expirado") {
-    if (pagamento.status !== "PENDENTE") return "ignorado";
-    if (situacao === "recusado") pagamento.recusar();
-    else pagamento.expirar();
-    await op.salvar(pagamento);
-    return "atualizado";
+  constructor(deps: DependenciasPagarReserva) {
+    this.#deps = deps;
+    this.#intervalo = deps.intervaloDeConsulta ?? new IntervaloDeConsulta(INTERVALO_DE_CONSULTA_MS);
   }
 
-  // aprovado
-  if (pagamento.status === "APROVADO" || pagamento.status === "ESTORNADO") return "ignorado";
-  const reserva = await op.travarReserva(pagamento.reservaId);
-  const reservaAberta =
-    pagamento.status === "PENDENTE" &&
-    reserva?.status === "PENDENTE_PAGAMENTO" &&
-    (reserva.expiraEm === null || deps.agora().getTime() < reserva.expiraEm.getTime());
-
-  if (reservaAberta) {
-    try {
-      await servicoNaTransacao(op, deps as DependenciasPagarReserva).processarWebhook({
-        pagamentoId: pagamento.id,
-        mpPaymentId: idExterno,
-        situacao: "aprovado",
-      });
-      return "confirmado";
-    } catch (erro) {
-      // a reserva caiu entre a conferência e a confirmação: segue para o estorno
-      if (!(erro instanceof ConflictError)) throw erro;
-    }
-  }
-
-  // Pago sem reserva: devolve o dinheiro. O estorno na Stripe vem antes de gravar: se ele falhar, a
-  // transação desfaz e o próximo aviso (a Stripe reenvia) tenta de novo.
-  await deps.gateway().estornar(idExterno);
-  if (pagamento.status === "PENDENTE") pagamento.confirmar(idExterno, deps.agora());
-  // (o status foi relido: confirmar() acabou de mudá-lo)
-  if ((pagamento.status as StatusPagamento) === "APROVADO") {
-    pagamento.estornarTudo();
-    await op.salvar(pagamento);
-  }
-  return "estornado";
-}
-
-// POST /api/pagamentos (rota 16). Devolve a cobrança e se ela foi criada agora (201) ou é o Pix
-// pendente que já existia (200).
-export function criarIniciarPagamento(deps: DependenciasPagarReserva) {
-  return async function iniciarPagamento(
-    sessao: SessaoCliente,
-    corpo: unknown,
-  ): Promise<{ cobranca: CobrancaPixComQrCode; criada: boolean }> {
+  /**
+   * POST /api/pagamentos (rota 16). Devolve a cobrança e se ela foi criada agora (201) ou é o Pix
+   * pendente que já existia (200).
+   */
+  async iniciar(sessao: SessaoCliente, corpo: unknown): Promise<{ cobranca: CobrancaPixComQrCode; criada: boolean }> {
     const { reservaId } = validarCorpo(corpo);
 
-    const cobranca = await deps.transacao(sessao, async (op) => {
-      await op.expirarVencidas();
-      const reserva = await op.travarReserva(reservaId);
-      if (!reserva) throw new NotFoundError(MENSAGEM_RESERVA_NAO_ENCONTRADA);
+    // O limite de cobranças só conta quando uma cobrança nova vai ser criada: reabrir a tela e
+    // reaproveitar o Pix pendente não conta. Ele é conferido ANTES da transação principal, numa
+    // leitura curta: dentro dela, o limite pediria uma segunda conexão ao pool enquanto a reserva
+    // está travada, e com vários pedidos ao mesmo tempo o pool se esgotava.
+    if (this.#deps.limitarCriacao) {
+      const pendente = await this.#deps.transacao(sessao, (op) => op.buscarPendenteDaReserva(reservaId));
+      if (!pendente || pendente.estaVencido(this.#deps.agora())) await this.#deps.limitarCriacao(sessao);
+    }
 
-      // A cobrança nova é registrada na Stripe dentro da transação, com a reserva travada: duas
-      // chamadas ao mesmo tempo não criam dois Pix. Se a Stripe falhar (502), nada é gravado.
-      const registrarCobranca = async (pagamento: Pagamento) => {
-        if (!(pagamento instanceof PagamentoPix)) throw new Error("Só o Pix tem cobrança nesta rota.");
-        if (pagamento.expiraEm().getTime() - deps.agora().getTime() < VALIDADE_MINIMA_DO_PIX_MS) {
-          throw new ConflictError(MENSAGEM_PRAZO_TERMINANDO);
-        }
-        const pagador = await op.pagador();
-        if (!pagador) throw new NotFoundError(MENSAGEM_RESERVA_NAO_ENCONTRADA);
-        const { idExterno, copiaECola } = await deps.gateway().criarCobrancaPix({
-          pagamentoId: pagamento.id,
-          reservaId: pagamento.reservaId,
-          valorCentavos: pagamento.valor.centavos,
-          expiraEm: pagamento.expiraEm(),
-          pagador,
-        });
-        pagamento.registrarCobranca(idExterno, copiaECola);
-      };
+    // A cobrança nova nasce na Stripe com a reserva travada (duas chamadas ao mesmo tempo não criam
+    // dois Pix). Se a transação falhar depois disso, o Pix criado é cancelado na Stripe: ele nunca
+    // chegou à tela, mas não pode ficar vivo sem linha no banco.
+    const naStripe: { idExterno: string | null } = { idExterno: null };
 
-      // o serviço só pede um id novo quando cria a cobrança; se devolveu outro id, reaproveitou o
-      // Pix pendente que já existia
-      const novo: { id: string | null } = { id: null };
-      const gerarId = () => (novo.id = deps.gerarId());
-      const gerada = await servicoNaTransacao(op, deps, { gerarId, registrarCobranca }).iniciarPagamento(
-        reserva,
-        "PIX",
-      );
-      return { gerada: gerada as CobrancaPix, criada: novo.id === gerada.pagamentoId };
-    });
+    let resultado: { gerada: CobrancaPix; criada: boolean };
+    try {
+      resultado = await this.#deps.transacao(sessao, async (op) => {
+        await op.expirarVencidas();
+        const reserva = await op.travarReserva(reservaId);
+        if (!reserva) throw new NotFoundError(MENSAGEM_RESERVA_NAO_ENCONTRADA);
 
-    const qrCodeBase64 = await deps.gerarQrCode(cobranca.gerada.pix.copiaECola);
+        const registrarCobranca = async (pagamento: Pagamento) => {
+          if (!(pagamento instanceof PagamentoPix)) throw new Error("Só o Pix tem cobrança nesta rota.");
+          if (pagamento.expiraEm().getTime() - this.#deps.agora().getTime() < VALIDADE_MINIMA_DO_PIX_MS) {
+            throw new ConflictError(MENSAGEM_PRAZO_TERMINANDO);
+          }
+          const pagador = await op.pagador();
+          if (!pagador) throw new NotFoundError(MENSAGEM_RESERVA_NAO_ENCONTRADA);
+          const { idExterno, copiaECola } = await this.#deps.gateway().criarCobrancaPix({
+            pagamentoId: pagamento.id,
+            reservaId: pagamento.reservaId,
+            valorCentavos: pagamento.valor.centavos,
+            expiraEm: pagamento.expiraEm(),
+            pagador,
+          });
+          naStripe.idExterno = idExterno;
+          pagamento.registrarCobranca(idExterno, copiaECola);
+        };
+
+        // o serviço só pede um id novo quando cria a cobrança; se devolveu outro id, reaproveitou o
+        // Pix pendente que já existia
+        const novo: { id: string | null } = { id: null };
+        const gerarId = () => (novo.id = this.#deps.gerarId());
+        const gerada = await this.#servicoNaTransacao(op, { gerarId, registrarCobranca }).iniciarPagamento(
+          reserva,
+          "PIX",
+        );
+        return { gerada: gerada as CobrancaPix, criada: novo.id === gerada.pagamentoId };
+      });
+    } catch (erro) {
+      if (naStripe.idExterno) {
+        await this.#deps
+          .gateway()
+          .cancelar(naStripe.idExterno)
+          .catch((falha) => this.#deps.registrarErro?.(falha));
+      }
+      throw erro;
+    }
+
+    const qrCodeBase64 = await this.#deps.gerarQrCode(resultado.gerada.pix.copiaECola);
     return {
-      cobranca: { ...cobranca.gerada, pix: { ...cobranca.gerada.pix, qrCodeBase64 } },
-      criada: cobranca.criada,
+      cobranca: { ...resultado.gerada, pix: { ...resultado.gerada.pix, qrCodeBase64 } },
+      criada: resultado.criada,
     };
-  };
-}
+  }
 
-// GET /api/pagamentos/{reservaId}/status (rota 17). A tela chama a cada 3 segundos. Se há um Pix
-// pendente, pergunta à Stripe como ele está ANTES de expirar as vencidas: um Pix pago no último
-// segundo confirma a reserva em vez de ela expirar. Assim a tela funciona mesmo quando o aviso da
-// Stripe (rota 18) não chega, como no ambiente local. Se a Stripe não responder, devolve o que o
-// banco sabe (a próxima consulta tenta de novo).
-export function criarConsultarStatus(deps: DependenciasPagarReserva) {
-  return async function consultarStatus(sessao: SessaoCliente, reservaId: unknown): Promise<StatusDoPagamento> {
+  /**
+   * GET /api/pagamentos/{reservaId}/status (rota 17). A tela chama a cada 3 segundos. Se há um Pix
+   * pendente, pergunta à Stripe como ele está ANTES de expirar as vencidas: um Pix pago no último
+   * segundo confirma a reserva em vez de ela expirar. Assim a tela funciona mesmo quando o aviso da
+   * Stripe (rota 18) não chega, como no ambiente local. Se a Stripe não responder, ou se aplicar a
+   * resposta falhar (um estorno recusado, por exemplo), devolve o que o banco sabe e a próxima
+   * consulta tenta de novo.
+   */
+  async consultarStatus(sessao: SessaoCliente, reservaId: unknown): Promise<StatusDoPagamento> {
     if (!ehUuid(reservaId)) throw new NotFoundError(MENSAGEM_RESERVA_NAO_ENCONTRADA);
-    return deps.transacao(sessao, async (op) => {
-      const pendente = await op.buscarPendenteDaReserva(reservaId);
-      if (pendente?.mpPaymentId) {
-        let situacao: SituacaoNoGateway | null = null;
+
+    const pendente = await this.#deps.transacao(sessao, (op) => op.buscarPendenteDaReserva(reservaId));
+    const idExterno = pendente?.mpPaymentId ?? null;
+    if (idExterno && this.#intervalo.podeConsultar(idExterno, this.#deps.agora())) {
+      let situacao: SituacaoNoGateway | null = null;
+      try {
+        // fora da transação: a conexão do banco não espera a rede
+        situacao = await this.#deps.gateway().consultar(idExterno);
+      } catch (erro) {
+        this.#deps.registrarErro?.(erro);
+      }
+      if (situacao && situacao !== "pendente") {
+        const respostaDaStripe = situacao;
         try {
-          situacao = await deps.gateway().consultar(pendente.mpPaymentId);
+          await this.#deps.transacao(sessao, (op) => this.#aplicarComTravas(op, idExterno, respostaDaStripe));
         } catch (erro) {
-          deps.registrarErro?.(erro);
-        }
-        if (situacao && situacao !== "pendente") {
-          const travado = await op.travarPorIdExterno(pendente.mpPaymentId);
-          if (travado) await aplicarSituacao(op, deps, travado, situacao);
+          this.#deps.registrarErro?.(erro);
         }
       }
+    }
+
+    return this.#deps.transacao(sessao, async (op) => {
       await op.expirarVencidas();
       return lerSituacao(op, reservaId);
     });
-  };
-}
+  }
 
-// POST /api/pagamentos/webhook (rota 18), já com a assinatura conferida pela infraestrutura. O aviso
-// chega sem sessão: descobre-se o cliente dono do pagamento e a mudança roda com a sessão dele,
-// passando pelas mesmas políticas de RLS das outras rotas. Cobrança desconhecida é ignorada (200),
-// para a Stripe não ficar reenviando.
-export function criarProcessarAviso(deps: DependenciasPagarReserva) {
-  return async function processarAviso(idExterno: string, situacao: SituacaoNoGateway): Promise<ResultadoDoAviso> {
+  /**
+   * POST /api/pagamentos/webhook (rota 18), já com a assinatura conferida pela infraestrutura. O aviso
+   * chega sem sessão: descobre-se o cliente dono do pagamento e a mudança roda com a sessão dele,
+   * passando pelas mesmas políticas de RLS das outras rotas. Cobrança desconhecida é ignorada (200),
+   * para a Stripe não ficar reenviando.
+   */
+  async processarAviso(idExterno: string, situacao: SituacaoNoGateway): Promise<ResultadoDoAviso> {
     if (situacao === "pendente") return "ignorado";
-    const clienteId = await deps.clienteDoPagamento(idExterno);
+    const clienteId = await this.#deps.clienteDoPagamento(idExterno);
     if (!clienteId) return "ignorado";
     const sessao: SessaoCliente = { perfil: "CLIENTE", usuarioId: clienteId };
-    return deps.transacao(sessao, async (op) => {
-      const pagamento = await op.travarPorIdExterno(idExterno);
-      if (!pagamento) return "ignorado";
-      return aplicarSituacao(op, deps, pagamento, situacao);
+    return this.#deps.transacao(sessao, (op) => this.#aplicarComTravas(op, idExterno, situacao));
+  }
+
+  // Trava a reserva e depois o pagamento (a ordem da regra 1) e aplica o que a Stripe disse.
+  async #aplicarComTravas(
+    op: OperacoesPagamento,
+    idExterno: string,
+    situacao: SituacaoNoGateway,
+  ): Promise<ResultadoDoAviso> {
+    const semTrava = await op.buscarPorIdExterno(idExterno);
+    if (!semTrava) return "ignorado";
+    const reserva = await op.travarReserva(semTrava.reservaId);
+    const pagamento = await op.travarPorIdExterno(idExterno);
+    if (!pagamento) return "ignorado";
+    return this.#aplicarSituacao(op, pagamento, reserva, situacao);
+  }
+
+  // Aplica ao pagamento (já travado, com a reserva travada antes) o que a Stripe diz da cobrança:
+  // - aprovado e a reserva ainda pendente: pagamento APROVADO e reserva CONFIRMADA;
+  // - aprovado mas a reserva já caiu (expirou ou foi cancelada enquanto o Pix estava aberto): o
+  //   dinheiro entrou sem bicicleta garantida, então é estornado na hora, inteiro, e o pagamento
+  //   fica ESTORNADO. Vale também quando o banco já tinha expirado o pagamento (o Pix pago no último
+  //   segundo, com o aviso chegando depois de expirar_reservas_vencidas());
+  // - recusado ou expirado: o pagamento pendente acompanha.
+  // Idempotente: o mesmo aviso de novo não muda nada.
+  async #aplicarSituacao(
+    op: OperacoesPagamento,
+    pagamento: Pagamento,
+    reserva: ReservaParaPagar | null,
+    situacao: SituacaoNoGateway,
+  ): Promise<ResultadoDoAviso> {
+    const idExterno = pagamento.mpPaymentId;
+    if (situacao === "pendente" || idExterno === null) return "ignorado";
+
+    if (situacao === "recusado" || situacao === "expirado") {
+      if (pagamento.status !== "PENDENTE") return "ignorado";
+      if (situacao === "recusado") pagamento.recusar();
+      else pagamento.expirar();
+      await op.salvar(pagamento);
+      return "atualizado";
+    }
+
+    // aprovado
+    if (pagamento.status === "APROVADO" || pagamento.status === "ESTORNADO") return "ignorado";
+    const reservaAberta =
+      pagamento.status === "PENDENTE" &&
+      reserva?.status === "PENDENTE_PAGAMENTO" &&
+      (reserva.expiraEm === null || this.#deps.agora().getTime() < reserva.expiraEm.getTime());
+
+    if (reservaAberta) {
+      try {
+        await this.#servicoNaTransacao(op).processarWebhook({
+          pagamentoId: pagamento.id,
+          mpPaymentId: idExterno,
+          situacao: "aprovado",
+        });
+        return "confirmado";
+      } catch (erro) {
+        // a reserva caiu entre a conferência e a confirmação: segue para o estorno
+        if (!(erro instanceof ConflictError)) throw erro;
+      }
+    }
+
+    // Pago sem reserva: devolve o dinheiro. O estorno na Stripe vem antes de gravar: se ele falhar, a
+    // transação desfaz e o próximo aviso (a Stripe reenvia) tenta de novo; a chave de idempotência
+    // do estorno impede devolver duas vezes.
+    await this.#deps.gateway().estornar(idExterno);
+    // (o status é relido a cada passo: a tentativa de confirmar acima pode tê-lo mudado em memória)
+    if ((pagamento.status as StatusPagamento) === "PENDENTE") pagamento.confirmar(idExterno, this.#deps.agora());
+    if ((pagamento.status as StatusPagamento) === "APROVADO") pagamento.estornarTudo();
+    else pagamento.estornarPagamentoTardio(); // EXPIRADO ou RECUSADO aqui, pago na Stripe
+    await op.salvar(pagamento);
+    return "estornado";
+  }
+
+  // O serviço de domínio montado sobre as operações desta transação: a aprovação confirma a reserva
+  // na mesma transação em que o pagamento é gravado.
+  #servicoNaTransacao(
+    op: OperacoesPagamento,
+    extras: { gerarId?: () => string; registrarCobranca?: (p: Pagamento) => Promise<void> } = {},
+  ): PagamentoService {
+    return new PagamentoService({
+      repositorio: op,
+      agora: this.#deps.agora,
+      gerarId: extras.gerarId ?? this.#deps.gerarId,
+      registrarCobranca:
+        extras.registrarCobranca ??
+        (async () => {
+          throw new Error("Cobrança nova só nasce na rota 16.");
+        }),
+      aoAprovar: async (reservaId) => {
+        if (!(await op.confirmarReserva(reservaId))) {
+          throw new ConflictError(MENSAGEM_RESERVA_NAO_ACEITA_PAGAMENTO);
+        }
+      },
     });
-  };
+  }
 }
