@@ -2,7 +2,7 @@ import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
 import { Periodo } from "../../../shared/dominio/periodo-aluguel.ts";
 import { CalculadoraDeAluguel, type Precos } from "../../../shared/dominio/preco-aluguel.ts";
 import { TransicaoDeReservaInvalida } from "./erros.ts";
-import { calcularExpiraEm, podeTransitar, type StatusReserva } from "./reserva.ts";
+import { RegrasDeReserva, type StatusReserva } from "./reserva.ts";
 
 // Resposta 409 de POST /api/reservas/{id}/cancelar (docs/contrato-api-mvp.md).
 export const MENSAGEM_CANCELAMENTO_RECUSADO =
@@ -118,7 +118,7 @@ export class Reserva {
   // Só a reserva pendente tem prazo: a criação mais 15 minutos (o mesmo prazo de
   // expirar_reservas_vencidas() no banco).
   expiraEm(): Date | null {
-    return calcularExpiraEm(this.#status, this.#criadaEm);
+    return RegrasDeReserva.calcularExpiraEm(this.#status, this.#criadaEm);
   }
 
   // Segura a bicicleta (conta na exclusion constraint): pendente, confirmada ou em andamento.
@@ -145,7 +145,7 @@ export class Reserva {
   // pendente ou confirmada.
   cancelar(agora: Date): void {
     // a mensagem é a do contrato da API (rota 15): é o que o cliente lê no 409
-    if (!podeTransitar(this.#status, "CANCELADA")) {
+    if (!RegrasDeReserva.podeTransitar(this.#status, "CANCELADA")) {
       throw new TransicaoDeReservaInvalida(MENSAGEM_CANCELAMENTO_RECUSADO);
     }
     // Acabado o período, a reserva que ninguém retirou não se cancela: o destino dela é
@@ -226,7 +226,7 @@ export class Reserva {
   }
 
   #exigirTransicao(para: StatusReserva, verbo: string): void {
-    if (!podeTransitar(this.#status, para)) {
+    if (!RegrasDeReserva.podeTransitar(this.#status, para)) {
       throw new TransicaoDeReservaInvalida(
         `Não é possível ${verbo}: a reserva está ${this.#status} e não pode passar para ${para}.`,
       );

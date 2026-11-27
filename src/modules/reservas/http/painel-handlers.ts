@@ -7,7 +7,7 @@ import { ControladorDoPainel } from "./controlador-do-painel";
 // Criado uma vez só; nada aqui guarda estado entre as requisições (a sessão chega a cada uma).
 const controlador = new ControladorDoPainel({
   exigirSessao: (request) => sessoes.exigir(request),
-  painel: new PainelDeReservas(new RepositorioDoPainel()),
+  painel: new PainelDeReservas(RepositorioDoPainel.padrao),
 });
 
 // GET /api/admin/reservas (rota 25)

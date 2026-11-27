@@ -1,6 +1,6 @@
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
 import { Periodo } from "../../../shared/dominio/periodo-aluguel.ts";
-import { ehStatusReserva, type StatusReserva } from "./reserva.ts";
+import { RegrasDeReserva, type StatusReserva } from "./reserva.ts";
 
 /** Uma reserva como o banco a entrega ao painel: o cliente e a unidade já vêm juntos. */
 export type DadosDaReservaDoPainel = {
@@ -58,7 +58,7 @@ export class ReservaDoPainel {
     ] as const) {
       if (typeof valor !== "string" || valor.trim() === "") throw new RangeError(`A reserva do painel precisa do ${nome}.`);
     }
-    if (!ehStatusReserva(dados.status)) throw new RangeError(`Status de reserva desconhecido: ${String(dados.status)}`);
+    if (!RegrasDeReserva.ehStatus(dados.status)) throw new RangeError(`Status de reserva desconhecido: ${String(dados.status)}`);
     this.#id = dados.id;
     this.#codigo = dados.codigo;
     this.#status = dados.status;
