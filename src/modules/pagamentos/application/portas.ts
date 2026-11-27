@@ -2,7 +2,7 @@ import type { SessaoBanco } from "../../../shared/db/sessao.ts";
 import type { Pagamento, StatusPagamento } from "../domain/pagamento.ts";
 import type { RepositorioDePagamentos, ReservaParaPagar } from "./pagamento-service.ts";
 
-// Quem chama as rotas 16 e 17: o cliente logado, como o exigirPerfil devolve. A mesma sessão vai para
+// Quem chama as rotas 16 e 17: o cliente logado, como o PerfisPermitidos devolve. A mesma sessão vai para
 // o comSessao, então as políticas de RLS valem (o cliente só enxerga as próprias reservas e os
 // pagamentos delas). O aviso da Stripe (webhook) também roda com a sessão do cliente dono do
 // pagamento, para passar pelas mesmas políticas.

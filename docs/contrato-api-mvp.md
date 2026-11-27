@@ -118,7 +118,6 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 14 | `GET /api/reservas/{id}` | CLIENTE | existe | Luis | Renan |
 | 15 | `POST /api/reservas/{id}/cancelar` | CLIENTE | existe | Luis | Renan |
 | 16 | `POST /api/pagamentos` | CLIENTE | novo | Hélio | Renan |
-| 16a | `POST /api/pagamentos/{reservaId}/simular` | CLIENTE | novo (proposta, aguarda o aceite do Hélio) | Hélio | Renan |
 | 17 | `GET /api/pagamentos/{reservaId}/status` | CLIENTE | novo | Hélio | Renan |
 | 18 | `POST /api/pagamentos/webhook` | Stripe | novo | Hélio | Stripe |
 | 19 | `GET /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
@@ -127,7 +126,7 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 22 | `GET /api/admin/bicicletas` | ADMIN | existe | Hélio | Hélio |
 | 23 | `POST /api/admin/bicicletas` | ADMIN | existe | Hélio | Hélio |
 | 24 | `PATCH /api/admin/bicicletas/{id}` | ADMIN | existe | Hélio | Hélio |
-| 25 | `GET /api/admin/reservas` | OPERADOR, ADMIN | novo | Hélio | Luis |
+| 25 | `GET /api/admin/reservas` | OPERADOR, ADMIN | existe | Luis | Luis |
 | 26 | `POST /api/operacao/reservas/{id}/retirada` | OPERADOR, ADMIN | novo | Hélio | Luis |
 | 27 | `POST /api/operacao/reservas/{id}/devolucao` | OPERADOR, ADMIN | novo | Hélio | Luis |
 
@@ -475,32 +474,6 @@ texto é fictício de propósito e a tela mostra o aviso "Pix de teste". Com a c
 está `PENDENTE_PAGAMENTO`, já paga, ou com menos de 1 minuto de prazo: a Stripe não aceita Pix mais
 curto), `429`, `502` (`PAGAMENTO_INDISPONIVEL`: Stripe fora do ar ou chave não configurada).
 
-### 16a. `POST /api/pagamentos/{reservaId}/simular`
-
-Aprova o Pix simulado da reserva, no lugar do aviso do Mercado Pago. **Novo; proposta do front (PR #75),
-aguardando o aceite do Hélio (S4).** A tela do Pix chama no botão "Simular pagamento" e depois confere
-a rota 17.
-
-| | |
-|---|---|
-| **Quem** | CLIENTE (dono da reserva) |
-| **Disponível** | só com `PAGAMENTO_MODO=simulado`; fora dele a rota responde `404 SIMULACAO_INDISPONIVEL` |
-
-**Corpo:** nenhum (`{}`).
-
-Na mesma transação: expira as reservas vencidas (`expirar_reservas_vencidas()`), marca o pagamento
-`PENDENTE` como `APROVADO` e a reserva como `CONFIRMADA`. **Idempotente:** repetir com o pagamento já
-aprovado devolve `200`, sem alterar nada.
-
-**Sucesso `200`:** `{ "data": { "reservaId": "uuid", "statusPagamento": "APROVADO", "statusReserva": "CONFIRMADA" } }`
-
-**Erros:** `401`; `403`; `404 NOT_FOUND` (reserva inexistente ou de outro cliente); `404
-SIMULACAO_INDISPONIVEL` (modo não simulado); `409` (reserva que não está `PENDENTE_PAGAMENTO`, por
-exemplo vencida ou cancelada; reserva já paga não é erro, vale a idempotência acima); `429`.
-
-A tela só confia no `code`: `NOT_FOUND` é a reserva, `SIMULACAO_INDISPONIVEL` (ou um 404 sem o JSON do
-contrato, rota ainda não publicada) é "aprovação simulada indisponível".
-
 ### 17. `GET /api/pagamentos/{reservaId}/status`
 
 A tela chama a cada 3 segundos na tela do Pix, até a reserva ficar confirmada. **Novo.**
@@ -637,7 +610,12 @@ Reservas para o painel, com o nome do cliente e a unidade escolhida.
               "valorAluguelCentavos": 4000 } ] }
 ```
 
-**Erros:** `400`, `401`, `403`.
+**Erros:** `400` (`details`: `status` ou `data`), `401`, `403`.
+
+A lista vem do mais cedo para o mais tarde (`inicio`) e traz no máximo 1.000 reservas. Antes de listar, o
+servidor marca como `EXPIRADA` as pendentes vencidas, então o painel nunca mostra como pendente uma reserva
+que já caiu. `data` precisa ser uma data que exista, entre 2000 e 2100. Texto vazio em `status` ou `data` vale
+como "sem esse filtro".
 
 ### 26. `POST /api/operacao/reservas/{id}/retirada`
 

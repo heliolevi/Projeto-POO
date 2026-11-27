@@ -1,5 +1,6 @@
 import { LeitorDeObjeto } from "./leitor-de-objeto";
 import { PontoDeRetirada, type PontoDto } from "./ponto-de-retirada";
+import { Telefone } from "./telefone";
 
 export type DadosDaEmpresa = {
   nomeFantasia: string;
@@ -76,9 +77,12 @@ export class EmpresaDaLocadora {
     return this.#pontos[0] ?? null;
   }
 
-  /** O telefone do próprio ponto, ou o da locadora se o ponto não tiver. */
-  telefoneDoPonto(ponto: PontoDeRetirada): string | null {
-    return ponto.telefone ?? this.#telefone;
+  /**
+   * O telefone do próprio ponto, ou o da locadora se o ponto não tiver, pronto para a tela
+   * (`formatado()` e `link()`). O `paraDto()` continua com o valor do contrato, sem máscara.
+   */
+  telefoneDoPonto(ponto: PontoDeRetirada): Telefone | null {
+    return Telefone.de(ponto.telefone ?? this.#telefone);
   }
 
   paraDto(): EmpresaDto {

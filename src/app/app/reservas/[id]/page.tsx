@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
-import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
+import { FormatadorDeData } from "@/shared/format/formatador-de-data";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
 import { podeCancelar, type Reserva, type ReservaDetalhada } from "@/shared/reservas/reserva";
@@ -45,7 +46,7 @@ export default function ReservaDetalhePage() {
 
   useEffect(() => {
     let ativo = true;
-    getAutenticado<ReservaDetalhada>(`/api/reservas/${id}`)
+    ClienteApi.padrao.get<ReservaDetalhada>(`/api/reservas/${id}`)
       .then((reserva) => ativo && setEstado({ tipo: "pronto", reserva }))
       .catch((erro) => {
         if (!ativo) return;
@@ -70,7 +71,7 @@ export default function ReservaDetalhePage() {
     setCancelando(true);
     setErroAcao(null);
     try {
-      const atualizada = await postAutenticado<Reserva>(`/api/reservas/${id}/cancelar`);
+      const atualizada = await ClienteApi.padrao.post<Reserva>(`/api/reservas/${id}/cancelar`);
       setEstado({ tipo: "pronto", reserva: { ...estado.reserva, ...atualizada } });
     } catch (erro) {
       setErroAcao(mensagemDeErro(erro, "Não foi possível cancelar agora. Tente novamente."));
@@ -134,7 +135,7 @@ export default function ReservaDetalhePage() {
             </div>
             <div>
               <dt>Período</dt>
-              <dd>{formatarPeriodo(estado.reserva.periodo.inicio, estado.reserva.periodo.fim)}</dd>
+              <dd>{FormatadorDeData.saoLuis.periodo(estado.reserva.periodo.inicio, estado.reserva.periodo.fim)}</dd>
             </div>
             <div>
               <dt>Retirada</dt>
@@ -146,11 +147,11 @@ export default function ReservaDetalhePage() {
             </div>
             <div>
               <dt>Aluguel</dt>
-              <dd>{formatarReais(estado.reserva.valorAluguelCentavos)}</dd>
+              <dd>{Dinheiro.deCentavos(estado.reserva.valorAluguelCentavos).formatar()}</dd>
             </div>
             <div>
               <dt>Caução (combinada no balcão)</dt>
-              <dd>{formatarReais(estado.reserva.valorCaucaoCentavos)}</dd>
+              <dd>{Dinheiro.deCentavos(estado.reserva.valorCaucaoCentavos).formatar()}</dd>
             </div>
           </dl>
 

@@ -130,7 +130,7 @@ PR ou issue do defeito.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
-| CT-SEG-01 | P0 | Subir o app sem `SESSION_SECRET` | Erro claro; login e cadastro não funcionam em silêncio | Auto | Automatizado |
+| CT-SEG-01 | P0 | Subir o app em produção sem `SESSION_SECRET` (ou sem `DATABASE_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) | A mensagem em português, com todas as variáveis que faltam e sem os valores, vai para o log do servidor. O servidor **continua de pé, mas todas as rotas respondem 500** até corrigir e reiniciar | Auto | Automatizado (`validador-do-ambiente.test.ts` confere a mensagem; o gancho é `src/instrumentation.ts`). O comportamento do servidor real é o CT-SEG-12 |
 | CT-SEG-02 | P0 | `SESSION_SECRET` curto ou igual ao exemplo do `.env.example` | Recusado | Auto | Automatizado |
 | CT-SEG-03 | P0 | `/api/health/db` sem segredo configurado, com segredo errado e com o segredo certo | 404 sem segredo configurado; 401 com segredo errado; 200 com o certo | Integração | Parcial: sem segredo configurado e com segredo errado a rota responde 404 (conferido em 27/11/2026 com `scripts/verificar-p0.mjs`); o 200 com o segredo certo não foi executado, porque o `.env.local` de teste não tem `HEALTH_DB_SECRET` (conferir na Vercel, com o tech lead) |
 | CT-SEG-04 | P0 | `/api/health` | Responde 200 sem dados sensíveis | Manual | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: 200 com `{"status":"ok"}`, sem dado sensível) |
@@ -139,8 +139,9 @@ PR ou issue do defeito.
 | CT-SEG-07 | P1 | Logs de erro e de requisição | Sem senha, token, CPF ou outros dados pessoais | Manual | Aguarda fase 6 |
 | CT-SEG-08 | P1 | Erro inesperado em qualquer rota | 500 `INTERNAL_ERROR` com mensagem genérica, sem stack nem SQL | Integração | Pendente |
 | CT-SEG-09 | P1 | Formato de erro de todas as rotas | `{ error: { code, message, details } }`, com os `code` da tabela do contrato | Integração | Pendente |
-| CT-SEG-10 | P1 | Variáveis usadas pelo código (incluindo `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET`) | Todas listadas no `.env.example`, sem valor real | Manual | Pendente |
+| CT-SEG-10 | P1 | Variáveis usadas pelo código e as que o validador confere (incluindo `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET`) | Todas listadas no `.env.example`, sem valor real | Auto | Automatizado (`validador-do-ambiente.test.ts` varre `src`, `db` e `scripts`; não enxerga leitura dinâmica, como `process.env[nome]`) |
 | CT-SEG-11 | P1 | Função `bearerConfere` | Aceita o formato `Bearer` certo; recusa segredo errado, de outro tamanho, sem header ou com outro esquema; sem segredo configurado ou curto demais, nada passa | Auto | Automatizado (`segredo.test.ts`) |
+| CT-SEG-12 | P0 | Roteiro com o servidor real: `npm run build`, depois `npm start` com NODE_ENV de produção (a) sem nenhuma variável, (b) com as duas chaves da Stripe e `APP_URL` mas sem `SESSION_SECRET`, (c) com `DATABASE_URL`, `SESSION_SECRET` e as duas chaves da Stripe (sem `APP_URL`), (d) só com `DATABASE_URL` e `SESSION_SECRET` | (a), (b) e (d): o log lista as variáveis com problema, sem valores, e `GET /api/health` e `GET /` respondem 500 sem a mensagem no corpo; (c): `GET /api/health` responde 200 | Manual | Passou em 27/11/2026 (`next start` em Windows com Node 24, ambiente limpo, só as variáveis de cada caso): (a) o log lista as 4 variáveis (`DATABASE_URL`, `SESSION_SECRET`, `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET`), `/api/health` e `/` dão 500 com o corpo `Internal Server Error`; (b) o log lista só `SESSION_SECRET`, com 500 nas duas rotas; (d) o log lista só as duas chaves da Stripe, com 500 nas duas rotas; (c) `/api/health` responde 200 (`{"data":{"status":"ok"}}`) e `/` responde 200, sem `APP_URL`. Em nenhum caso o log nem a resposta trazem valores de variável |
 
 ### 4.6 Banco de dados, migrations e RLS
 

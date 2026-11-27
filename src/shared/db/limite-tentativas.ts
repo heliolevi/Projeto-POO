@@ -1,12 +1,5 @@
 import { TooManyRequestsError } from "../http/errors.ts";
-
-// Limite de tentativas por janela fixa, guardado na tabela limite_tentativas. Fica no banco
-// porque em ambiente serverless a memória de uma instância não é vista pelas outras.
-// A consulta é injetada (normalmente o query() do pool) para a lógica poder ser testada.
-export type Executar = (
-  sql: string,
-  valores: unknown[],
-) => Promise<{ rows: Record<string, unknown>[] }>;
+import type { ExecutorDeConsultas } from "./executor-de-consultas.ts";
 
 export type RegraLimite = {
   // quantas tentativas cabem na janela
@@ -30,33 +23,40 @@ const REGISTRAR = `
       (l.janela_inicio + ($2::int * interval '1 second') - now()))))::int AS restante
 `;
 
-// Conta uma tentativa para a chave e recusa (429) quando passar do limite da janela.
-export async function exigirDentroDoLimite(
-  executar: Executar,
-  chave: string,
-  regra: RegraLimite,
-): Promise<void> {
-  const { rows } = await executar(REGISTRAR, [chave.slice(0, 128), regra.janelaSegundos]);
-  const contagem = Number(rows[0].contagem);
-  if (contagem > regra.max) {
-    throw new TooManyRequestsError(Number(rows[0].restante));
+// Limite de tentativas por janela fixa, guardado na tabela limite_tentativas. Fica no banco
+// porque em ambiente serverless a memória de uma instância não é vista pelas outras. O banco entra
+// pelo construtor (normalmente o BancoDeDados.padrao) para a lógica poder ser testada.
+export class LimiteDeTentativas {
+  readonly #banco: ExecutorDeConsultas;
+
+  constructor(banco: ExecutorDeConsultas) {
+    this.#banco = banco;
   }
-  await limparAntigas(executar);
-}
 
-// Zera a contagem de uma chave (por exemplo, depois de um login que deu certo).
-export async function limparTentativas(executar: Executar, chave: string): Promise<void> {
-  await executar("DELETE FROM limite_tentativas WHERE chave = $1", [chave.slice(0, 128)]);
-}
+  // Conta uma tentativa para a chave e recusa (429) quando passar do limite da janela.
+  async exigirDentroDoLimite(chave: string, regra: RegraLimite): Promise<void> {
+    const { rows } = await this.#banco.consultar(REGISTRAR, [chave.slice(0, 128), regra.janelaSegundos]);
+    const contagem = Number(rows[0].contagem);
+    if (contagem > regra.max) {
+      throw new TooManyRequestsError(Number(rows[0].restante));
+    }
+    await this.#limparAntigas();
+  }
 
-// Em 1% das chamadas, apaga as janelas antigas para a tabela não crescer sem fim. Espera
-// terminar (em ambiente serverless, uma consulta solta pode ser cortada quando a resposta
-// sai) e, se falhar, só ignora: a limpeza não pode derrubar a requisição.
-async function limparAntigas(executar: Executar): Promise<void> {
-  if (Math.random() >= 0.01) return;
-  try {
-    await executar("DELETE FROM limite_tentativas WHERE janela_inicio < now() - interval '1 day'", []);
-  } catch {
-    // tenta de novo numa próxima chamada
+  // Zera a contagem de uma chave (por exemplo, depois de um login que deu certo).
+  async limpar(chave: string): Promise<void> {
+    await this.#banco.consultar("DELETE FROM limite_tentativas WHERE chave = $1", [chave.slice(0, 128)]);
+  }
+
+  // Em 1% das chamadas, apaga as janelas antigas para a tabela não crescer sem fim. Espera
+  // terminar (em ambiente serverless, uma consulta solta pode ser cortada quando a resposta
+  // sai) e, se falhar, só ignora: a limpeza não pode derrubar a requisição.
+  async #limparAntigas(): Promise<void> {
+    if (Math.random() >= 0.01) return;
+    try {
+      await this.#banco.consultar("DELETE FROM limite_tentativas WHERE janela_inicio < now() - interval '1 day'", []);
+    } catch {
+      // tenta de novo numa próxima chamada
+    }
   }
 }

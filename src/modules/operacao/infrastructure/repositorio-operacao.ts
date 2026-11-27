@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { comSessao } from "../../../shared/db/sessao.ts";
+import { BancoDeDados } from "../../../shared/db/banco-de-dados.ts";
 import { ConflictError } from "../../../shared/http/errors.ts";
 import type { LinhaBicicleta, LinhaReserva, OperacoesOperacao, TransacaoOperacao } from "../application/portas.ts";
 
@@ -163,4 +163,4 @@ export function operacoesNoBanco(client: PoolClient): OperacoesOperacao {
 }
 
 export const emTransacao: TransacaoOperacao = (sessao, fn) =>
-  comSessao(sessao, (client) => fn(operacoesNoBanco(client)));
+  BancoDeDados.padrao.comSessao(sessao, (client) => fn(operacoesNoBanco(client)));

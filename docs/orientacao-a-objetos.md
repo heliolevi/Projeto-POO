@@ -17,12 +17,19 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `contas` | `Usuario` (abstrata), `Cliente`, `Operador`, `Admin` |
 | `catalogo` | `Empresa`, `Ponto`, `TipoBicicleta`, `Bicicleta` |
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia` |
-| `reservas` | `Reserva`, `ReservaService` |
+| `reservas` | `Reserva`, `ReservaService`, `FiltroDoPainel`, `ReservaDoPainel`, `PainelDeReservas`, `RepositorioDoPainel`, `ControladorDoPainel` |
 | `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService`, `PagarReservaService`, `IntervaloDeConsulta`, `GatewayPix` (interface), `GatewayStripe`, `CodigoPix` (objeto de valor) |
 | `operacao` | `Movimentacao`, `Checklist`, `ItemDoChecklist`, `OperacaoService`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
 | `administracao` | `AuditoriaLog` |
-| `shared/empresa` (telas) | `EmpresaDaLocadora`, `PontoDeRetirada`, `GradeDeHorarios`, `HorarioDoDia`, `LeitorDeObjeto`, `BuscadorDeEmpresa`, `ResultadoDaEmpresa` (abstrata), `EmpresaCarregada`, `EmpresaSemCadastro`, `EmpresaIndisponivel` |
+| `shared/empresa` (telas) | `EmpresaDaLocadora`, `PontoDeRetirada`, `Telefone` (objeto de valor), `GradeDeHorarios`, `HorarioDoDia`, `LeitorDeObjeto`, `BuscadorDeEmpresa`, `ResultadoDaEmpresa` (abstrata), `EmpresaCarregada`, `EmpresaSemCadastro`, `EmpresaIndisponivel` |
+| `shared/http` | `Resposta`, `LeitorDeCorpo`, `ClienteDaRequisicao`, `SegredoBearer`, `PerfisPermitidos`, `TradutorDeErros`, `ClienteApi` |
+| `shared/db` | `BancoDeDados`, `TransacaoComSessao`, `LimiteDeTentativas`, `VerificadorDoBanco` |
+| `shared/auth` | `Sessao`, `ArmazemDeSessao`, `DestinoSeguro` |
+| `shared/config` | `Ambiente` |
+| `shared/dominio` (documentos e senha) | `Cpf`, `Cnpj`, `PoliticaDeSenha` |
+| `shared/format` | `FormatadorDeData` |
+| `shared/config` (ambiente) | `ValidadorDoAmbiente`, `RegraDeVariavel` (abstrata), `UrlDoBanco`, `SegredoComTamanhoMinimo`, `UrlDoApp`, `ChaveComPrefixo`, `UmDosValores` |
 
 ## Os quatro pilares
 
@@ -81,6 +88,9 @@ validar o código não mexe no pagamento, e `pix.pagavelEmBanco` na resposta é 
   cheia, `Furto` cobra a caução quando não há estimativa.
 - `CriterioDeRecomendacao.avaliar()`: o `RecomendacaoService` soma os critérios sem saber quais são. Um
   critério novo entra na lista do construtor sem mexer no serviço.
+- `RegraDeVariavel.conferir()`: o `ValidadorDoAmbiente` junta os problemas das variáveis de ambiente sem
+  saber quais são. `SESSION_SECRET` e `HEALTH_DB_SECRET` usam a mesma classe (`SegredoComTamanhoMinimo`),
+  `APP_URL` tem a sua (`UrlDoApp`), as chaves da Stripe usam `ChaveComPrefixo`, e uma variável nova entra na lista de regras sem mexer no validador.
 - `EnviadorDeNotificacao.enviar()`: o `RoteadorDeEnvio` escolhe o enviador pelo canal (web push, WhatsApp
   ou e-mail), e a `Notificacao` só conhece a interface.
 - Fábricas escolhem a subclasse certa: `criarUsuario(linha)`, `criarPagamento(metodo, dados)` e
@@ -204,3 +214,27 @@ O exemplo é `src/shared/empresa`, que lê `GET /api/empresa`:
 Essas classes não reaproveitam `Empresa` e `Ponto` do módulo `catalogo` de propósito: aquelas ficam do
 lado do servidor (junto do `pg`), e o navegador não pode importá-las. Estas modelam a resposta pública
 da API do lado do cliente.
+
+### A infraestrutura compartilhada (`src/shared`)
+
+Tudo o que as rotas e as telas usam de comum também é objeto, e o que muda de ambiente entra pelo
+construtor (injeção de dependência):
+
+- `BancoDeDados` recebe a fábrica do pool; `LimiteDeTentativas` e `VerificadorDoBanco` recebem o banco
+  (`ExecutorDeConsultas`, uma interface com um método só). Nos testes entra um banco de mentira.
+- `ClienteApi` recebe o `fetch`, o `ArmazemDeSessao`, o `TradutorDeErros` e o que fazer num 401;
+  `ArmazemDeSessao` recebe a janela do navegador. Os testes não trocam nenhum global.
+- `PerfisPermitidos` guarda a lista de perfis de cada rota e devolve a sessão com o perfil já
+  estreitado; `LeitorDeCorpo` guarda o limite de bytes.
+- `Cpf` e `Cnpj` só existem válidos (`de()` devolve `null` se não forem), e o algoritmo do CPF mora
+  num lugar só, usado pelo navegador e pela API.
+- `Resposta` e `Dinheiro.ZERO` são fábricas e constantes da própria classe; `Resposta` lança se alguém
+  tentar criar uma instância.
+
+### O que ainda não foi convertido
+
+Estes grupos ainda têm funções soltas e entram nas próximas fases: as regras compartilhadas do domínio
+(`preco-aluguel.ts`, `periodo.ts` e `ciclista.ts`, que estão ligadas a `reservas`, `operacao` e
+`catalogo`), os módulos `contas`, `catalogo`, `recomendacao`, `reservas`, `pagamentos` e `operacao`
+(casos de uso, repositórios e handlers), a lógica das telas em `src/shared/*` (busca, agenda, início,
+perfil, conta, operação, admin, markdown e landing) e as rotas `route.ts`, que passam a só chamar classes.

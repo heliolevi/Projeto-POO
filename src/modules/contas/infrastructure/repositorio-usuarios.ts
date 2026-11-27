@@ -1,4 +1,4 @@
-import { query } from "@/shared/db/pool";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
 import type { DadosCadastro, DadosPerfilCiclista } from "../domain/validacao";
 import type {
   ContaLogada,
@@ -25,7 +25,7 @@ export async function criarCliente(
   versaoTermos: string,
 ): Promise<UsuarioPublico> {
   try {
-    const { rows } = await query<Linha>(
+    const { rows } = await BancoDeDados.padrao.consultar<Linha>(
       `INSERT INTO usuario
          (perfil, nome, email, senha_hash, telefone, cpf, data_nascimento,
           altura_cm, aceite_termos_em, versao_termos)
@@ -53,7 +53,7 @@ export async function criarCliente(
 export async function buscarSituacaoPorId(
   id: string,
 ): Promise<{ perfil: PerfilUsuario; ativo: boolean } | null> {
-  const { rows } = await query<{ perfil: PerfilUsuario; ativo: boolean }>(
+  const { rows } = await BancoDeDados.padrao.consultar<{ perfil: PerfilUsuario; ativo: boolean }>(
     `SELECT perfil, ativo FROM usuario WHERE id = $1`,
     [id],
   );
@@ -61,7 +61,7 @@ export async function buscarSituacaoPorId(
 }
 
 export async function buscarSenhaHashPorId(id: string): Promise<string | null> {
-  const { rows } = await query<{ senha_hash: string }>(
+  const { rows } = await BancoDeDados.padrao.consultar<{ senha_hash: string }>(
     `SELECT senha_hash FROM usuario WHERE id = $1`,
     [id],
   );
@@ -69,22 +69,22 @@ export async function buscarSenhaHashPorId(id: string): Promise<string | null> {
 }
 
 export async function atualizarSenha(id: string, senhaHash: string): Promise<void> {
-  await query(`UPDATE usuario SET senha_hash = $2 WHERE id = $1`, [id, senhaHash]);
+  await BancoDeDados.padrao.consultar(`UPDATE usuario SET senha_hash = $2 WHERE id = $1`, [id, senhaHash]);
 }
 
 export async function desativarUsuario(id: string): Promise<void> {
-  await query(`UPDATE usuario SET ativo = false WHERE id = $1`, [id]);
+  await BancoDeDados.padrao.consultar(`UPDATE usuario SET ativo = false WHERE id = $1`, [id]);
 }
 
 export async function atualizarAltura(id: string, alturaCm: number): Promise<void> {
-  await query(`UPDATE usuario SET altura_cm = $2 WHERE id = $1 AND perfil = 'CLIENTE'`, [
+  await BancoDeDados.padrao.consultar(`UPDATE usuario SET altura_cm = $2 WHERE id = $1 AND perfil = 'CLIENTE'`, [
     id,
     alturaCm,
   ]);
 }
 
 export async function registrarAceiteTermos(id: string, versao: string): Promise<void> {
-  await query(
+  await BancoDeDados.padrao.consultar(
     `UPDATE usuario SET aceite_termos_em = now(), versao_termos = $2
      WHERE id = $1 AND perfil = 'CLIENTE'`,
     [id, versao],
@@ -92,7 +92,7 @@ export async function registrarAceiteTermos(id: string, versao: string): Promise
 }
 
 export async function buscarPorEmail(email: string): Promise<UsuarioComSenha | null> {
-  const { rows } = await query<Linha>(
+  const { rows } = await BancoDeDados.padrao.consultar<Linha>(
     `SELECT id, perfil, nome, email, senha_hash, ativo FROM usuario WHERE email = $1`,
     [email],
   );
@@ -135,7 +135,7 @@ function paraConta(l: LinhaConta): ContaLogada {
 }
 
 export async function buscarConta(id: string): Promise<ContaLogada | null> {
-  const { rows } = await query<LinhaConta>(`SELECT ${COLUNAS_CONTA} FROM usuario WHERE id = $1`, [id]);
+  const { rows } = await BancoDeDados.padrao.consultar<LinhaConta>(`SELECT ${COLUNAS_CONTA} FROM usuario WHERE id = $1`, [id]);
   return rows[0] ? paraConta(rows[0]) : null;
 }
 
@@ -146,7 +146,7 @@ export async function gravarPerfilCiclista(
   id: string,
   dados: DadosPerfilCiclista,
 ): Promise<PerfilCiclistaConta | null> {
-  const { rows } = await query<LinhaConta>(
+  const { rows } = await BancoDeDados.padrao.consultar<LinhaConta>(
     `UPDATE usuario
         SET altura_cm = $2, experiencia = $3, atividade_preferida = $4
       WHERE id = $1 AND perfil = 'CLIENTE'

@@ -24,4 +24,6 @@ export { TransicaoDeReservaInvalida } from "./domain/erros";
 export { ANTECEDENCIA_DA_RETIRADA_MS, Reserva } from "./domain/reserva-entidade";
 export { podeTransitar, TRANSICOES } from "./domain/reserva";
 export { getReserva, getReservas, postCancelarReserva, postReservas } from "./http/handlers";
+export { getPainelDeReservas } from "./http/painel-handlers";
+export { ReservaDoPainel, type ReservaDoPainelDto } from "./domain/reserva-do-painel";
 export { ReservaService } from "./application/reserva-service";

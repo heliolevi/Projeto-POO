@@ -1,12 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { requisitosDaSenha, senhaAceita } from "./senha.ts";
+import { PoliticaDeSenha } from "./politica-de-senha.ts";
 
-const ok = (senha: string) => Object.fromEntries(requisitosDaSenha(senha).map((r) => [r.id, r.ok]));
+const politica = new PoliticaDeSenha();
+
+const ok = (senha: string) => Object.fromEntries(politica.requisitos(senha).map((r) => [r.id, r.ok]));
 
 test("senha vazia não cumpre nenhum requisito", () => {
   assert.deepEqual(ok(""), { tamanho: false, letra: false, numero: false });
-  assert.equal(senhaAceita(""), false);
+  assert.equal(politica.aceita(""), false);
 });
 
 test("cada requisito é conferido separadamente", () => {
@@ -17,18 +19,18 @@ test("cada requisito é conferido separadamente", () => {
 
 test("letra acentuada sozinha não conta como letra, igual à API", () => {
   assert.deepEqual(ok("éééé1234"), { tamanho: true, letra: false, numero: true });
-  assert.equal(senhaAceita("ééé12345"), false);
-  assert.equal(senhaAceita("ção12345"), true); // o "c" é letra comum
+  assert.equal(politica.aceita("ééé12345"), false);
+  assert.equal(politica.aceita("ção12345"), true); // o "c" é letra comum
 });
 
 test("senha com 8 a 128 caracteres, letra e número é aceita", () => {
-  assert.equal(senhaAceita("bike2026"), true);
-  assert.equal(senhaAceita(`a1${"x".repeat(126)}`), true);
-  assert.equal(senhaAceita(`a1${"x".repeat(127)}`), false);
+  assert.equal(politica.aceita("bike2026"), true);
+  assert.equal(politica.aceita(`a1${"x".repeat(126)}`), true);
+  assert.equal(politica.aceita(`a1${"x".repeat(127)}`), false);
 });
 
 test("fronteiras do tamanho: 7 não passa, 8 passa, 128 passa, 129 não passa", () => {
-  const tamanho = (n: number) => senhaAceita("a1".padEnd(n, "x"));
+  const tamanho = (n: number) => politica.aceita("a1".padEnd(n, "x"));
   assert.equal(tamanho(7), false);
   assert.equal(tamanho(8), true);
   assert.equal(tamanho(128), true);
@@ -36,7 +38,7 @@ test("fronteiras do tamanho: 7 não passa, 8 passa, 128 passa, 129 não passa", 
 });
 
 test("senha só de números ou só de letras não é aceita, mesmo com tamanho certo", () => {
-  assert.equal(senhaAceita("12345678"), false);
-  assert.equal(senhaAceita("abcdefgh"), false);
-  assert.equal(senhaAceita("abcdefg1"), true);
+  assert.equal(politica.aceita("12345678"), false);
+  assert.equal(politica.aceita("abcdefgh"), false);
+  assert.equal(politica.aceita("abcdefg1"), true);
 });
