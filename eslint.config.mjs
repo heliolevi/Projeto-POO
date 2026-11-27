@@ -52,7 +52,8 @@ function patternsDoModulo(atual) {
 // continuam liberados. Cada regra diz o que escrever no lugar.
 //
 // Declarações ambientes (`declare enum`, `declare namespace`, `declare module`, e o que estiver
-// dentro delas) só descrevem tipos e o Node as apaga: ficam liberadas. O nó de dentro de um
+// dentro delas) só descrevem tipos e o Node as apaga: ficam liberadas (por esta regra e pelas duas
+// do nextTs ajustadas no bloco abaixo, o `npm run lint` inteiro as aceita). O nó de dentro de um
 // `declare namespace` não tem `declare=true`, por isso o seletor também olha os ancestrais.
 // O TypeScript (`erasableSyntaxOnly` no tsconfig) confere de novo enum, namespace, parameter
 // property, `import =`, `export =` e `<T>x` em todo .ts do projeto, inclusive fora de src (como o
@@ -132,6 +133,12 @@ const eslintConfig = defineConfig([
     // nelas: espalhe ...sintaxeNaoApagavel junto (o teste das extensões cobre src/modules e src/app).
     rules: {
       "no-restricted-syntax": ["error", ...sintaxeNaoApagavel],
+      // As regras do nextTs que também olham namespace e require conflitavam com as declarações ambientes
+      // liberadas acima: `declare namespace` (e o namespace dentro de `declare module`) e
+      // `import x = require()` dentro de `declare module` só descrevem tipos. Fora de `declare`, o
+      // no-restricted-syntax continua reprovando as duas formas, então nada passa a ser aceito por aqui.
+      "@typescript-eslint/no-namespace": ["error", { allowDeclarations: true }],
+      "@typescript-eslint/no-require-imports": ["error", { allowAsImport: true }],
     },
   },
   {

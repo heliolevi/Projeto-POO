@@ -23,6 +23,18 @@ async function errosDaRegra(codigo: string, arquivo = "src/shared/qualidade/amos
     .map((mensagem) => mensagem.message);
 }
 
+// Todos os erros do lint (de qualquer regra) sobre o trecho: o que `npm run lint` mostraria como erro.
+// Só errosDaRegra não basta para "aceito": o nextTs tem outras regras (no-namespace, no-require-imports)
+// que também reprovariam um trecho permitido, e o teste não veria.
+async function errosDeQualquerRegra(codigo: string, arquivo = "src/shared/qualidade/amostra.ts"): Promise<string[]> {
+  const [resultado] = await eslint.lintText(codigo, { filePath: arquivo });
+  const fatal = resultado.messages.find((mensagem) => mensagem.fatal);
+  if (fatal) throw new Error(`o trecho não compila: ${fatal.message}`);
+  return resultado.messages
+    .filter((mensagem) => mensagem.severity === 2)
+    .map((mensagem) => `${mensagem.ruleId}: ${mensagem.message}`);
+}
+
 const PROIBIDOS: Record<string, string> = {
   "constructor(private x)": "export class A { constructor(private x: number) {} }",
   "constructor(public x)": "export class A { constructor(public x: number) {} }",
@@ -91,6 +103,8 @@ test("um trecho que não compila não passa por aceito", async () => {
 for (const [nome, codigo] of Object.entries(PERMITIDOS)) {
   test(`o lint aceita ${nome}`, async () => {
     assert.deepEqual(await errosDaRegra(codigo), []);
+    // e nenhuma outra regra do lint reprova o trecho (era o que o teste não via)
+    assert.deepEqual(await errosDeQualquerRegra(codigo), []);
   });
 }
 
