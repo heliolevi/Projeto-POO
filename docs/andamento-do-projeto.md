@@ -14,8 +14,7 @@ novembro de 2026 com a mudança de escopo.
 
 O resto deste documento registra as primeiras semanas e o modelo antigo. O estado atual é este:
 
-- **Escopo:** uma única locadora de São Luís (MA). As fases 1 a 6 do plano de `docs/mudanca-de-escopo.md`
-  foram entregues: banco no modelo novo (migrations `0001` a `0012`), perfis `CLIENTE`, `OPERADOR` e
+- **Escopo:** uma única locadora de São Luís (MA), conforme `docs/mudanca-de-escopo.md`: banco no modelo novo (migrations `0001` a `0012`), perfis `CLIENTE`, `OPERADOR` e
   `ADMIN`, RLS por cliente e papel `app_login` sem `BYPASSRLS`.
 - **Sistema de ponta a ponta:** cadastro e login, perfil de ciclista, catálogo (tipos, bicicletas,
   pontos), recomendação da bicicleta, reserva com exclusion constraint contra sobreposição, pagamento por
