@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { comSessao } from "../../../shared/db/sessao.ts";
 import { ConflictError } from "../../../shared/http/errors.ts";
-import type { LinhaReserva, OperacoesOperacao, TransacaoOperacao } from "../application/portas.ts";
+import type { LinhaBicicleta, LinhaReserva, OperacoesOperacao, TransacaoOperacao } from "../application/portas.ts";
 
 type LinhaView = {
   id: string;
@@ -47,6 +47,19 @@ function paraLinha(l: LinhaView): LinhaReserva {
   };
 }
 
+type LinhaDaUnidade = {
+  id: string;
+  codigo: string;
+  numero_serie: string | null;
+  tamanho_quadro: string | null;
+  status: LinhaBicicleta["status"];
+  observacoes: string | null;
+  tipo_id: string;
+  tipo_nome: string;
+  ponto_id: string;
+  ponto_nome: string;
+};
+
 const ehRepetida = (erro: unknown) =>
   typeof erro === "object" &&
   erro !== null &&
@@ -73,15 +86,54 @@ export function operacoesNoBanco(client: PoolClient): OperacoesOperacao {
       return rows[0] ? paraLinha(rows[0]) : null;
     },
 
+    // Trava a unidade DEPOIS da reserva (travarReserva vem antes, sempre): duas retiradas de reservas
+    // seguidas da mesma bicicleta passam uma de cada vez, e a segunda vê a primeira EM_ANDAMENTO.
+    async travarBicicletaDaReserva(reservaId) {
+      const { rows } = await client.query<LinhaDaUnidade>(
+        `SELECT b.id, b.codigo, b.numero_serie, b.tamanho_quadro, b.status, b.observacoes,
+                t.id AS tipo_id, t.nome AS tipo_nome, p.id AS ponto_id, p.nome AS ponto_nome
+           FROM reserva r
+           JOIN bicicleta b ON b.id = r.bicicleta_id
+           JOIN tipo_bicicleta t ON t.id = b.tipo_id
+           JOIN ponto p ON p.id = b.ponto_id
+          WHERE r.id = $1
+            FOR UPDATE OF b`,
+        [reservaId],
+      );
+      const l = rows[0];
+      if (!l) return null;
+      return {
+        id: l.id,
+        codigo: l.codigo,
+        tipo: { id: l.tipo_id, nome: l.tipo_nome },
+        ponto: { id: l.ponto_id, nome: l.ponto_nome },
+        numeroSerie: l.numero_serie,
+        tamanhoQuadro: l.tamanho_quadro,
+        status: l.status,
+        observacoes: l.observacoes,
+      };
+    },
+
+    async outraReservaEmAndamento(bicicletaId, reservaId) {
+      const { rows } = await client.query<{ codigo: string }>(
+        `SELECT codigo FROM reserva
+          WHERE bicicleta_id = $1 AND id <> $2 AND status = 'EM_ANDAMENTO'
+          ORDER BY lower(periodo)
+          LIMIT 1`,
+        [bicicletaId, reservaId],
+      );
+      return rows[0] ?? null;
+    },
+
     // Cada tentativa tem o seu SAVEPOINT: a recusa por repetição (23505) desfaz só o INSERT, e a
     // transação segue de pé para o 409.
     async registrarMovimentacao(m) {
       await client.query("SAVEPOINT tentativa_movimentacao");
       try {
         await client.query(
-          `INSERT INTO movimentacao (reserva_id, operador_id, tipo, checklist, observacoes)
-           VALUES ($1, $2, $3::tipo_movimentacao, $4::jsonb, $5)`,
-          [m.reservaId, m.operadorId, m.tipo, JSON.stringify(m.itens), m.observacoes],
+          `INSERT INTO movimentacao (reserva_id, operador_id, tipo, checklist, observacoes, data_hora)
+           VALUES ($1, $2, $3::tipo_movimentacao, $4::jsonb, $5, $6)`,
+          [m.reservaId, m.operadorId, m.tipo, JSON.stringify(m.itens), m.observacoes, m.dataHora],
         );
         await client.query("RELEASE SAVEPOINT tentativa_movimentacao");
       } catch (erro) {

@@ -605,7 +605,7 @@ Registra a retirada da bicicleta pelo cliente e passa a reserva para `EM_ANDAMEN
 | | |
 |---|---|
 | **Quem** | OPERADOR, ADMIN |
-| **Regra** | só reserva `CONFIRMADA`, a partir de 30 minutos antes do início |
+| **Regra** | só reserva `CONFIRMADA`, de 30 minutos antes do início até o fim; a bicicleta precisa estar `DISPONIVEL` e já ter voltado da reserva anterior |
 
 **Corpo:**
 
@@ -619,7 +619,9 @@ Registra a retirada da bicicleta pelo cliente e passa a reserva para `EM_ANDAMEN
 **Sucesso `200`:** `{ "data": { ...<objeto reserva>, "bicicleta": { "id": "uuid", "codigo": "BIC-003" } } }` com `status: "EM_ANDAMENTO"`.
 
 **Erros:** `400` (checklist inválido ou fora da janela de horário), `401`, `403`, `404`, `409` (reserva
-não está `CONFIRMADA` ou a retirada já foi feita), `413`.
+não está `CONFIRMADA`, a retirada já foi feita, a bicicleta está em manutenção, bloqueada ou fora da frota,
+ou ela ainda não foi devolvida pela reserva anterior, que pode estar atrasada), `413`. O id é conferido
+antes do corpo: id inválido é `404` mesmo com corpo quebrado.
 
 **Regras do checklist** (valem para a retirada e a devolução): de 1 a 20 itens, cada um com `nome` (texto
 de 1 a 40 caracteres, sem repetir) e `ok` (`true` ou `false`); `observacoes` é opcional (até 1000
@@ -645,6 +647,15 @@ também `bicicleta`, como na retirada). A devolução vale mesmo depois do fim d
 
 Qualquer mudança de rota, campo ou erro entra aqui, na mesma PR do código, e avisa quem implementa e
 quem consome. Pontos ainda abertos para o Luis fechar com Hélio e Renan:
+
+**Registro de mudanças**
+
+- **27/11/2026, rotas 26 e 27 (#81):** a resposta da devolução também traz `bicicleta` (`id` e `codigo`), como
+  a da retirada. O checklist passou a ter limites (de 1 a 20 itens, `nome` de 1 a 40 caracteres sem repetir,
+  `observacoes` até 1000 caracteres), e quem passa deles recebe `400`. A retirada ganhou dois `409`: bicicleta
+  que não está `DISPONIVEL` e bicicleta que ainda não voltou da reserva anterior.
+
+**Pontos em aberto**
 
 - Formato final de `horarios` do ponto (`diaSemana` de 0 a 6, começando no domingo?).
 - Se o cliente sem altura preenchida pode buscar (assumido: pode; só perde o filtro e os pontos de altura).

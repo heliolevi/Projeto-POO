@@ -6,10 +6,8 @@
 
 import { rodarSuite } from '../suporte.mjs';
 import { criarFixtures, criarOperador, criarReserva } from '../fixtures.mjs';
-import {
-  criarRegistrarDevolucao,
-  criarRegistrarRetirada,
-} from '../../../src/modules/operacao/application/registrar-movimentacao.ts';
+import { OperacaoService } from '../../../src/modules/operacao/application/operacao-service.ts';
+import { Bicicleta } from '../../../src/modules/catalogo/domain/bicicleta.ts';
 import { operacoesNoBanco } from '../../../src/modules/operacao/infrastructure/repositorio-operacao.ts';
 import { Reserva } from '../../../src/modules/reservas/domain/reserva-entidade.ts';
 
@@ -55,9 +53,14 @@ await rodarSuite('blackbox/operacao_api', async (executor, client) => {
   }
 
   let relogio = new Date();
-  const deps = { transacao, agora: () => relogio, montarReserva: (linha) => new Reserva(linha) };
-  const retirar = criarRegistrarRetirada(deps);
-  const devolver = criarRegistrarDevolucao(deps);
+  const servico = new OperacaoService({
+    transacao,
+    agora: () => relogio,
+    montarReserva: (linha) => new Reserva(linha),
+    montarBicicleta: (linha) => new Bicicleta(linha),
+  });
+  const retirar = (sessao, id, c) => servico.registrarRetirada(sessao, id, async () => c);
+  const devolver = (sessao, id, c) => servico.registrarDevolucao(sessao, id, async () => c);
 
   // reserva confirmada que começa daqui a `emMinutos` (e dura 4 h)
   const reservaConfirmada = (emMinutos) => {
@@ -70,7 +73,7 @@ await rodarSuite('blackbox/operacao_api', async (executor, client) => {
   };
   const statusDe = async (id) => (await client.query('SELECT status FROM reserva WHERE id = $1', [id])).rows[0].status;
   const movimentacoes = async (id) =>
-    (await client.query('SELECT tipo, operador_id, checklist, observacoes FROM movimentacao WHERE reserva_id = $1 ORDER BY data_hora, tipo DESC', [id])).rows;
+    (await client.query('SELECT tipo, operador_id, checklist, observacoes FROM movimentacao WHERE reserva_id = $1 ORDER BY tipo', [id])).rows;
 
   const esperarRecusa = async (fn, nome) => {
     try {
@@ -97,8 +100,12 @@ await rodarSuite('blackbox/operacao_api', async (executor, client) => {
     const movs = await movimentacoes(id);
     assert(movs.length === 2, `duas movimentações, veio ${movs.length}`);
     assert(movs.every((m) => m.operador_id === operadorId), 'operador gravado');
-    assert(Array.isArray(movs[0].checklist) && movs[0].checklist.length === 3, 'checklist como lista');
-    assert(movs[0].observacoes === 'farol traseiro fraco', 'observações gravadas');
+    for (const tipo of ['RETIRADA', 'DEVOLUCAO']) {
+      const m = movs.find((x) => x.tipo === tipo);
+      assert(m, `movimentação de ${tipo}`);
+      assert(Array.isArray(m.checklist) && m.checklist.length === 3, `checklist como lista (${tipo})`);
+      assert(m.observacoes === 'farol traseiro fraco', `observações gravadas (${tipo})`);
+    }
   });
 
   await teste('retirada cedo demais é 400 e não grava nada', async () => {
@@ -134,8 +141,59 @@ await rodarSuite('blackbox/operacao_api', async (executor, client) => {
       throw new Error('aceitou');
     } catch (erro) {
       assert(erro.message !== 'aceitou', 'o cliente registrou a própria retirada');
+      // a RLS de bicicleta (só a equipe) esconde a unidade do cliente, então a retirada para antes
+      assert(nomeErro(erro) === 'MovimentacaoInvalida', `esperava a unidade escondida pela RLS, veio ${erro.code ?? nomeErro(erro)}: ${erro.message}`);
     }
     assert((await statusDe(id)) === 'CONFIRMADA', 'continua confirmada');
     assert((await movimentacoes(id)).length === 0, 'sem movimentação');
+  });
+
+  await teste('com a sessão de cliente, a RLS de movimentacao recusa a devolução (42501)', async () => {
+    relogio = new Date();
+    const id = await criarReserva(client, ctx, {
+      status: 'EM_ANDAMENTO',
+      inicio: new Date(Date.now() - HORA).toISOString(),
+      fim: new Date(Date.now() + HORA).toISOString(),
+    });
+    try {
+      await devolver(sessaoCliente, id, corpo);
+      throw new Error('aceitou');
+    } catch (erro) {
+      assert(erro.message !== 'aceitou', 'o cliente registrou a própria devolução');
+      assert(erro.code === '42501', `esperava a recusa da RLS (42501), veio ${erro.code ?? nomeErro(erro)}: ${erro.message}`);
+    }
+    assert((await statusDe(id)) === 'EM_ANDAMENTO', 'continua em andamento');
+    assert((await movimentacoes(id)).length === 0, 'sem movimentação');
+  });
+
+  await teste('a bicicleta em manutenção não sai: 409 e nada é gravado', async () => {
+    relogio = new Date();
+    const id = await reservaConfirmada(5);
+    const { rows: [r] } = await client.query('SELECT bicicleta_id FROM reserva WHERE id = $1', [id]);
+    await client.query("UPDATE bicicleta SET status = 'MANUTENCAO' WHERE id = $1", [r.bicicleta_id]);
+    await esperarRecusa(() => retirar(sessaoOperador, id, corpo), 'MovimentacaoInvalida');
+    assert((await statusDe(id)) === 'CONFIRMADA', 'continua confirmada');
+    assert((await movimentacoes(id)).length === 0, 'sem movimentação');
+  });
+
+  await teste('a bicicleta que ainda não voltou da reserva anterior não sai: 409', async () => {
+    relogio = new Date();
+    // a anterior foi retirada e está atrasada (o fim já passou); a seguinte começa agora
+    const anterior = await criarReserva(client, ctx, {
+      status: 'EM_ANDAMENTO',
+      inicio: new Date(Date.now() - 5 * HORA).toISOString(),
+      fim: new Date(Date.now() - 20 * MIN).toISOString(),
+    });
+    const seguinte = await criarReserva(client, ctx, {
+      status: 'CONFIRMADA',
+      inicio: new Date(Date.now() - 20 * MIN).toISOString(),
+      fim: new Date(Date.now() + 2 * HORA).toISOString(),
+    });
+    await esperarRecusa(() => retirar(sessaoOperador, seguinte, corpo), 'MovimentacaoInvalida');
+    assert((await statusDe(seguinte)) === 'CONFIRMADA', 'a seguinte continua confirmada');
+    // devolvida a anterior, a seguinte sai normalmente
+    await devolver(sessaoOperador, anterior, corpo);
+    const r = await retirar(sessaoOperador, seguinte, corpo);
+    assert(r.status === 'EM_ANDAMENTO', `a seguinte sai depois da devolução: ${r.status}`);
   });
 });
