@@ -54,7 +54,7 @@ PR ou issue do defeito.
 | Migrations | `cd db && npm run migrar:simular` antes de aplicar qualquer migration |
 | Pagamentos | Pix pela Stripe no **sandbox** (`STRIPE_SECRET_KEY=sk_test_...`): o PaymentIntent e o copia e cola são reais, mas nada é cobrado. O webhook local precisa de `STRIPE_WEBHOOK_SECRET` |
 | Dados | Dados fictícios ou da locadora, sem dados pessoais reais |
-| Variáveis | `.env.local` na máquina (fora do Git). `SESSION_SECRET` obrigatório; `HEALTH_DB_SECRET` opcional; `MP_WEBHOOK_SECRET` só quando o webhook existir (stand by) |
+| Variáveis | `.env.local` na máquina (fora do Git). `SESSION_SECRET` obrigatório; `HEALTH_DB_SECRET` opcional; `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` obrigatórias em produção (o app avisa na subida) |
 
 ## 4. Casos de teste
 
@@ -204,7 +204,7 @@ blackbox), que a CI roda com `npm run teste:banco`.
 | CT-ADM-05 | P0 | `POST /api/admin/bicicletas` válida, com código repetido, com tipo ou ponto inexistente e com ponto inativo | 201 com status `DISPONIVEL`; 409 para código repetido; 404 para tipo ou ponto inexistente; 409 para ponto inativo | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-06 | P1 | `PATCH /api/admin/bicicletas/{id}` com `MANUTENCAO`, e com corpo vazio | A bicicleta deixa de ser reservável; corpo vazio recebe 400 | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-07 | P1 | `GET /api/admin/bicicletas` com filtros `tipoId` e `status` | Filtra; status inválido recebe 400 | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
-| CT-ADM-08 | P0 | `GET /api/admin/reservas` por `OPERADOR` e `ADMIN`, com filtros `status` e `data` (fuso de São Luís); por `CLIENTE` | Equipe recebe a lista com cliente e unidade; `CLIENTE` recebe 403 | Integração | Em revisão (PR #85, S2; entra na `dev` com ele) |
+| CT-ADM-08 | P0 | `GET /api/admin/reservas` por `OPERADOR` e `ADMIN`, com filtros `status` e `data` (fuso de São Luís); por `CLIENTE` | Equipe recebe a lista com cliente e unidade; `CLIENTE` recebe 403 | Integração | Automatizado (`painel.test.ts`, `painel-de-reservas.test.ts` e `controlador-do-painel.test.ts`, com 401, 403, 400 e 200; o #85 está na `dev`) e conferido contra o banco real pelo autor do #85 |
 
 ### 4.8 Recomendação (rota 11)
 
@@ -406,8 +406,9 @@ O MVP só é considerado pronto quando:
 1. Todos os casos P0 estão em `Passou` ou `Automatizado`, e nenhum está `Falhou`.
 2. Os casos P1 que falharem têm defeito registrado e acordo da equipe sobre ficar para depois.
 3. A CI da `dev` está verde (`lint`, `typecheck`, testes, migrations, testes de banco e `build`).
-4. As variáveis `SESSION_SECRET`, `MP_WEBHOOK_SECRET` (e `HEALTH_DB_SECRET`, se usada) estão cadastradas na
-   Vercel, com valores diferentes em Preview e Production.
+4. As variáveis `SESSION_SECRET`, `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` (e `HEALTH_DB_SECRET`, se usada)
+   estão cadastradas na Vercel, em Preview e em Production (sem elas o servidor responde 500 em tudo), com
+   `SESSION_SECRET` diferente em cada ambiente.
 5. O fluxo completo (cadastro, login, busca com recomendação, reserva, Pix no sandbox da Stripe,
    retirada e devolução) foi percorrido do início ao fim, no celular e no computador.
 6. Nenhum segredo, dado pessoal real ou pagamento real foi usado nos testes.
