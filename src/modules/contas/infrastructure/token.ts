@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { problemaDoSegredoDeSessao } from "../../../shared/config/ambiente.ts";
+import { REGRA_DO_SEGREDO_DE_SESSAO } from "../../../shared/config/ambiente.ts";
 import { requireEnv } from "../../../shared/config/env.ts";
 import type { PerfilUsuario } from "../domain/usuario";
 
@@ -12,7 +12,7 @@ export type SessaoToken = { sub: string; perfil: PerfilUsuario; iat: number; exp
 
 function segredo(): string {
   const valor = requireEnv("SESSION_SECRET");
-  const problema = problemaDoSegredoDeSessao(valor);
+  const problema = REGRA_DO_SEGREDO_DE_SESSAO.conferir(valor, true);
   if (problema) throw new Error(problema);
   return valor;
 }

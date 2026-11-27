@@ -2,7 +2,17 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { garantirAmbiente, validarAmbiente } from "./ambiente.ts";
+import {
+  garantirAmbiente,
+  PAGAMENTO_MODOS,
+  RegraDeVariavel,
+  REGRAS_DO_APP,
+  REGRA_DO_SEGREDO_DE_SESSAO,
+  SegredoComTamanhoMinimo,
+  UmDosValores,
+  validarAmbiente,
+  ValidadorDoAmbiente,
+} from "./ambiente.ts";
 
 // Valores de mentira só para o teste (nenhum é segredo de verdade).
 const SEGREDO = "x".repeat(48);
@@ -61,19 +71,22 @@ test("APP_URL: endereço inválido, outro protocolo e http em produção são re
   assert.match(validarAmbiente({ ...PRODUCAO, APP_URL: "http://exemplo.com" }, true)[0], /https/);
 });
 
-test("APP_URL: http é aceito em desenvolvimento e em localhost, mesmo em produção", () => {
+test("APP_URL: http é aceito em desenvolvimento e no computador local, mesmo em produção", () => {
   assert.deepEqual(validarAmbiente({ ...BASE, APP_URL: "http://exemplo.com" }, false), []);
-  assert.deepEqual(validarAmbiente({ ...PRODUCAO, APP_URL: "http://localhost:3000" }, true), []);
+  for (const local of ["http://localhost:3000", "http://127.0.0.1:3000", "http://[::1]:3000"]) {
+    assert.deepEqual(validarAmbiente({ ...PRODUCAO, APP_URL: local }, true), [], local);
+  }
 });
 
-test("PAGAMENTO_MODO só aceita os modos que existem", () => {
-  const problemas = validarAmbiente({ ...PRODUCAO, PAGAMENTO_MODO: "real" }, true);
+test("PAGAMENTO_MODO só aceita os modos que existem, sem repetir o valor recebido", () => {
+  const problemas = validarAmbiente({ ...PRODUCAO, PAGAMENTO_MODO: "valor-secreto-xyz" }, true);
   assert.equal(problemas.length, 1);
-  assert.match(problemas[0], /"real" não existe\. Valores aceitos: simulado/);
+  assert.equal(problemas[0], "PAGAMENTO_MODO tem um valor que não existe. Valores aceitos: simulado.");
+  assert.ok(!problemas[0].includes("valor-secreto-xyz"), "o valor recebido vazou na mensagem");
 });
 
 test("garantirAmbiente junta todos os problemas numa mensagem e não mostra o valor dos segredos", () => {
-  const env = { DATABASE_URL: "", SESSION_SECRET: "senha-curta-secreta", PAGAMENTO_MODO: "real" };
+  const env = { DATABASE_URL: "", SESSION_SECRET: "senha-curta-secreta", PAGAMENTO_MODO: "modo-secreto-xyz" };
   assert.throws(
     () => garantirAmbiente(env, true),
     (erro: Error) => {
@@ -82,6 +95,7 @@ test("garantirAmbiente junta todos os problemas numa mensagem e não mostra o va
         assert.match(erro.message, new RegExp(` - ${nome}`), nome);
       }
       assert.ok(!erro.message.includes("senha-curta-secreta"), "o valor do segredo vazou na mensagem");
+      assert.ok(!erro.message.includes("modo-secreto-xyz"), "o valor do PAGAMENTO_MODO vazou na mensagem");
       return true;
     },
   );
@@ -90,6 +104,61 @@ test("garantirAmbiente junta todos os problemas numa mensagem e não mostra o va
 test("garantirAmbiente não lança com o ambiente certo", () => {
   assert.doesNotThrow(() => garantirAmbiente(PRODUCAO, true));
   assert.doesNotThrow(() => garantirAmbiente(BASE, false));
+});
+
+// Nenhuma regra, com qualquer valor, escreve o valor recebido na mensagem (o valor pode ser segredo).
+test("nenhuma regra repete o valor recebido na mensagem", () => {
+  const valor = "valor-que-nao-pode-aparecer";
+  for (const producao of [false, true]) {
+    for (const regra of REGRAS_DO_APP) {
+      const problema = regra.conferir(valor, producao);
+      assert.ok(!problema?.includes(valor), `${regra.nome} repetiu o valor`);
+    }
+  }
+});
+
+// Polimorfismo: o validador não sabe quais regras existem. Uma regra nova entra pela lista.
+test("o validador aceita uma regra nova sem mudar nada nele", () => {
+  class ExigeEmTudo extends RegraDeVariavel {
+    constructor() {
+      super({ nome: "NOVA_VARIAVEL", exigencia: "sempre", dicaSeAusente: "Defina-a." });
+    }
+    protected conferirValor(valor: string): string | null {
+      return valor === "ok" ? null : `${this.nome} deveria ser ok.`;
+    }
+  }
+  const validador = new ValidadorDoAmbiente([...REGRAS_DO_APP, new ExigeEmTudo()]);
+  assert.deepEqual(validador.validar(PRODUCAO, true), ["NOVA_VARIAVEL ausente. Defina-a."]);
+  assert.deepEqual(validador.validar({ ...PRODUCAO, NOVA_VARIAVEL: "ok" }, true), []);
+  assert.deepEqual(validador.validar({ ...PRODUCAO, NOVA_VARIAVEL: "x" }, true), [
+    "NOVA_VARIAVEL deveria ser ok.",
+  ]);
+});
+
+test("os problemas saem na ordem das regras", () => {
+  const validador = new ValidadorDoAmbiente([
+    new UmDosValores({ nome: "B", exigencia: "sempre", dicaSeAusente: "b", valores: ["x"] }),
+    new UmDosValores({ nome: "A", exigencia: "sempre", dicaSeAusente: "a", valores: ["x"] }),
+  ]);
+  assert.deepEqual(validador.validar({}, false), ["B ausente. b", "A ausente. a"]);
+});
+
+test("a lista de regras do validador é copiada: alterar a original depois não muda o validador", () => {
+  const regras = [new UmDosValores({ nome: "A", exigencia: "sempre", dicaSeAusente: "a", valores: ["x"] })];
+  const validador = new ValidadorDoAmbiente(regras);
+  regras.length = 0;
+  assert.deepEqual(validador.validar({}, false), ["A ausente. a"]);
+});
+
+test("SESSION_SECRET e HEALTH_DB_SECRET usam a mesma classe de regra, com exigências diferentes", () => {
+  const segredos = REGRAS_DO_APP.filter((regra) => regra instanceof SegredoComTamanhoMinimo);
+  assert.deepEqual(segredos.map((regra) => regra.nome), ["SESSION_SECRET", "HEALTH_DB_SECRET"]);
+  assert.equal(REGRA_DO_SEGREDO_DE_SESSAO.conferir(undefined, false), "SESSION_SECRET ausente. Gere um valor aleatório (o comando está no .env.example).");
+  assert.equal(segredos[1].conferir(undefined, true), null);
+});
+
+test("PAGAMENTO_MODOS tem o modo que o .env.example usa", () => {
+  assert.ok((PAGAMENTO_MODOS as readonly string[]).includes("simulado"));
 });
 
 // CT-SEG-10: toda variável que o código lê está no .env.example (modelo para quem monta o ambiente).

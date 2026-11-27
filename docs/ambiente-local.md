@@ -134,6 +134,11 @@ npm run dev
 Abra <http://localhost:3000>. Para parar, **Ctrl+C** no terminal. (`npm run build` só confere se o
 projeto compila; não sobe o app para desenvolvimento.)
 
+Para ver o app como ele roda em produção, use `npm run build` e depois `npm start`. Nesse modo o app exige
+também `APP_URL` e `PAGAMENTO_MODO` no `.env.local` (em desenvolvimento eles têm padrão). Se faltar
+alguma variável, **o servidor continua de pé, mas todas as rotas respondem erro 500** (inclusive
+`/api/health`), e o motivo aparece só no terminal onde o servidor roda, nunca na resposta.
+
 - `/api/health`: o app está de pé.
 - `/api/health/db`: estado do banco, com o cabeçalho `Authorization: Bearer <HEALTH_DB_SECRET>`.
 - Telas: `/cadastro` e `/login` (cliente), `/buscar`, `/minhas-reservas`, `/perfil`. Com a conta de
@@ -174,7 +179,7 @@ para o Neon `dev`, e **nunca** para production.
 |---|---|---|
 | `password authentication failed for user 'USUARIO'` | `.env.local` ainda com o texto do modelo | Preencha as conexões reais (passo 3). |
 | Login dá erro 500 | `SESSION_SECRET` ausente, curto ou igual ao exemplo | Gere um valor novo e reinicie o `npm run dev`. |
-| O app não sobe e mostra "Configuração do ambiente inválida" | Falta ou está errada uma variável da tabela acima | A mensagem lista cada variável com o problema (sem mostrar o valor). Corrija o `.env.local` e reinicie. |
+| Aparece "Configuração do ambiente inválida" no terminal e todas as páginas e rotas dão erro 500 | Falta ou está errada uma variável da tabela acima (em production, também `APP_URL` e `PAGAMENTO_MODO`) | O servidor segue de pé, mas responde 500 em tudo. A mensagem do terminal lista cada variável com o problema, sem mostrar o valor. Corrija o `.env.local` e **reinicie** o servidor. |
 | `criar-equipe` recusa a conexão | `DATABASE_URL_UNPOOLED` com `-pooler` | Use a conexão direta, sem `-pooler`. |
 | Erro com arquivos `.ts` ao rodar scripts ou testes | Node anterior a 22.18 | Instale o Node 22 LTS (`node -v`). |
 | Aviso `MODULE_TYPELESS_PACKAGE_JSON` | Node importando `.ts` do app | Só informativo, pode ignorar. |
