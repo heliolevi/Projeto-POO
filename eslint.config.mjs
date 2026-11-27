@@ -58,7 +58,7 @@ function patternsDoModulo(atual) {
 // .ts fora de src (como o next.config.ts).
 const DENTRO_DE_DECLARE = "TSModuleDeclaration[declare=true] *";
 
-export const sintaxeNaoApagavel = [
+const sintaxeNaoApagavel = [
   {
     selector: "TSParameterProperty",
     message:
@@ -71,15 +71,19 @@ export const sintaxeNaoApagavel = [
   },
   {
     selector: `TSModuleDeclaration:not([declare=true]):not(${DENTRO_DE_DECLARE})`,
+    // Decisão do projeto: reprovado mesmo só com tipos (aí o Node apagaria, mas o projeto não usa
+    // namespace e a regra fica simples).
     message:
-      "namespace/module com código não é apagável. Use um arquivo (módulo ES) ou um objeto no lugar.",
+      "namespace/module fora de `declare` não é apagável quando tem código, e o projeto não usa nem só com tipos. Use um arquivo (módulo ES), `export type` ou um objeto no lugar.",
   },
   {
-    selector: "TSImportEqualsDeclaration",
+    // `import type x = require(...)` também: o Node apagaria, mas o TypeScript com
+    // erasableSyntaxOnly recusa, e o lint acompanha o tsc.
+    selector: `TSImportEqualsDeclaration:not(${DENTRO_DE_DECLARE})`,
     message: "`import x = require(...)` não é apagável. Use `import x from \"...\"`.",
   },
   {
-    selector: "TSExportAssignment",
+    selector: `TSExportAssignment:not(${DENTRO_DE_DECLARE})`,
     message: "`export = x` não é apagável. Use `export default x` ou `export { x }`.",
   },
 ];
@@ -89,8 +93,8 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     // Sintaxe não apagável: vale para todo o código-fonte em TypeScript. Um .d.ts é todo ambiente.
-    files: ["src/**/*.{ts,tsx}"],
-    ignores: ["**/*.d.ts"],
+    files: ["src/**/*.{ts,tsx,mts,cts}"],
+    ignores: ["**/*.d.ts", "**/*.d.mts", "**/*.d.cts"],
     rules: {
       "no-restricted-syntax": ["error", ...sintaxeNaoApagavel],
     },

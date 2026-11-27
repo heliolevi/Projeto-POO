@@ -12,6 +12,9 @@ async function errosDaRegra(codigo: string): Promise<string[]> {
   const [resultado] = await eslint.lintText(codigo, {
     filePath: "src/shared/qualidade/amostra.ts",
   });
+  // um trecho que nem compila não pode passar por "aceito": a regra nem chegaria a rodar
+  const fatal = resultado.messages.find((mensagem) => mensagem.fatal);
+  if (fatal) throw new Error(`o trecho não compila: ${fatal.message}`);
   return resultado.messages
     .filter((mensagem) => mensagem.ruleId === "no-restricted-syntax")
     .map((mensagem) => mensagem.message);
@@ -26,6 +29,11 @@ const PROIBIDOS: Record<string, string> = {
   namespace: "export namespace Util { export const a = 1; }",
   "import x = require": "import fs = require('node:fs');",
   "export =": "const a = 1; export = a;",
+  // decisão do projeto: namespace fora de declare é reprovado mesmo só com tipos (o Node apagaria,
+  // mas o projeto não usa namespace; use um arquivo ou export type)
+  "namespace só com tipos": "export namespace Api { export type Resposta = { ok: boolean } }",
+  // o Node apagaria, mas o TypeScript com erasableSyntaxOnly recusa (TS1294): o lint acompanha o tsc
+  "import type x = require": "import type Fs = require('node:fs');\nexport type T = Fs.Stats;",
 };
 
 for (const [nome, codigo] of Object.entries(PROIBIDOS)) {
@@ -50,7 +58,14 @@ const PERMITIDOS: Record<string, string> = {
   "declare const enum": "declare const enum E { A }\nexport {};",
   "declare namespace aninhado": "declare namespace A { namespace B { const x: number } }\nexport {};",
   "augmentation de módulo com namespace": "declare module 'lib' { namespace N { const a: number } }\nexport {};",
+  // tipando um pacote CommonJS sem tipos: dentro de declare module, export = e import = são ambientes
+  "export = dentro de declare module": "declare module 'lib-legada' { function f(): void; export = f; }\nexport {};",
+  "import = dentro de declare module": "declare module 'lib-dois' { import fs = require('node:fs'); }\nexport {};",
 };
+
+test("um trecho que não compila não passa por aceito", async () => {
+  await assert.rejects(() => errosDaRegra("declare namespace A { const x: number"), /não compila/);
+});
 
 for (const [nome, codigo] of Object.entries(PERMITIDOS)) {
   test(`o lint aceita ${nome}`, async () => {
