@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import type { Pool } from "pg";
 import { BancoDeDados } from "./banco-de-dados.ts";
@@ -90,4 +91,35 @@ test("o banco padrão existe e é o mesmo objeto sempre, sem abrir conexão ao s
 
 test("BancoDeDados é encapsulado: nenhum campo visível", () => {
   assert.deepEqual(Object.keys(new BancoDeDados(() => poolFalso().pool)), []);
+});
+
+test("o pacote pg só é importado como tipo: a carga da classe não exige o pg instalado (o job de banco da CI não o tem na raiz)", () => {
+  const fonte = readFileSync(new URL("./banco-de-dados.ts", import.meta.url), "utf8");
+  assert.ok(!/^import\s+(?!type\b)[^;]*from\s+["']pg["']/m.test(fonte), "import estático de valor do pg");
+  assert.match(fonte, /await import\("pg"\)/);
+});
+
+test("se a criação do pool falha, a falha não fica guardada: a próxima consulta tenta de novo", async () => {
+  const falso = poolFalso();
+  let tentativas = 0;
+  const banco = new BancoDeDados(() => {
+    tentativas++;
+    if (tentativas === 1) throw new Error("Variável de ambiente ausente: DATABASE_URL");
+    return falso.pool;
+  });
+  await assert.rejects(banco.consultar("SELECT 1"), /DATABASE_URL/);
+  await banco.consultar("SELECT 1");
+  assert.equal(tentativas, 2);
+});
+
+test("a fábrica pode ser assíncrona, e consultas simultâneas criam um pool só", async () => {
+  const falso = poolFalso();
+  let criados = 0;
+  const banco = new BancoDeDados(async () => {
+    criados++;
+    await new Promise((r) => setTimeout(r, 10));
+    return falso.pool;
+  });
+  await Promise.all(Array.from({ length: 30 }, () => banco.consultar("SELECT 1")));
+  assert.equal(criados, 1);
 });
