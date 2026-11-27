@@ -22,7 +22,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `operacao` | `Movimentacao`, `Checklist`, `ItemDoChecklist`, `OperacaoService`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
 | `administracao` | `AuditoriaLog` |
-| `shared/empresa` (telas) | `EmpresaDaLocadora`, `PontoDeRetirada`, `GradeDeHorarios`, `HorarioDoDia`, `LeitorDeObjeto`, `BuscadorDeEmpresa`, `ResultadoDaEmpresa` (abstrata), `EmpresaCarregada`, `EmpresaSemCadastro`, `EmpresaIndisponivel` |
+| `shared/empresa` (telas) | `EmpresaDaLocadora`, `PontoDeRetirada`, `Telefone` (objeto de valor), `GradeDeHorarios`, `HorarioDoDia`, `LeitorDeObjeto`, `BuscadorDeEmpresa`, `ResultadoDaEmpresa` (abstrata), `EmpresaCarregada`, `EmpresaSemCadastro`, `EmpresaIndisponivel` |
 | `shared/http` | `Resposta`, `LeitorDeCorpo`, `ClienteDaRequisicao`, `SegredoBearer`, `PerfisPermitidos`, `TradutorDeErros`, `ClienteApi` |
 | `shared/db` | `BancoDeDados`, `TransacaoComSessao`, `LimiteDeTentativas`, `VerificadorDoBanco` |
 | `shared/auth` | `Sessao`, `ArmazemDeSessao`, `DestinoSeguro` |
