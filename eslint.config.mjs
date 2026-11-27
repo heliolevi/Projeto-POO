@@ -80,7 +80,15 @@ const sintaxeNaoApagavel = [
     // `import type x = require(...)` também: o Node apagaria, mas o TypeScript com
     // erasableSyntaxOnly recusa, e o lint acompanha o tsc.
     selector: `TSImportEqualsDeclaration:not(${DENTRO_DE_DECLARE})`,
-    message: "`import x = require(...)` não é apagável. Use `import x from \"...\"`.",
+    message:
+      "`import x = ...` não é apagável. Para um módulo (`import x = require(\"...\")`), use `import x from \"...\"`; para um apelido (`import T = N.Y`), use `type T = N.Y` ou uma `const`.",
+  },
+  {
+    // decorator é sintaxe de JavaScript que o V8 ainda não roda: com type stripping o Node dá
+    // SyntaxError. O tsc com erasableSyntaxOnly não pega este caso, então ele mora só aqui.
+    selector: "Decorator",
+    message:
+      "Decorator não é apagável: o Node não roda essa sintaxe e o `npm test` quebra com SyntaxError. Chame a função direto no lugar.",
   },
   {
     selector: `TSExportAssignment:not(${DENTRO_DE_DECLARE})`,
