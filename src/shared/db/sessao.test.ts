@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { comSessaoEm, VISITANTE } from "./sessao.ts";
+import { TransacaoComSessao, VISITANTE } from "./sessao.ts";
 
 const USUARIO = "aaaaaaaa-0000-4000-8000-000000000001";
 
@@ -36,7 +36,7 @@ function conexaoFalsa(falharEm?: string) {
 
 test("abre a transação, declara perfil e usuário, executa e confirma", async () => {
   const c = conexaoFalsa();
-  const resultado = await comSessaoEm(c.conectar, { perfil: "CLIENTE", usuarioId: USUARIO }, async (cli) => {
+  const resultado = await new TransacaoComSessao(c.conectar).executar({ perfil: "CLIENTE", usuarioId: USUARIO }, async (cli: { query(sql: string): Promise<unknown> }) => {
     await cli.query("SELECT 1");
     return "feito";
   });
@@ -53,7 +53,7 @@ test("abre a transação, declara perfil e usuário, executa e confirma", async 
 
 test("o perfil e o usuário vão como parâmetros, nunca concatenados no SQL", async () => {
   const c = conexaoFalsa();
-  await comSessaoEm(c.conectar, { perfil: "ADMIN", usuarioId: USUARIO }, async () => 1);
+  await new TransacaoComSessao(c.conectar).executar({ perfil: "ADMIN", usuarioId: USUARIO }, async () => 1);
   assert.ok(!c.registro[1].sql.includes("ADMIN"));
   assert.ok(!c.registro[1].sql.includes(USUARIO));
   assert.deepEqual(c.registro[1].valores, ["ADMIN", USUARIO]);
@@ -61,7 +61,7 @@ test("o perfil e o usuário vão como parâmetros, nunca concatenados no SQL", a
 
 test("visitante declara perfil e usuário vazios (as funções do banco leem como nulo)", async () => {
   const c = conexaoFalsa();
-  await comSessaoEm(c.conectar, VISITANTE, async () => 1);
+  await new TransacaoComSessao(c.conectar).executar(VISITANTE, async () => 1);
   assert.deepEqual(c.registro[1].valores, ["", ""]);
   assert.equal(c.liberada, 1);
 });
@@ -69,7 +69,7 @@ test("visitante declara perfil e usuário vazios (as funções do banco leem com
 test("se a função falha: ROLLBACK, a conexão é devolvida e o erro sobe", async () => {
   const c = conexaoFalsa();
   await assert.rejects(
-    comSessaoEm(c.conectar, { perfil: "CLIENTE", usuarioId: USUARIO }, async () => {
+    new TransacaoComSessao(c.conectar).executar({ perfil: "CLIENTE", usuarioId: USUARIO }, async () => {
       throw new Error("deu ruim");
     }),
     /deu ruim/,
@@ -83,7 +83,7 @@ test("se a função falha: ROLLBACK, a conexão é devolvida e o erro sobe", asy
 test("se o ROLLBACK também falha, o erro original é o que sobe", async () => {
   const c = conexaoFalsa("ROLLBACK");
   await assert.rejects(
-    comSessaoEm(c.conectar, { perfil: "CLIENTE", usuarioId: USUARIO }, async () => {
+    new TransacaoComSessao(c.conectar).executar({ perfil: "CLIENTE", usuarioId: USUARIO }, async () => {
       throw new Error("erro original");
     }),
     /erro original/,
@@ -107,7 +107,7 @@ test("sessão inválida é recusada antes de pegar uma conexão", async () => {
     const c = conexaoFalsa();
     await assert.rejects(
       // @ts-expect-error: os casos inválidos de propósito não respeitam o tipo
-      comSessaoEm(c.conectar, sessao, async () => 1),
+      new TransacaoComSessao(c.conectar).executar(sessao, async () => 1),
       Error,
       JSON.stringify(sessao),
     );
@@ -118,7 +118,7 @@ test("sessão inválida é recusada antes de pegar uma conexão", async () => {
 test("os três perfis do modelo novo são aceitos", async () => {
   for (const perfil of ["CLIENTE", "OPERADOR", "ADMIN"] as const) {
     const c = conexaoFalsa();
-    await comSessaoEm(c.conectar, { perfil, usuarioId: USUARIO }, async () => 1);
+    await new TransacaoComSessao(c.conectar).executar({ perfil, usuarioId: USUARIO }, async () => 1);
     assert.deepEqual(c.registro[1].valores, [perfil, USUARIO]);
     assert.equal(c.liberada, 1);
   }

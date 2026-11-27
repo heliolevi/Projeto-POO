@@ -3,7 +3,7 @@ import type { Reserva } from "@/modules/reservas";
 import type { SessaoBanco } from "../../../shared/db/sessao.ts";
 import type { MovimentacaoParaPersistir } from "../domain/movimentacao.ts";
 
-// Quem chama as rotas 26 e 27: alguém da equipe (OPERADOR ou ADMIN), como o exigirPerfil devolve. A
+// Quem chama as rotas 26 e 27: alguém da equipe (OPERADOR ou ADMIN), como o PerfisPermitidos devolve. A
 // mesma sessão vai para o comSessao, então as políticas de RLS da equipe valem.
 export type SessaoEquipe = SessaoBanco & { perfil: "OPERADOR" | "ADMIN"; usuarioId: string };
 

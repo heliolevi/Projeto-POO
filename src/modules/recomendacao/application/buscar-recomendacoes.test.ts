@@ -10,7 +10,7 @@ import {
 } from "./buscar-recomendacoes.ts";
 
 const ID_CLIENTE = "3f2b8c1e-5d4a-4b6f-9c7e-1a2b3c4d5e6f";
-// a sessão do cliente logado, como o exigirPerfil a entrega
+// a sessão do cliente logado, como o PerfisPermitidos a entrega
 const CLIENTE = { perfil: "CLIENTE", usuarioId: ID_CLIENTE } as const;
 // "agora" fixo: 14/11/2026, 08:00 em São Luís
 const AGORA = new Date("2026-11-14T11:00:00.000Z");

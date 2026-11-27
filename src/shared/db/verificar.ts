@@ -1,4 +1,4 @@
-import { query } from "./pool";
+import type { ExecutorDeConsultas } from "./executor-de-consultas.ts";
 
 export type StatusBanco = {
   banco: string;
@@ -8,25 +8,28 @@ export type StatusBanco = {
   migrations: number | null;
 };
 
-export async function verificarBanco(): Promise<StatusBanco> {
-  const { rows } = await query<{
-    banco: string;
-    postgis: string | null;
-    controle: string | null;
-  }>(`
-    SELECT current_database() AS banco,
-           (SELECT extversion FROM pg_extension WHERE extname = 'postgis') AS postgis,
-           to_regclass('public.schema_migrations')::text AS controle
-  `);
-  const linha = rows[0];
+// Confere se o banco responde e o que ele tem (usada por GET /api/health/db).
+export class VerificadorDoBanco {
+  readonly #banco: ExecutorDeConsultas;
 
-  let migrations: number | null = null;
-  if (linha.controle) {
-    const { rows: contagem } = await query<{ total: number }>(
-      "SELECT count(*)::int AS total FROM schema_migrations",
-    );
-    migrations = contagem[0].total;
+  constructor(banco: ExecutorDeConsultas) {
+    this.#banco = banco;
   }
 
-  return { banco: linha.banco, postgis: linha.postgis, migrations };
+  async verificar(): Promise<StatusBanco> {
+    const { rows } = await this.#banco.consultar(`
+      SELECT current_database() AS banco,
+             (SELECT extversion FROM pg_extension WHERE extname = 'postgis') AS postgis,
+             to_regclass('public.schema_migrations')::text AS controle
+    `);
+    const linha = rows[0] as { banco: string; postgis: string | null; controle: string | null };
+
+    let migrations: number | null = null;
+    if (linha.controle) {
+      const { rows: contagem } = await this.#banco.consultar("SELECT count(*)::int AS total FROM schema_migrations");
+      migrations = Number((contagem[0] as { total: number }).total);
+    }
+
+    return { banco: linha.banco, postgis: linha.postgis, migrations };
+  }
 }

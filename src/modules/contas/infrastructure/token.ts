@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { requireEnv } from "../../../shared/config/env.ts";
+import { Ambiente } from "../../../shared/config/ambiente.ts";
 import type { PerfilUsuario } from "../domain/usuario";
 
 // Token de sessão: JWT HS256 assinado com SESSION_SECRET. Sem estado no banco, então o
@@ -14,7 +14,7 @@ export type SessaoToken = { sub: string; perfil: PerfilUsuario; iat: number; exp
 const SEGREDO_DE_EXEMPLO = "troque-por-um-valor-aleatorio";
 
 function segredo(): string {
-  const valor = requireEnv("SESSION_SECRET");
+  const valor = Ambiente.padrao.exigir("SESSION_SECRET");
   if (valor.length < 32) {
     throw new Error("SESSION_SECRET precisa ter ao menos 32 caracteres.");
   }

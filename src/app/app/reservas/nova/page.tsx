@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import type { RespostaRecomendacao, Recomendacao } from "@/shared/busca/busca";
-import { formatarDuracao, formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
-import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
+import { FormatadorDeData } from "@/shared/format/formatador-de-data";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { EmpresaEmCache, type PontoDeRetirada } from "@/shared/empresa";
 import { lerPedidoDaReserva, motivoDoErro, type PedidoDeReserva } from "@/shared/reservas/nova-reserva";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
@@ -52,7 +53,7 @@ function ResumoDaReserva() {
     const consulta = new URLSearchParams({ inicio, fim }).toString();
 
     Promise.all([
-      getAutenticado<RespostaRecomendacao>(`/api/recomendacao?${consulta}`),
+      ClienteApi.padrao.get<RespostaRecomendacao>(`/api/recomendacao?${consulta}`),
       EmpresaEmCache.padrao.obter(),
     ])
       .then(([recomendacao, empresa]) => {
@@ -85,7 +86,7 @@ function ResumoDaReserva() {
     setEnviando(true);
     setErroEnvio(null);
     try {
-      const reserva = await postAutenticado<Reserva>("/api/reservas", dados);
+      const reserva = await ClienteApi.padrao.post<Reserva>("/api/reservas", dados);
       // replace, não push: ao voltar do Pix, o resumo não reaparece com o botão ativo
       // (um segundo clique criaria outra reserva pendente).
       router.replace(`/app/reservas/${reserva.id}/pagamento`);
@@ -174,8 +175,8 @@ function ResumoDaReserva() {
               <div>
                 <dt>Período</dt>
                 <dd>
-                  {formatarPeriodo(pedido.inicio, pedido.fim)} (
-                  {formatarDuracao(pedido.inicio, pedido.fim)})
+                  {FormatadorDeData.saoLuis.periodo(pedido.inicio, pedido.fim)} (
+                  {FormatadorDeData.saoLuis.duracao(pedido.inicio, pedido.fim)})
                 </dd>
               </div>
               {estado.ponto && (
@@ -191,12 +192,12 @@ function ResumoDaReserva() {
               <div>
                 <dt>Aluguel (pago agora, por Pix)</dt>
                 <dd>
-                  <strong>{formatarReais(estado.item.valorAluguelCentavos)}</strong>
+                  <strong>{Dinheiro.deCentavos(estado.item.valorAluguelCentavos).formatar()}</strong>
                 </dd>
               </div>
               <div>
                 <dt>Caução (combinada no balcão)</dt>
-                <dd>{formatarReais(estado.item.valorCaucaoCentavos)}</dd>
+                <dd>{Dinheiro.deCentavos(estado.item.valorCaucaoCentavos).formatar()}</dd>
               </div>
             </dl>
           </Card>

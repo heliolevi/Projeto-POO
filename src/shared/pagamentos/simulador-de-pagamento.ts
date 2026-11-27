@@ -1,4 +1,4 @@
-import { ApiError, getAutenticado, postAutenticado } from "../http/api-cliente.ts";
+import { ApiError, ClienteApi } from "../http/api-cliente.ts";
 import { caminhoDaSimulacao, situacaoDoPix, type StatusDoPagamento } from "./pagamento.ts";
 import {
   SimulacaoAindaPendente,
@@ -19,8 +19,8 @@ export type ClienteDoPagamento = {
 };
 
 const clientePadrao: ClienteDoPagamento = {
-  post: (url) => postAutenticado<unknown>(url, {}),
-  status: (reservaId) => getAutenticado<StatusDoPagamento>(`/api/pagamentos/${encodeURIComponent(reservaId)}/status`),
+  post: (url) => ClienteApi.padrao.post<unknown>(url, {}),
+  status: (reservaId) => ClienteApi.padrao.get<StatusDoPagamento>(`/api/pagamentos/${encodeURIComponent(reservaId)}/status`),
 };
 
 /** Código do contrato para "simulação desligada" (PAGAMENTO_MODO diferente de simulado). */

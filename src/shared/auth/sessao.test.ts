@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
-import { lerSessao } from "./sessao.ts";
+import { ArmazemDeSessao } from "./sessao.ts";
 
 const b64 = (dados: string) => Buffer.from(dados).toString("base64url");
 
@@ -37,7 +37,7 @@ test("token válido com perfil conhecido é lido", () => {
     "bik_token",
     montarToken({ sub: "u1", perfil: "CLIENTE", exp: agora() + 3600 }),
   );
-  const sessao = lerSessao();
+  const sessao = ArmazemDeSessao.navegador.sessao();
   assert.equal(sessao?.usuarioId, "u1");
   assert.equal(sessao?.perfil, "CLIENTE");
 });
@@ -47,17 +47,17 @@ test("token expirado é recusado", () => {
     "bik_token",
     montarToken({ sub: "u1", perfil: "CLIENTE", exp: agora() - 10 }),
   );
-  assert.equal(lerSessao(), null);
+  assert.equal(ArmazemDeSessao.navegador.sessao(), null);
 });
 
 test("token malformado é recusado", () => {
   window.localStorage.setItem("bik_token", "nao-e-um-jwt");
-  assert.equal(lerSessao(), null);
+  assert.equal(ArmazemDeSessao.navegador.sessao(), null);
 });
 
 test("token sem perfil é recusado", () => {
   window.localStorage.setItem("bik_token", montarToken({ sub: "u1", exp: agora() + 3600 }));
-  assert.equal(lerSessao(), null);
+  assert.equal(ArmazemDeSessao.navegador.sessao(), null);
 });
 
 test("token com perfil desconhecido (modelo antigo) é recusado", () => {
@@ -65,14 +65,14 @@ test("token com perfil desconhecido (modelo antigo) é recusado", () => {
     "bik_token",
     montarToken({ sub: "u1", perfil: "GERENTE_LOCADORA", exp: agora() + 3600 }),
   );
-  assert.equal(lerSessao(), null);
+  assert.equal(ArmazemDeSessao.navegador.sessao(), null);
 });
 
 test("token sem exp é recusado", () => {
   window.localStorage.setItem("bik_token", montarToken({ sub: "u1", perfil: "CLIENTE" }));
-  assert.equal(lerSessao(), null);
+  assert.equal(ArmazemDeSessao.navegador.sessao(), null);
 });
 
 test("sem token salvo, não há sessão", () => {
-  assert.equal(lerSessao(), null);
+  assert.equal(ArmazemDeSessao.navegador.sessao(), null);
 });

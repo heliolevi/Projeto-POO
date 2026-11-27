@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { formatarReais } from "@/shared/format/moeda-e-data";
-import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import {
   imagemDoQrCode,
   situacaoDoPix,
@@ -54,7 +54,7 @@ export default function PagamentoPixPage() {
 
     async function criarCobranca() {
       try {
-        const cobranca = await postAutenticado<CobrancaPix>("/api/pagamentos", {
+        const cobranca = await ClienteApi.padrao.post<CobrancaPix>("/api/pagamentos", {
           reservaId: id,
           metodo: "PIX",
         });
@@ -76,7 +76,7 @@ export default function PagamentoPixPage() {
 
     async function decidirPelaReserva(conflito: ApiError) {
       try {
-        const reserva = await getAutenticado<ReservaDetalhada>(`/api/reservas/${id}`);
+        const reserva = await ClienteApi.padrao.get<ReservaDetalhada>(`/api/reservas/${id}`);
         if (!ativo) return;
         if (reserva.status === "CONFIRMADA" || reserva.status === "EM_ANDAMENTO") {
           router.replace(`/app/reservas/${id}`);
@@ -112,7 +112,7 @@ export default function PagamentoPixPage() {
 
     async function consultar() {
       try {
-        const status = await getAutenticado<StatusDoPagamento>(`/api/pagamentos/${id}/status`);
+        const status = await ClienteApi.padrao.get<StatusDoPagamento>(`/api/pagamentos/${id}/status`);
         if (!ativo) return;
         const situacao = situacaoDoPix(status);
         if (situacao === "confirmado") return setEstado({ tipo: "confirmado" });
@@ -273,7 +273,7 @@ export default function PagamentoPixPage() {
                   alt="QR code do Pix"
                 />
                 <span className={pagamentoStyles.valor}>
-                  {formatarReais(estado.cobranca.valorCentavos)}
+                  {Dinheiro.deCentavos(estado.cobranca.valorCentavos).formatar()}
                 </span>
                 <span className={pagamentoStyles.contagem}>
                   Este Pix vale por mais {formatarContagem(restante)}

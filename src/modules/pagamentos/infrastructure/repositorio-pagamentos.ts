@@ -1,7 +1,8 @@
 import type { PoolClient } from "pg";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
 import { PRAZO_DE_PAGAMENTO_MS } from "../../../shared/dominio/prazos.ts";
-import { VISITANTE, comSessao } from "../../../shared/db/sessao.ts";
+import { BancoDeDados } from "../../../shared/db/banco-de-dados.ts";
+import { VISITANTE } from "../../../shared/db/sessao.ts";
 import type { OperacoesPagamento, TransacaoPagamento } from "../application/portas.ts";
 import { PagamentoPix, criarPagamento } from "../domain/formas-de-pagamento.ts";
 import type { MetodoPagamento, Pagamento, StatusPagamento } from "../domain/pagamento.ts";
@@ -174,7 +175,7 @@ export function operacoesNoBanco(client: PoolClient): OperacoesPagamento {
 // O aviso da Stripe chega sem sessão: cliente_do_pagamento() (migration 0012, SECURITY DEFINER)
 // diz de quem é a cobrança, e o resto do processamento roda com a sessão desse cliente.
 export async function clienteDoPagamento(idExterno: string): Promise<string | null> {
-  return comSessao(VISITANTE, async (client) => {
+  return BancoDeDados.padrao.comSessao(VISITANTE, async (client) => {
     const { rows } = await client.query<{ cliente_id: string | null }>(
       "SELECT cliente_do_pagamento($1) AS cliente_id",
       [idExterno],
@@ -184,4 +185,4 @@ export async function clienteDoPagamento(idExterno: string): Promise<string | nu
 }
 
 export const emTransacao: TransacaoPagamento = (sessao, fn) =>
-  comSessao(sessao, (client) => fn(operacoesNoBanco(client)));
+  BancoDeDados.padrao.comSessao(sessao, (client) => fn(operacoesNoBanco(client)));

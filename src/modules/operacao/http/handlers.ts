@@ -1,12 +1,15 @@
 import { Bicicleta } from "@/modules/catalogo";
-import { exigirPerfil, exigirSessao } from "@/modules/contas";
+import { exigirSessao, PerfisPermitidos } from "@/modules/contas";
 import { Reserva } from "@/modules/reservas";
-import { lerJson } from "@/shared/http/json";
-import { errorResponse, ok } from "@/shared/http/response";
+import { LeitorDeCorpo } from "@/shared/http/leitor-de-corpo";
+import { Resposta } from "@/shared/http/resposta";
 import { OperacaoService } from "../application/operacao-service";
 import { emTransacao } from "../infrastructure/repositorio-operacao";
 
 const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
+
+const leitor = new LeitorDeCorpo();
+const soEquipe = new PerfisPermitidos("OPERADOR", "ADMIN");
 
 const operacao = new OperacaoService({
   transacao: emTransacao,
@@ -17,16 +20,16 @@ const operacao = new OperacaoService({
 
 // As rotas de operação são da equipe: 401 sem sessão válida, 403 para o cliente.
 async function sessaoDaEquipe(request: Request) {
-  return exigirPerfil(await exigirSessao(request), "OPERADOR", "ADMIN");
+  return soEquipe.exigir(await exigirSessao(request));
 }
 
 // POST /api/operacao/reservas/{id}/retirada (rota 26). O corpo só é lido depois de conferir o id.
 export async function postRetirada(request: Request, id: string) {
   try {
     const sessao = await sessaoDaEquipe(request);
-    return ok(await operacao.registrarRetirada(sessao, id, () => lerJson(request)), SEM_CACHE);
+    return Resposta.ok(await operacao.registrarRetirada(sessao, id, () => leitor.lerJson(request)), SEM_CACHE);
   } catch (erro) {
-    return errorResponse(erro);
+    return Resposta.deErro(erro);
   }
 }
 
@@ -35,8 +38,8 @@ export async function postRetirada(request: Request, id: string) {
 export async function postDevolucao(request: Request, id: string) {
   try {
     const sessao = await sessaoDaEquipe(request);
-    return ok(await operacao.registrarDevolucao(sessao, id, () => lerJson(request)), SEM_CACHE);
+    return Resposta.ok(await operacao.registrarDevolucao(sessao, id, () => leitor.lerJson(request)), SEM_CACHE);
   } catch (erro) {
-    return errorResponse(erro);
+    return Resposta.deErro(erro);
   }
 }

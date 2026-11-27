@@ -1,11 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { exigirPerfil, exigirSessao } from "@/modules/contas";
-import { exigirDentroDoLimite } from "@/shared/db/limite-tentativas";
-import { query } from "@/shared/db/pool";
-import { lerTextoLimitado } from "@/shared/http/corpo";
+import { exigirSessao, PerfisPermitidos } from "@/modules/contas";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
 import { UnauthorizedError } from "@/shared/http/errors";
-import { lerJson } from "@/shared/http/json";
-import { created, errorResponse, ok } from "@/shared/http/response";
+import { LeitorDeCorpo } from "@/shared/http/leitor-de-corpo";
+import { Resposta } from "@/shared/http/resposta";
 import { PagarReservaService } from "../application/pagar-reserva";
 import { AssinaturaInvalida, GatewayStripe, lerAvisoDaStripe } from "../infrastructure/gateway-stripe";
 import { gerarQrCodeBase64 } from "../infrastructure/qr-code";
@@ -19,6 +18,11 @@ const LIMITE_CORPO_WEBHOOK_BYTES = 64 * 1024;
 
 const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
 
+const leitor = new LeitorDeCorpo();
+const leitorDoWebhook = new LeitorDeCorpo(LIMITE_CORPO_WEBHOOK_BYTES);
+const soCliente = new PerfisPermitidos("CLIENTE");
+const limite = new LimiteDeTentativas(BancoDeDados.padrao);
+
 const gateway = new GatewayStripe();
 
 const pagamentos = new PagarReservaService({
@@ -31,22 +35,22 @@ const pagamentos = new PagarReservaService({
   registrarErro: (erro) => console.error("[pagamentos] consulta à Stripe falhou:", erro),
   // o limite só conta quando uma cobrança nova vai ser criada (reabrir a tela não conta)
   limitarCriacao: (sessao) =>
-    exigirDentroDoLimite(query, `pagamentos:usuario:${sessao.usuarioId}`, LIMITE_PAGAMENTOS_POR_USUARIO),
+    limite.exigirDentroDoLimite(`pagamentos:usuario:${sessao.usuarioId}`, LIMITE_PAGAMENTOS_POR_USUARIO),
 });
 
 // As rotas 16 e 17 são do CLIENTE dono da reserva: 401 sem sessão válida, 403 para a equipe.
 async function sessaoDoCliente(request: Request) {
-  return exigirPerfil(await exigirSessao(request), "CLIENTE");
+  return soCliente.exigir(await exigirSessao(request));
 }
 
 // POST /api/pagamentos (rota 16): 201 com a cobrança nova, 200 se reaproveitou o Pix pendente.
 export async function postPagamentos(request: Request) {
   try {
     const sessao = await sessaoDoCliente(request);
-    const { cobranca, criada } = await pagamentos.iniciar(sessao, await lerJson(request));
-    return criada ? created(cobranca, SEM_CACHE) : ok(cobranca, SEM_CACHE);
+    const { cobranca, criada } = await pagamentos.iniciar(sessao, await leitor.lerJson(request));
+    return criada ? Resposta.criada(cobranca, SEM_CACHE) : Resposta.ok(cobranca, SEM_CACHE);
   } catch (erro) {
-    return errorResponse(erro);
+    return Resposta.deErro(erro);
   }
 }
 
@@ -55,9 +59,9 @@ export async function postPagamentos(request: Request) {
 export async function getStatusDoPagamento(request: Request, reservaId: string) {
   try {
     const sessao = await sessaoDoCliente(request);
-    return ok(await pagamentos.consultarStatus(sessao, reservaId), SEM_CACHE);
+    return Resposta.ok(await pagamentos.consultarStatus(sessao, reservaId), SEM_CACHE);
   } catch (erro) {
-    return errorResponse(erro);
+    return Resposta.deErro(erro);
   }
 }
 
@@ -65,7 +69,7 @@ export async function getStatusDoPagamento(request: Request, reservaId: string) 
 // assinatura (stripe-signature). Responde 200 também para eventos que não interessam.
 export async function postWebhookDePagamento(request: Request) {
   try {
-    const corpo = await lerTextoLimitado(request, LIMITE_CORPO_WEBHOOK_BYTES);
+    const corpo = await leitorDoWebhook.lerTexto(request);
     let aviso;
     try {
       aviso = lerAvisoDaStripe(corpo, request.headers.get("stripe-signature"));
@@ -74,8 +78,8 @@ export async function postWebhookDePagamento(request: Request) {
       throw erro;
     }
     const resultado = aviso ? await pagamentos.processarAviso(aviso.idExterno, aviso.situacao) : "ignorado";
-    return ok({ recebido: true, resultado }, SEM_CACHE);
+    return Resposta.ok({ recebido: true, resultado }, SEM_CACHE);
   } catch (erro) {
-    return errorResponse(erro);
+    return Resposta.deErro(erro);
   }
 }
