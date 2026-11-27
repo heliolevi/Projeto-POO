@@ -136,11 +136,15 @@ test("um erro em tempo de execução não conta como o Node recusando a sintaxe"
 // Segunda barreira: o próprio TypeScript (job typecheck) recusa a sintaxe não apagável em todo .ts
 // do projeto, inclusive fora de src (next.config.ts). Apagar a opção do tsconfig faz este teste falhar.
 // O tsconfig é JSONC (aceita comentário e vírgula sobrando): é lido com o leitor do TypeScript.
-test("o tsconfig liga erasableSyntaxOnly", () => {
+test("o tsconfig liga erasableSyntaxOnly e verbatimModuleSyntax", () => {
   const caminho = `${RAIZ}tsconfig.json`;
   const { config, error } = ts.parseConfigFileTextToJson(caminho, readFileSync(caminho, "utf8"));
   assert.equal(error, undefined);
   assert.equal(config.compilerOptions?.erasableSyntaxOnly, true);
+  // O mesmo tipo de quebra por outro caminho: um tipo importado sem `type` fica no código que o Node
+  // roda, e o `npm test` falha com "does not provide an export named". verbatimModuleSyntax obriga o
+  // `import type` (o código atual já seguia: ligar a opção não pediu nenhuma mudança).
+  assert.equal(config.compilerOptions?.verbatimModuleSyntax, true);
 });
 
 // A opção existe a partir do TypeScript 5.8: a faixa do package.json não pode aceitar uma versão sem ela.
