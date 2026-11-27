@@ -122,14 +122,16 @@ const eslintConfig = defineConfig([
     // Sintaxe não apagável: vale para todo TypeScript do projeto (src, scripts, next.config.ts...).
     // Um .d.ts é todo ambiente. .next, out e build já ficam de fora pelos globalIgnores.
     files: ["**/*.{ts,tsx,mts,cts}"],
-    ignores: ["**/*.d.ts", "**/*.d.mts", "**/*.d.cts"],
+    // .d.ts, .d.mts, .d.cts e .d.<ext>.ts (allowArbitraryExtensions): todos são só declaração
+    ignores: ["**/*.d.*ts"],
     rules: {
       "no-restricted-syntax": ["error", ...sintaxeNaoApagavel],
     },
   },
   {
     // Fronteiras entre módulos: outros módulos e rotas só importam pelo index.ts.
-    files: ["src/**/*.{ts,tsx,mts,cts}"],
+    // .cts fica de fora: ele importa por require, que no-restricted-imports não confere
+    files: ["src/**/*.{ts,tsx,mts}"],
     ignores: ["src/modules/**"],
     rules: {
       "no-restricted-imports": [
@@ -139,7 +141,7 @@ const eslintConfig = defineConfig([
     },
   },
   ...modulos.map((modulo) => ({
-    files: [`src/modules/${modulo}/**/*.{ts,tsx,mts,cts}`],
+    files: [`src/modules/${modulo}/**/*.{ts,tsx,mts}`],
     rules: {
       "no-restricted-imports": [
         "error",

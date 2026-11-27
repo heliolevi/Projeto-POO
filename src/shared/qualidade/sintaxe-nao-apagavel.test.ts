@@ -109,7 +109,9 @@ function veredictoDoNode(codigo: string): VeredictoDoNode {
   const execucao = spawnSync(
     process.execPath,
     ["--input-type=module-typescript", "--eval", `throw new Error("${SENTINELA}");\n${codigo}`],
-    { encoding: "utf8", timeout: 15_000 },
+    // NODE_OPTIONS vazio: uma opção de quem roda o teste (como --experimental-transform-types) mudaria
+    // o que o Node aceita, e a conferência é do type stripping puro
+    { encoding: "utf8", timeout: 15_000, env: { ...process.env, NODE_OPTIONS: "" } },
   );
   if (execucao.error || execucao.signal) {
     return { inesperado: `${execucao.error?.message ?? ""} ${execucao.signal ?? ""}`.trim() };
@@ -154,8 +156,22 @@ test("a regra vale em .ts, .tsx, .mts e .cts, dentro e fora de src", async () =>
   }
 });
 
-test("um .d.ts não passa pela regra (é todo ambiente)", async () => {
-  assert.deepEqual(await errosDaRegra("export enum E { A }", "src/tipos.d.ts"), []);
+test("arquivo de declaração não passa pela regra (é todo ambiente): .d.ts, .d.mts, .d.cts e .d.<ext>.ts", async () => {
+  for (const arquivo of ["src/tipos.d.ts", "src/tipos.d.mts", "src/tipos.d.cts", "src/estilos/botao.d.css.ts"]) {
+    assert.deepEqual(await errosDaRegra("export enum E { A }", arquivo), [], arquivo);
+  }
+});
+
+test("a conferência no Node ignora o NODE_OPTIONS de quem roda o teste", () => {
+  const antes = process.env.NODE_OPTIONS;
+  // com --experimental-transform-types o Node transformaria o enum em vez de recusar
+  process.env.NODE_OPTIONS = "--experimental-transform-types";
+  try {
+    assert.equal(veredictoDoNode("export enum E { A }"), "recusa");
+  } finally {
+    if (antes === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = antes;
+  }
 });
 
 // Segunda barreira: o próprio TypeScript (job typecheck) recusa a sintaxe não apagável em todo .ts
