@@ -19,7 +19,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia` |
 | `reservas` | `Reserva`, `ReservaService` |
 | `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService` |
-| `operacao` | `Movimentacao`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo`, `OperacaoService` |
+| `operacao` | `Movimentacao`, `Checklist`, `ItemDoChecklist`, `OperacaoService`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
 | `administracao` | `AuditoriaLog` |
 | `shared/empresa` (telas) | `EmpresaDaLocadora`, `PontoDeRetirada`, `GradeDeHorarios`, `HorarioDoDia`, `LeitorDeObjeto`, `BuscadorDeEmpresa`, `ResultadoDaEmpresa` (abstrata), `EmpresaCarregada`, `EmpresaSemCadastro`, `EmpresaIndisponivel` |
@@ -132,11 +132,12 @@ classe é a que está rodando quando ela ainda não está:
 | `TipoBicicleta` | O catálogo público monta cada tipo por `TipoBicicleta` e devolve `paraPublico()`. |
 | `RecomendacaoService` e os critérios | `GET /api/recomendacao`. |
 | `Dinheiro`, `Periodo` | Dentro de `Reserva` e `TipoBicicleta`. |
+| `OperacaoService`, `Movimentacao`, `Checklist`, `ItemDoChecklist` | As rotas 26 e 27 (retirada e devolução). O serviço coordena `Reserva` (`iniciar()`/`concluir()`), `Bicicleta` (`estaDisponivel()`) e `Movimentacao`. |
 
 | Modelo de domínio com testes, ainda sem rota | O que falta para ligar |
 |---|---|
 | `Pagamento`, `PagamentoPix`, `PagamentoCartao`, `PagamentoService` | As rotas 16 a 18 (pagamento) ainda não existem; o MVP usa pagamento simulado. |
-| `OperacaoService`, `Movimentacao`, `Ocorrencia` (`Dano`, `Atraso`, `Furto`), `Arquivo` | As rotas de retirada e devolução e o armazenamento de arquivos (fase 5 do plano). |
+| `Ocorrencia` (`Dano`, `Atraso`, `Furto`), `Arquivo` | A tabela `ocorrencia` e o armazenamento de arquivos (fase 5 do plano). A devolução com atraso ainda não abre `Atraso`. |
 | `Notificacao`, `RoteadorDeEnvio` | Os canais de envio reais (fase de avisos). |
 | `AuditoriaLog` | A gravação da trilha pelo servidor. |
 | `Empresa`, `Ponto`, `Bicicleta` | Os repositórios que leem do banco para objeto e as rotas que os usam. |
