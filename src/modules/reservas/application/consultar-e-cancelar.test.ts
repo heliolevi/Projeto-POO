@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ConflictError, NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
-import { STATUS_RESERVA, type StatusReserva } from "../domain/reserva.ts";
+import { RegrasDeReserva, type StatusReserva } from "../domain/reserva.ts";
 import { criarBancoFalso } from "./banco-falso.ts";
-import { criarBuscarReserva, criarListarReservas } from "./consultar-reservas.ts";
-import { criarCancelarReserva } from "./cancelar-reserva.ts";
+import { ConsultaDeReservas } from "./consultar-reservas.ts";
+import { CancelamentoDeReserva } from "./cancelar-reserva.ts";
 import type { SessaoCliente } from "./portas.ts";
 
 const A: SessaoCliente = { perfil: "CLIENTE", usuarioId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" };
@@ -17,12 +17,15 @@ const INEXISTENTE = "99999999-9999-4999-8999-999999999999";
 
 function montar() {
   const banco = criarBancoFalso(() => AGORA);
-  const dep = { transacao: banco.transacao, agora: () => AGORA };
+  const consulta = new ConsultaDeReservas(banco.executor);
+  const cancelamento = new CancelamentoDeReserva({ executor: banco.executor, agora: () => AGORA });
   return {
     banco,
-    listar: criarListarReservas(dep),
-    buscar: criarBuscarReserva(dep),
-    cancelar: criarCancelarReserva(dep),
+    consulta,
+    cancelamento,
+    listar: (sessao: SessaoCliente, filtros: { status?: unknown }) => consulta.listar(sessao, filtros),
+    buscar: (sessao: SessaoCliente, id: unknown) => consulta.buscar(sessao, id),
+    cancelar: (sessao: SessaoCliente, id: unknown) => cancelamento.cancelar(sessao, id),
   };
 }
 
@@ -68,7 +71,7 @@ test("filtra por status quando o valor é válido", async () => {
 
 test("aceita cada status do enum no filtro", async () => {
   const { listar } = montar();
-  for (const status of STATUS_RESERVA) await listar(A, { status });
+  for (const status of RegrasDeReserva.STATUS) await listar(A, { status });
 });
 
 test("status inválido responde 400 com details.status e não toca o banco", async () => {

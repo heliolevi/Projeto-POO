@@ -17,7 +17,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `contas` | `Usuario` (abstrata), `Cliente`, `Operador`, `Admin`, `FabricaDeUsuario`, `ValidadorDeConta`, `CadastroDeCliente`, `Autenticador`, `PerfilDoCiclista`, `ManutencaoDaConta`, `SessaoDaRequisicao`, `EmissorDeSessao`, `RepositorioDeUsuarios`, `ScryptDeSenha`, `ServicoDeToken`, `ControladorDeContas` |
 | `catalogo` | `Empresa`, `Ponto`, `TipoBicicleta`, `Bicicleta`, `ValidadorDoCatalogo`, `ServicoDoCatalogo`, `RepositorioDoCatalogo`, `ControladorDoCatalogo` |
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia`, `BuscaDeRecomendacoes`, `RepositorioDeDisponibilidade`, `ControladorDeRecomendacao` |
-| `reservas` | `Reserva`, `ReservaService`, `FiltroDoPainel`, `ReservaDoPainel`, `PainelDeReservas`, `RepositorioDoPainel`, `ControladorDoPainel` |
+| `reservas` | `Reserva`, `RegrasDeReserva` (status, transições, prazo), `ValidadorDeNovaReserva`, `GeradorDeCodigoDeReserva`, `ReservaService`, `CriadorDeReserva`, `ConsultaDeReservas`, `CancelamentoDeReserva`, `MontadorDeReserva`, `RepositorioDeReservas`, `OperacoesDeReservasNoBanco`, `ControladorDeReservas`, `FiltroDoPainel`, `ReservaDoPainel`, `PainelDeReservas`, `RepositorioDoPainel`, `ControladorDoPainel` |
 | `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `FabricaDePagamento`, `CodigoPix` (objeto de valor), `PagamentoService`, `PagarReservaService`, `IntervaloDeConsulta`, `GatewayPix` (interface), `GatewayStripe` (fetch e chave injetados), `LeitorDeAvisoDaStripe` (webhook assinado), `TraducaoDaStripe`, `QrCodePng`, `OperacoesDePagamentoNoBanco`, `RepositorioDePagamentosNoBanco`, `ControladorDePagamentos` |
 | `operacao` | `Movimentacao`, `Checklist`, `ItemDoChecklist`, `OperacaoService`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
@@ -233,6 +233,6 @@ construtor (injeção de dependência):
 
 ### O que ainda não foi convertido
 
-Estes grupos ainda têm funções soltas e entram nas próximas fases: os módulos `reservas` e `operacao`
-(casos de uso, repositórios e handlers; `contas`, `catalogo`, `recomendacao` e `pagamentos` já foram convertidos), a lógica das telas em `src/shared/*` (busca, agenda, início,
+Estes grupos ainda têm funções soltas e entram nas próximas fases: o módulo `operacao`
+(casos de uso, repositórios e handlers; `contas`, `catalogo`, `recomendacao`, `reservas` e `pagamentos` já foram convertidos), a lógica das telas em `src/shared/*` (busca, agenda, início,
 perfil, conta, operação, admin, markdown e landing) e as rotas `route.ts`, que passam a só chamar classes.

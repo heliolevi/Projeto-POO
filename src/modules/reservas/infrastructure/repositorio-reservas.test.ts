@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { STATUS_RESERVA, TRANSICOES, podeCancelar } from "../domain/reserva.ts";
-import { operacoesNoBanco } from "./repositorio-reservas.ts";
+import { RegrasDeReserva } from "../domain/reserva.ts";
+import { OperacoesDeReservasNoBanco } from "./repositorio-reservas.ts";
 
 // Testes do repositório com um cliente falso que só grava as consultas. Não substituem os testes de
 // banco (db/tests, que rodam num PostgreSQL), mas protegem na CI comum o que mais importa no SQL do
@@ -17,7 +17,7 @@ function clienteFalso(respostas: Array<{ rows?: unknown[]; rowCount?: number }> 
       return { rows: resposta.rows ?? [], rowCount: resposta.rowCount ?? (resposta.rows ?? []).length };
     },
   };
-  return { chamadas, operacoes: operacoesNoBanco(client as never) };
+  return { chamadas, operacoes: new OperacoesDeReservasNoBanco(client as never) };
 }
 
 const LINHA_DA_VIEW = {
@@ -74,9 +74,9 @@ describe("repositório de reservas: marcarCancelada", () => {
     assert.equal(chamadas.length, 1);
     assert.match(chamadas[0].sql, /status = ANY\(\$2::status_reserva\[\]\)/);
     assert.ok(!/IN \(/.test(chamadas[0].sql), "nenhuma lista de status escrita à mão no SQL");
-    assert.deepEqual(chamadas[0].valores[1], STATUS_RESERVA.filter((s) => TRANSICOES[s].includes("CANCELADA")));
+    assert.deepEqual(chamadas[0].valores[1], RegrasDeReserva.STATUS.filter((s) => RegrasDeReserva.TRANSICOES[s].includes("CANCELADA")));
     assert.deepEqual(chamadas[0].valores[1], ["PENDENTE_PAGAMENTO", "CONFIRMADA"]);
-    assert.deepEqual(chamadas[0].valores[1], STATUS_RESERVA.filter(podeCancelar));
+    assert.deepEqual(chamadas[0].valores[1], RegrasDeReserva.STATUS.filter(RegrasDeReserva.podeCancelar));
   });
 
   test("grava cancelada_em com a hora do banco (a constraint exige a data junto com o status)", async () => {
