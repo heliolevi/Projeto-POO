@@ -67,7 +67,7 @@ test("a chave vai como parâmetro, nunca dentro do texto SQL", async () => {
   assert.equal(chamadas[0].valores[0], maliciosa);
 });
 
-test("limparTentativas zera a chave", async () => {
+test("limpar zera a chave", async () => {
   const { executar, contagens } = bancoFalso();
   await dos(executar).exigirDentroDoLimite("login:email:abc", regra);
   assert.equal(contagens.get("login:email:abc"), 1);

@@ -1,6 +1,6 @@
 /**
- * Módulo pagamentos — Cobrança do aluguel por Pix e cartão (no MVP, pagamento simulado; a integração
- * com o Mercado Pago está em stand by).
+ * Módulo pagamentos — Cobrança do aluguel por Pix, com a Stripe como meio de pagamento (o cartão
+ * existe no domínio, mas ainda não tem rota).
  *
  * API pública do módulo: apenas o que for exportado aqui pode ser importado por
  * outros módulos ou pelos Route Handlers em src/app/api.
@@ -29,3 +29,13 @@ export {
   type RepositorioDePagamentos,
   type ReservaParaPagar,
 } from "./application/pagamento-service";
+export { IntervaloDeConsulta } from "./application/intervalo-de-consulta";
+export {
+  PagarReservaService,
+  type CobrancaPixComQrCode,
+  type DependenciasPagarReserva,
+  type ResultadoDoAviso,
+  type StatusDoPagamento,
+} from "./application/pagar-reserva";
+export type { GatewayPix, SituacaoNoGateway } from "./application/portas";
+export { getStatusDoPagamento, postPagamentos, postWebhookDePagamento } from "./http/handlers";

@@ -19,3 +19,23 @@ export {
   type StatusDeOcorrencia,
   type TipoDeOcorrencia,
 } from "./domain/ocorrencia";
+export {
+  Checklist,
+  ItemDoChecklist,
+  MAXIMO_DE_ITENS,
+  TAMANHO_MAXIMO_DAS_OBSERVACOES,
+  TAMANHO_MAXIMO_DO_NOME,
+  type ItemDoChecklistDto,
+} from "./domain/checklist";
+export {
+  Movimentacao,
+  MovimentacaoInvalida,
+  type MovimentacaoParaPersistir,
+  type TipoMovimentacao,
+} from "./domain/movimentacao";
+export {
+  OperacaoService,
+  type DependenciasOperacao,
+  type ReservaComBicicleta,
+} from "./application/operacao-service";
+export { postDevolucao, postRetirada } from "./http/handlers";

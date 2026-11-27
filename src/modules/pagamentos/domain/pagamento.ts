@@ -8,13 +8,15 @@ export type MetodoPagamento = (typeof METODOS_PAGAMENTO)[number];
 export const STATUS_PAGAMENTO = ["PENDENTE", "APROVADO", "RECUSADO", "ESTORNADO", "EXPIRADO"] as const;
 export type StatusPagamento = (typeof STATUS_PAGAMENTO)[number];
 
-// Para cada status, os que podem vir depois. Recusado, estornado e expirado são finais.
+// Para cada status, os que podem vir depois. Estornado é final. Recusado e expirado só saem para
+// ESTORNADO, e só por estornarPagamentoTardio(): o meio de pagamento avisou que a cobrança foi paga
+// depois que, aqui, ela já tinha vencido (o Pix pago no último segundo).
 const TRANSICOES: Record<StatusPagamento, readonly StatusPagamento[]> = {
   PENDENTE: ["APROVADO", "RECUSADO", "EXPIRADO"],
   APROVADO: ["ESTORNADO"],
-  RECUSADO: [],
+  RECUSADO: ["ESTORNADO"],
   ESTORNADO: [],
-  EXPIRADO: [],
+  EXPIRADO: ["ESTORNADO"],
 };
 
 // 409: o pagamento não está num estado que permita a operação pedida.
@@ -26,7 +28,8 @@ export type DadosPagamento = {
   valor: Dinheiro;
   criadoEm: Date;
   status?: StatusPagamento;
-  // id do pagamento no Mercado Pago; fica vazio no MVP (pagamento simulado)
+  // id da cobrança no meio de pagamento (na Stripe, o id do PaymentIntent "pi_..."). A coluna do
+  // banco ainda se chama mp_payment_id, do tempo em que o meio previsto era o Mercado Pago.
   mpPaymentId?: string | null;
   valorEstornado?: Dinheiro;
   // Quando foi pago. O banco exige pago_em preenchido exatamente quando o status é APROVADO
@@ -35,6 +38,8 @@ export type DadosPagamento = {
   // Só o Pix usa: até quando a cobrança vale. É o menor entre 15 minutos e o prazo da reserva,
   // para o Pix não sobreviver à reserva que ele paga.
   expiraEm?: Date | null;
+  // Só o Pix usa: o "copia e cola" que o meio de pagamento devolveu ao registrar a cobrança.
+  copiaECola?: string | null;
 };
 
 // O que a cobrança devolve para a tela. Cada forma de pagamento acrescenta os seus campos.
@@ -179,6 +184,22 @@ export abstract class Pagamento {
     if (this.#valorEstornado.igual(this.#valor)) this.#status = "ESTORNADO";
   }
 
+  // A cobrança foi paga no meio de pagamento depois que, aqui, o pagamento já tinha expirado ou sido
+  // recusado (o Pix pago no último segundo, com o aviso chegando depois da expiração). Não há reserva
+  // para esse dinheiro: ele é devolvido inteiro, e o pagamento passa direto a ESTORNADO, para ficar o
+  // registro de que entrou e saiu. Idempotente: já estornado, não faz nada e devolve false.
+  estornarPagamentoTardio(): boolean {
+    if (this.#status === "ESTORNADO") return false;
+    if (this.#status !== "EXPIRADO" && this.#status !== "RECUSADO") {
+      throw new TransicaoDePagamentoInvalida(
+        `Não é possível estornar como pagamento tardio: o pagamento está ${this.#status}.`,
+      );
+    }
+    this.#mudarPara("ESTORNADO", "estornar o pagamento tardio");
+    this.#valorEstornado = this.#valor;
+    return true;
+  }
+
   restanteParaEstorno(): Dinheiro {
     return this.#valor.subtrair(this.#valorEstornado);
   }
@@ -190,6 +211,17 @@ export abstract class Pagamento {
       );
     }
     this.#status = novo;
+  }
+
+  // Guarda o id da cobrança criada no meio de pagamento. Só vale para pagamento pendente que ainda
+  // não tem id (ou para o mesmo id de novo): um pagamento não troca de cobrança no meio do caminho.
+  protected vincularIdExterno(idExterno: string): void {
+    this.exigirPendente();
+    if (!idExterno) throw new RangeError("O id da cobrança no meio de pagamento não pode ser vazio.");
+    if (this.#mpPaymentId !== null && this.#mpPaymentId !== idExterno) {
+      throw new TransicaoDePagamentoInvalida("Este pagamento já está ligado a outra cobrança no meio de pagamento.");
+    }
+    this.#mpPaymentId = idExterno;
   }
 
   // Os dados comuns da cobrança (sem o que é próprio de cada forma de pagamento).

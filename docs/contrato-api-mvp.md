@@ -5,10 +5,11 @@ Cada rota tem o que precisa para ser feita e usada sem perguntar: método, camin
 corpo, resposta de sucesso e erros. Se algo precisar mudar, avise na PR ou no grupo antes de mudar o
 código: o contrato só muda com os dois lados de acordo.
 
-> **MVP sem Mercado Pago (novembro de 2026).** A integração com o Mercado Pago está em **stand by** e
-> fica fora do MVP. O pagamento é **simulado** (`PAGAMENTO_MODO=simulado`): as rotas 16 e 17 funcionam com
-> um Pix de mentira, e a rota 18 (webhook) e o erro `502 PAGAMENTO_INDISPONIVEL` só entram quando a
-> integração voltar.
+> **Pagamento com a Stripe (26/11/2026).** O Pix é cobrado pela **Stripe** (API de PaymentIntents),
+> com QR code e "copia e cola" de verdade. Não há mais pagamento simulado. No sandbox da Stripe
+> (`sk_test_...`) nada é cobrado; com a chave de produção (`sk_live_...`) a cobrança é real. A
+> confirmação chega pelo webhook (rota 18) e também pela consulta de status (rota 17). O Mercado Pago
+> saiu do plano.
 
 > **Estado:** rotas marcadas como *existe* já estão no código; as marcadas como *novo* serão feitas na
 > semana do MVP. Quem faz cada uma está na tabela do [resumo](#resumo-das-rotas).
@@ -29,7 +30,7 @@ código: o contrato só muda com os dois lados de acordo.
 | 409 | `CONFLICT` | O estado atual não permite a ação (sem bicicleta livre, reserva já paga, etc.) |
 | 413 | `PAYLOAD_TOO_LARGE` | Corpo acima de 16 KiB |
 | 429 | `TOO_MANY_REQUESTS` | Limite de tentativas; vem o cabeçalho `Retry-After` (segundos) |
-| 502 | `PAGAMENTO_INDISPONIVEL` | O Mercado Pago não respondeu ou recusou a criação da cobrança *(código novo; só com a integração, fora do MVP)* |
+| 502 | `PAGAMENTO_INDISPONIVEL` | A Stripe não respondeu, recusou a criação da cobrança ou o pagamento não está configurado no ambiente |
 | 500 | `INTERNAL_ERROR` | Erro inesperado; a mensagem é sempre genérica |
 
 **Autenticação:** `Authorization: Bearer <token>`, com o token devolvido pelo login ou cadastro (vale 24 h).
@@ -117,8 +118,9 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 14 | `GET /api/reservas/{id}` | CLIENTE | existe | Luis | Renan |
 | 15 | `POST /api/reservas/{id}/cancelar` | CLIENTE | existe | Luis | Renan |
 | 16 | `POST /api/pagamentos` | CLIENTE | novo | Hélio | Renan |
+| 16a | `POST /api/pagamentos/{reservaId}/simular` | CLIENTE | novo (proposta, aguarda o aceite do Hélio) | Hélio | Renan |
 | 17 | `GET /api/pagamentos/{reservaId}/status` | CLIENTE | novo | Hélio | Renan |
-| 18 | `POST /api/pagamentos/webhook` | Mercado Pago | **stand by (fora do MVP)** | Hélio | Mercado Pago |
+| 18 | `POST /api/pagamentos/webhook` | Stripe | novo | Hélio | Stripe |
 | 19 | `GET /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
 | 20 | `POST /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
 | 21 | `PUT /api/admin/tipos/{id}` | ADMIN | existe | Hélio | Hélio |
@@ -454,15 +456,50 @@ Idempotente: se a reserva já tem um Pix `PENDENTE` ainda válido, devolve o mes
 ```json
 { "data": { "pagamentoId": "uuid", "reservaId": "uuid", "metodo": "PIX", "status": "PENDENTE",
             "valorCentavos": 4000,
-            "pix": { "qrCodeBase64": "iVBORw0KGgo...", "copiaECola": "0002012658...", "expiraEm": "2026-11-14T11:15:00.000Z" } } }
+            "pix": { "qrCodeBase64": "iVBORw0KGgo...", "copiaECola": "0002012658...", "expiraEm": "2026-11-14T11:15:00.000Z",
+                     "pagavelEmBanco": true } } }
 ```
 
-**No MVP o pagamento é sempre simulado** (`PAGAMENTO_MODO=simulado`): o QR é de mentira e existe uma forma
-de aprovar sem o Mercado Pago. Não há cobrança real. Com a integração do Mercado Pago (depois do MVP), o QR
-passa a ser o verdadeiro.
+A cobrança é criada na **Stripe** (PaymentIntent com Pix), com o nome e o e-mail do cliente. `copiaECola`
+é o texto que a Stripe devolve e `qrCodeBase64` é o PNG desse texto. O Pix vale o mesmo prazo da reserva
+pendente (`expiraEm`). No sandbox da Stripe, o QR abre uma página de teste para autorizar ou expirar o
+pagamento; em produção, o cliente paga no app do banco.
+
+`pagavelEmBanco` diz se `copiaECola` é um BR Code do Banco Central (formato EMV com CRC16 que confere),
+ou seja, se qualquer banco consegue pagar. Com a chave de teste da Stripe (`sk_test_`) ele é `false`: o
+texto é fictício de propósito e a tela mostra o aviso "Pix de teste". Com a chave de produção
+(`sk_live_`) ele é `true`; se a Stripe em produção devolver um código fora do padrão, a rota responde
+`502` em vez de mostrar ao cliente um código que nenhum banco aceita.
 
 **Erros:** `400`, `401`, `403`, `404` (reserva inexistente ou de outro cliente), `409` (reserva que não
-está `PENDENTE_PAGAMENTO`, ou já paga), `429`, `502` (`PAGAMENTO_INDISPONIVEL`).
+está `PENDENTE_PAGAMENTO`, já paga, ou com menos de 1 minuto de prazo: a Stripe não aceita Pix mais
+curto), `429`, `502` (`PAGAMENTO_INDISPONIVEL`: Stripe fora do ar ou chave não configurada).
+
+### 16a. `POST /api/pagamentos/{reservaId}/simular`
+
+Aprova o Pix simulado da reserva, no lugar do aviso do Mercado Pago. **Novo; proposta do front (PR #75),
+aguardando o aceite do Hélio (S4).** A tela do Pix chama no botão "Simular pagamento" e depois confere
+a rota 17.
+
+| | |
+|---|---|
+| **Quem** | CLIENTE (dono da reserva) |
+| **Disponível** | só com `PAGAMENTO_MODO=simulado`; fora dele a rota responde `404 SIMULACAO_INDISPONIVEL` |
+
+**Corpo:** nenhum (`{}`).
+
+Na mesma transação: expira as reservas vencidas (`expirar_reservas_vencidas()`), marca o pagamento
+`PENDENTE` como `APROVADO` e a reserva como `CONFIRMADA`. **Idempotente:** repetir com o pagamento já
+aprovado devolve `200`, sem alterar nada.
+
+**Sucesso `200`:** `{ "data": { "reservaId": "uuid", "statusPagamento": "APROVADO", "statusReserva": "CONFIRMADA" } }`
+
+**Erros:** `401`; `403`; `404 NOT_FOUND` (reserva inexistente ou de outro cliente); `404
+SIMULACAO_INDISPONIVEL` (modo não simulado); `409` (reserva que não está `PENDENTE_PAGAMENTO`, por
+exemplo vencida ou cancelada; reserva já paga não é erro, vale a idempotência acima); `429`.
+
+A tela só confia no `code`: `NOT_FOUND` é a reserva, `SIMULACAO_INDISPONIVEL` (ou um 404 sem o JSON do
+contrato, rota ainda não publicada) é "aprovação simulada indisponível".
 
 ### 17. `GET /api/pagamentos/{reservaId}/status`
 
@@ -474,30 +511,34 @@ A tela chama a cada 3 segundos na tela do Pix, até a reserva ficar confirmada. 
 
 **Sucesso `200`:** `{ "data": { "reservaId": "uuid", "statusPagamento": "APROVADO", "statusReserva": "CONFIRMADA" } }`
 
-`statusPagamento` é `null` se a reserva ainda não tem cobrança.
+`statusPagamento` é `null` se a reserva ainda não tem cobrança. Com um Pix pendente, o servidor pergunta
+à Stripe como ele está antes de responder: se foi pago, já confirma a reserva (funciona mesmo sem o
+webhook, como no ambiente local). Se a Stripe não responder, devolve o que o banco sabe.
+
+Pago depois que a reserva caiu (expirou ou foi cancelada com o Pix aberto): o valor é **estornado na
+hora**, inteiro, e `statusPagamento` vem `ESTORNADO`.
 
 **Erros:** `401`, `403`, `404`.
 
 ### 18. `POST /api/pagamentos/webhook`
 
-Aviso do Mercado Pago. **Stand by: fora do MVP, não será implementada agora.** Não é chamada pela tela.
-Fica descrita aqui para quando a integração voltar.
+Aviso da Stripe. **Novo.** Não é chamada pela tela.
 
 | | |
 |---|---|
-| **Quem** | Mercado Pago (sem token de usuário; a autenticação é a **assinatura** do aviso) |
-| **Cabeçalhos** | `x-signature` e `x-request-id` (o servidor valida com `MP_WEBHOOK_SECRET`) |
+| **Quem** | Stripe (sem token de usuário; a autenticação é a **assinatura** do aviso) |
+| **Cabeçalho** | `stripe-signature` (o servidor valida com `STRIPE_WEBHOOK_SECRET`) |
+| **Eventos** | `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled` |
 
-**Corpo (do Mercado Pago):** `{ "type": "payment", "action": "payment.updated", "data": { "id": "123456789" } }`
+Aprovado com a reserva ainda pendente: na mesma transação, o pagamento vira `APROVADO` e a reserva
+`CONFIRMADA`. Aprovado com a reserva já caída: estorno na Stripe e pagamento `ESTORNADO`. Recusado ou
+vencido: o pagamento pendente vira `RECUSADO` ou `EXPIRADO`. É **idempotente** (o mesmo aviso repetido não
+duplica nada, garantido pelo `mp_payment_id` único, que guarda o id do PaymentIntent).
 
-O servidor **não confia no corpo**: com o `data.id`, consulta o pagamento na API do Mercado Pago. Se
-estiver aprovado, na mesma transação marca o pagamento como `APROVADO` e a reserva como `CONFIRMADA`.
-É **idempotente** (o mesmo aviso repetido não duplica nada, garantido pelo `mp_payment_id` único).
+**Sucesso `200`:** `{ "data": { "recebido": true, "resultado": "confirmado" } }`. Também `200` para outros
+eventos ou cobranças desconhecidas (ignorados), para a Stripe não ficar reenviando.
 
-**Sucesso `200`:** `{ "data": { "recebido": true } }`. Também `200` para avisos de outros tipos ou de
-pagamentos desconhecidos (ignorados), para o Mercado Pago não ficar reenviando.
-
-**Erros:** `401` (assinatura ausente ou inválida), `413`.
+**Erros:** `401` (assinatura ausente ou inválida), `413`, `502` (webhook não configurado no ambiente).
 
 ---
 
@@ -610,7 +651,7 @@ Registra a retirada da bicicleta pelo cliente e passa a reserva para `EM_ANDAMEN
 | | |
 |---|---|
 | **Quem** | OPERADOR, ADMIN |
-| **Regra** | só reserva `CONFIRMADA`, a partir de 30 minutos antes do início |
+| **Regra** | só reserva `CONFIRMADA`, de 30 minutos antes do início até o fim; a bicicleta precisa estar `DISPONIVEL` e já ter voltado da reserva anterior |
 
 **Corpo:**
 
@@ -624,7 +665,14 @@ Registra a retirada da bicicleta pelo cliente e passa a reserva para `EM_ANDAMEN
 **Sucesso `200`:** `{ "data": { ...<objeto reserva>, "bicicleta": { "id": "uuid", "codigo": "BIC-003" } } }` com `status: "EM_ANDAMENTO"`.
 
 **Erros:** `400` (checklist inválido ou fora da janela de horário), `401`, `403`, `404`, `409` (reserva
-não está `CONFIRMADA` ou a retirada já foi feita), `413`.
+não está `CONFIRMADA`, a retirada já foi feita, a bicicleta está em manutenção, bloqueada ou fora da frota,
+ou ela ainda não foi devolvida pela reserva anterior, que pode estar atrasada), `413`. O id é conferido
+antes do corpo: id inválido é `404` mesmo com corpo quebrado.
+
+**Regras do checklist** (valem para a retirada e a devolução): de 1 a 20 itens, cada um com `nome` (texto
+de 1 a 40 caracteres, sem repetir) e `ok` (`true` ou `false`); `observacoes` é opcional (até 1000
+caracteres; texto vazio vira `null`). O checklist fica gravado em `movimentacao`, com o operador que
+registrou; as observações são internas da equipe.
 
 ### 27. `POST /api/operacao/reservas/{id}/devolucao`
 
@@ -635,7 +683,8 @@ Registra a devolução e conclui a reserva.
 | **Quem** | OPERADOR, ADMIN |
 | **Regra** | só reserva `EM_ANDAMENTO` |
 
-**Corpo:** o mesmo da retirada. **Sucesso `200`:** `{ "data": <reserva> }` com `status: "CONCLUIDA"`.
+**Corpo:** o mesmo da retirada. **Sucesso `200`:** `{ "data": <reserva> }` com `status: "CONCLUIDA"` (vem
+também `bicicleta`, como na retirada). A devolução vale mesmo depois do fim do período (atraso).
 **Erros:** `400`, `401`, `403`, `404`, `409` (não está `EM_ANDAMENTO` ou a devolução já foi feita), `413`.
 
 ---
@@ -644,6 +693,19 @@ Registra a devolução e conclui a reserva.
 
 Qualquer mudança de rota, campo ou erro entra aqui, na mesma PR do código, e avisa quem implementa e
 quem consome. Pontos ainda abertos para o Luis fechar com Hélio e Renan:
+
+**Registro de mudanças**
+
+- **27/11/2026, rotas 16 a 18 (#80):** o Pix passa a ser cobrado pela Stripe e o pagamento simulado sai. A rota 18
+  é o webhook da Stripe (cabeçalho `stripe-signature`, `STRIPE_WEBHOOK_SECRET`). Pix pago depois de a reserva
+  cair é estornado e o pagamento fica `ESTORNADO`. O limite de 10 por hora da rota 16 conta só cobrança nova
+  (reaproveitar o Pix pendente não conta).
+- **27/11/2026, rotas 26 e 27 (#81):** a resposta da devolução também traz `bicicleta` (`id` e `codigo`), como
+  a da retirada. O checklist passou a ter limites (de 1 a 20 itens, `nome` de 1 a 40 caracteres sem repetir,
+  `observacoes` até 1000 caracteres), e quem passa deles recebe `400`. A retirada ganhou dois `409`: bicicleta
+  que não está `DISPONIVEL` e bicicleta que ainda não voltou da reserva anterior.
+
+**Pontos em aberto**
 
 - Formato final de `horarios` do ponto (`diaSemana` de 0 a 6, começando no domingo?).
 - Se o cliente sem altura preenchida pode buscar (assumido: pode; só perde o filtro e os pontos de altura).
