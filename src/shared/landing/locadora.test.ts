@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { faixaDeAltura, menorPrecoPorHora, ordenarPorPreco, type TipoPublico } from "./locadora.ts";
+import { LOCADORA, faixaDeAltura, menorPrecoPorHora, ordenarPorPreco, type TipoPublico } from "./locadora.ts";
 
 function tipo(nome: string, hora: number, dia: number): TipoPublico {
   return {
@@ -33,4 +33,9 @@ test("menorPrecoPorHora devolve o mínimo ou null sem tipos", () => {
 
 test("faixaDeAltura monta o texto da altura indicada", () => {
   assert.equal(faixaDeAltura(tipo("A", 1, 1)), "Para quem tem de 150 a 195 cm");
+});
+
+test("LOCADORA não guarda endereço, telefone, e-mail nem horários: esses dados vêm de GET /api/empresa", () => {
+  // Uma cópia aqui envelhece e passa a divergir do banco (era o que as telas faziam antes).
+  assert.deepEqual(Object.keys(LOCADORA).sort(), ["documentosNaRetirada", "nome"]);
 });

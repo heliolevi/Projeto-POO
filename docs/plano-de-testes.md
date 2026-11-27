@@ -52,7 +52,7 @@ PR ou issue do defeito.
 | Testes de banco | `cd db && npm run teste:banco`, com PostgreSQL com PostGIS. Rodam na CI (serviço de banco do workflow); localmente precisam de `DATABASE_URL_UNPOOLED`, e o teste de RLS precisa que o dono do banco consiga assumir o papel `app_backend` |
 | Banco de desenvolvimento | Branch `dev` do Neon, populado por `db/seeds/dev.sql`. **Nunca** testar no branch `production` fora do combinado com o tech lead |
 | Migrations | `cd db && npm run migrar:simular` antes de aplicar qualquer migration |
-| Pagamentos | **MVP sem Mercado Pago:** `PAGAMENTO_MODO=simulado`. Nenhum pagamento real. A conta de teste (sandbox) do Mercado Pago só volta com a integração |
+| Pagamentos | Pix pela Stripe no **sandbox** (`STRIPE_SECRET_KEY=sk_test_...`): o PaymentIntent e o copia e cola são reais, mas nada é cobrado. O webhook local precisa de `STRIPE_WEBHOOK_SECRET` |
 | Dados | Dados fictícios ou da locadora, sem dados pessoais reais |
 | Variáveis | `.env.local` na máquina (fora do Git). `SESSION_SECRET` obrigatório; `HEALTH_DB_SECRET` opcional; `MP_WEBHOOK_SECRET` só quando o webhook existir (stand by) |
 
@@ -139,7 +139,7 @@ PR ou issue do defeito.
 | CT-SEG-07 | P1 | Logs de erro e de requisição | Sem senha, token, CPF ou outros dados pessoais | Manual | Aguarda fase 6 |
 | CT-SEG-08 | P1 | Erro inesperado em qualquer rota | 500 `INTERNAL_ERROR` com mensagem genérica, sem stack nem SQL | Integração | Pendente |
 | CT-SEG-09 | P1 | Formato de erro de todas as rotas | `{ error: { code, message, details } }`, com os `code` da tabela do contrato | Integração | Pendente |
-| CT-SEG-10 | P1 | Variáveis usadas pelo código (incluindo `MP_WEBHOOK_SECRET` e `PAGAMENTO_MODO`) | Todas listadas no `.env.example`, sem valor real | Manual | Pendente |
+| CT-SEG-10 | P1 | Variáveis usadas pelo código (incluindo `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET`) | Todas listadas no `.env.example`, sem valor real | Manual | Pendente |
 | CT-SEG-11 | P1 | Função `bearerConfere` | Aceita o formato `Bearer` certo; recusa segredo errado, de outro tamanho, sem header ou com outro esquema; sem segredo configurado ou curto demais, nada passa | Auto | Automatizado (`segredo.test.ts`) |
 
 ### 4.6 Banco de dados, migrations e RLS
@@ -255,9 +255,8 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 
 ### 4.10 Pagamentos por Pix (rotas 16 a 18)
 
-> **MVP sem Mercado Pago.** Os casos que dependem do Mercado Pago ou do webhook (rota 18) estão em
-> `Stand by`: serão executados quando a integração voltar. No MVP valem os casos da rota 16 e 17 com o
-> pagamento simulado.
+> **Pix pela Stripe.** As rotas 16 a 18 usam a Stripe. Os testes automáticos usam uma Stripe de mentira; o
+> roteiro manual usa o sandbox (`sk_test`).
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
@@ -275,7 +274,7 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-PAG-12 | P0 | Webhook cujo corpo diz "aprovado", mas o Mercado Pago não confirma o `data.id` | Nada muda: o servidor não confia no corpo | Integração | Stand by (sem Mercado Pago) |
 | CT-PAG-13 | P1 | Webhook de outro tipo ou de pagamento desconhecido | 200, ignorado | Integração | Stand by (sem Mercado Pago) |
 | CT-PAG-14 | P1 | Pix não pago em 15 minutos | Pagamento `EXPIRADO` e reserva `EXPIRADA` (o contrato só diz que a reserva expira; confirmar se o pagamento também muda) | Integração | Aguarda rota |
-| CT-PAG-15 | P1 | `PAGAMENTO_MODO=simulado` | No MVP é o único modo (sem Mercado Pago). Com a integração, só em desenvolvimento e na demo; desligado em produção | Manual | Aguarda rota |
+| CT-PAG-15 | P1 | Stripe sem chave (`STRIPE_SECRET_KEY` ausente) | `502 PAGAMENTO_INDISPONIVEL` na rota 16, sem gravar nada; o webhook só precisa do `STRIPE_WEBHOOK_SECRET` | Auto | Automatizado (`pagar-reserva.test.ts`, `pagamento-tardio-e-webhook.test.ts`) |
 | CT-PAG-16 | P1 | Valores monetários | Sempre inteiros em centavos, sem arredondamento errado | Auto | Aguarda rota |
 | CT-PAG-17 | P0 | Pix aprovado depois que a reserva expirou (e a bicicleta já foi reservada por outra pessoa) | O webhook não confirma a reserva expirada: ela continua `EXPIRADA`, não há duas reservas ativas na mesma bicicleta e o pagamento fica registrado para tratamento manual | Integração | Stand by (sem Mercado Pago) |
 | CT-PAG-18 | P0 | Webhook com valor pago diferente do cobrado | O servidor compara com `valor_aluguel_centavos`; se for diferente, não confirma a reserva e registra a divergência | Integração | Stand by (sem Mercado Pago) |
@@ -406,7 +405,7 @@ O MVP só é considerado pronto quando:
 3. A CI da `dev` está verde (`lint`, `typecheck`, testes, migrations, testes de banco e `build`).
 4. As variáveis `SESSION_SECRET`, `MP_WEBHOOK_SECRET` (e `HEALTH_DB_SECRET`, se usada) estão cadastradas na
    Vercel, com valores diferentes em Preview e Production.
-5. O fluxo completo (cadastro, login, busca com recomendação, reserva, Pix no sandbox ou simulado,
+5. O fluxo completo (cadastro, login, busca com recomendação, reserva, Pix no sandbox da Stripe,
    retirada e devolução) foi percorrido do início ao fim, no celular e no computador.
 6. Nenhum segredo, dado pessoal real ou pagamento real foi usado nos testes.
 

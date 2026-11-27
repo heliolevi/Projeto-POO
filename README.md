@@ -92,7 +92,7 @@ caso algum módulo precise escalar separadamente.
 | Backend | TypeScript (Route Handlers do Next.js) |
 | Banco de dados | PostgreSQL gerenciado (ex.: Neon). A extensão PostGIS é opcional: só é necessária se a locadora tiver mais de um ponto e se quiser mostrar distâncias |
 | Mapas | Serviço de mapas (Google Maps/Mapbox) apenas para mostrar o(s) ponto(s) de retirada |
-| Pagamentos | MVP: pagamento simulado, **sem Mercado Pago**. Mercado Pago (Pix e cartão) fica em stand by, para depois do MVP |
+| Pagamentos | Pix pela **Stripe** (PaymentIntents), com confirmação pelo webhook e pela consulta de status. No sandbox, com a chave `sk_test`, nada é cobrado de verdade. O Mercado Pago saiu do plano (decisão de 27/11/2026, ver [docs/mudanca-de-escopo.md](docs/mudanca-de-escopo.md)) |
 | Notificações | Web push (PWA), WhatsApp API, e-mail transacional |
 | Arquivos | Armazenamento de objetos privado (Vercel Blob ou compatível com S3) |
 | Hospedagem | Vercel, com HTTPS |
@@ -140,7 +140,7 @@ por row-level security.
 - Aplicar a migration que simplifica o banco para uma locadora (plano em
   [docs/mudanca-de-escopo.md](docs/mudanca-de-escopo.md)).
 - Implementar catálogo, busca com recomendação e reservas.
-- Integração com o Mercado Pago (Pix e cartão): **em stand by**, fora do MVP. O MVP usa pagamento simulado.
+- Pagamento: Pix pela Stripe (rotas 16 a 18). Para o deploy, ativar o Pix na conta da Stripe e cadastrar `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` na Vercel.
 
 ## Desenvolvimento
 
