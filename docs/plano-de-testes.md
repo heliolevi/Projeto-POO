@@ -144,7 +144,7 @@ PR ou issue do defeito.
 
 ### 4.6 Banco de dados, migrations e RLS
 
-Os casos CT-BD-06 a CT-BD-17, CT-BD-20 e CT-BD-22 a CT-BD-39 correspondem aos testes de `db/tests` (unit, whitebox e
+Os casos CT-BD-06 a CT-BD-20 e CT-BD-22 a CT-BD-39 correspondem aos testes de `db/tests` (unit, whitebox e
 blackbox), que a CI roda com `npm run teste:banco`.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
