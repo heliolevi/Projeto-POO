@@ -53,6 +53,8 @@ Copy-Item .env.example .env.local     # PowerShell
 | `PAGAMENTO_MODO` | `simulado` (único modo no MVP). Em production é obrigatório; em desenvolvimento, se faltar, vale `simulado`. |
 | `HEALTH_DB_SECRET` | Opcional (16+ caracteres). Sem ele, `/api/health/db` fica desligada. |
 | `SEED_ADMIN_SENHA`, `SEED_OPERADOR_SENHA` | Senhas de teste das contas do seed (8+ caracteres, com letra e número). Invente as suas. |
+| `STRIPE_SECRET_KEY` | Chave secreta da Stripe. Localmente, use a de **teste** (`sk_test_...`). Sem ela, pagar dá `502`. |
+| `STRIPE_WEBHOOK_SECRET` | Segredo do webhook (`whsec_...`). Localmente, o `stripe listen` mostra o valor (veja abaixo). |
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
@@ -68,6 +70,31 @@ Esperado: `DATABASE_URL` com `app_login` e `-pooler` no host; `DATABASE_URL_UNPO
 `DATABASE_URL` mostrar `USUARIO`, ainda é o texto do modelo. Se mostrar `neondb_owner`, o app
 funciona, mas a segurança por linha (RLS) é ignorada e você não está testando o que vai para
 production.
+
+### Pix: teste x de verdade
+
+Com `sk_test_` a Stripe devolve um **copia e cola fictício**: nenhum banco aceita, de propósito, e a tela
+do Pix mostra o aviso "Pix de teste". Para simular o pagamento, aponte a câmera do celular para o QR
+code: ele abre a página de teste da Stripe, onde se autoriza ou expira o pagamento. Para o webhook chegar
+na sua máquina:
+
+```bash
+stripe listen --forward-to localhost:3000/api/pagamentos/webhook   # mostra o whsec_ do STRIPE_WEBHOOK_SECRET
+```
+
+Sem o webhook, a tela ainda confirma sozinha: a consulta de status (a cada 3 s) pergunta à Stripe.
+
+Para um **Pix de verdade**, que qualquer banco paga (dinheiro real), só na Vercel, em Production:
+
+1. A conta da Stripe ativada no Brasil (dados da empresa e conta bancária) e o Pix ligado em
+   Configurações > Métodos de pagamento, no modo **produção**.
+2. `STRIPE_SECRET_KEY` com a chave `sk_live_...` (Dashboard > Desenvolvedores > Chaves de API, sem o
+   modo de teste). Nunca a coloque no repositório nem no `.env` de desenvolvimento.
+3. Um endpoint de webhook **de produção** em `https://<domínio>/api/pagamentos/webhook`, com os eventos
+   `payment_intent.succeeded`, `payment_intent.payment_failed` e `payment_intent.canceled`, e o
+   `whsec_...` dele em `STRIPE_WEBHOOK_SECRET`.
+4. Faça um pagamento pequeno de verdade e confira: a resposta traz `pix.pagavelEmBanco: true`, o app do
+   banco lê o QR, e a reserva fica `CONFIRMADA`. Para devolver, estorne pelo painel da Stripe.
 
 ## 4. Banco: migrations e seed
 
@@ -126,6 +153,17 @@ npm test
 npm run build
 ```
 
+Teste de estresse (com o `npm run dev` rodando, só local ou `dev`, nunca production): tenta quebrar a
+API com concorrência, força bruta, tokens forjados e entradas maliciosas, e confere que nunca sai 500,
+que duas pessoas não reservam a mesma bicicleta e que a mesma reserva não ganha dois Pix. Cria contas
+`estresse.*@bikeilha.test` e cancela as reservas que criou. Só roda contra servidor local (para outro, exige
+`ESTRESSE_PERMITIR_REMOTO=sim`). Se o servidor estiver com `sk_live_`, o primeiro Pix sai pagável em banco e o
+script para ali: fica no máximo um Pix de verdade, que não deve ser pago e vence em 15 minutos.
+
+```bash
+node scripts/teste-de-estresse.mjs          # BASE_URL=http://localhost:3001 para outra porta
+```
+
 Os testes do banco (`npm run teste:banco`, dentro de `db/`) rodam na CI, num Postgres descartável.
 Localmente, só use um banco de teste que possa ser apagado; combine com o Luis antes de apontá-los
 para o Neon `dev`, e **nunca** para production.
@@ -142,6 +180,8 @@ para o Neon `dev`, e **nunca** para production.
 | Aviso `MODULE_TYPELESS_PACKAGE_JSON` | Node importando `.ts` do app | Só informativo, pode ignorar. |
 | Avisos `LF will be replaced by CRLF` no Git | Quebra de linha do Windows | Inofensivo; use `git add` com os caminhos dos arquivos. |
 | `npm run dev` não pega mudança do `.env.local` | Variáveis são lidas na subida | Pare com Ctrl+C e suba de novo. |
+| Pagar dá erro (502) | `STRIPE_SECRET_KEY` ausente | Coloque a chave de teste da Stripe e reinicie. |
+| O banco diz que o Pix copia e cola não existe | Chave de **teste** da Stripe: o código é fictício | Normal no teste (simule pelo QR). Pix de verdade só com `sk_live_` (veja "Pix: teste x de verdade"). |
 | Falha no build ao baixar a fonte do Google | Falha de rede passageira | Rode de novo. |
 
 ## 9. Deu certo se...

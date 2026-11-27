@@ -45,6 +45,9 @@ export type DependenciasPagamentoService = {
   gerarId: () => string;
   // chamado quando um pagamento é aprovado, para confirmar a reserva (módulo reservas)
   aoAprovar: (reservaId: string) => Promise<void>;
+  // registra a cobrança nova no meio de pagamento (Stripe) antes de gravá-la: o Pix só tem o que
+  // mostrar depois disso. Se o meio de pagamento falhar, nada é gravado.
+  registrarCobranca: (pagamento: Pagamento) => Promise<void>;
 };
 
 // Serviço de aplicação dos pagamentos: cria a cobrança de uma reserva e processa os avisos do meio
@@ -98,6 +101,7 @@ export class PagamentoService {
       criadoEm: agora,
       expiraEm: new Date(reserva.expiraEm ? Math.min(limite, reserva.expiraEm.getTime()) : limite),
     });
+    await this.#deps.registrarCobranca(pagamento);
     await this.#deps.repositorio.salvar(pagamento);
     return pagamento.cobrancaInicial(agora);
   }

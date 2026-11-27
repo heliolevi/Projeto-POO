@@ -20,7 +20,7 @@ import {
 import styles from "@/shared/busca/Busca.module.css";
 import { useRelogio } from "@/shared/busca/use-relogio";
 import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
-import { LOCADORA } from "@/shared/landing/locadora";
+import { useEmpresa } from "@/shared/empresa/use-empresa";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
 import { perfilCompleto, type ContaLogada } from "@/shared/perfil/perfil-ciclista";
 import { linkDaReserva } from "@/shared/reservas/nova-reserva";
@@ -64,6 +64,9 @@ export default function BuscarPage() {
   const [erros, setErros] = useState<ErrosBusca>({});
   const [resultado, setResultado] = useState<Resultado>({ tipo: "inicial" });
   const [conta, setConta] = useState<ContaLogada | null>(null);
+  const { resultado: empresa } = useEmpresa();
+  // Sem os dados da locadora (carregando, erro ou sem cadastro), o bilhete mostra um texto neutro.
+  const pontoDeRetirada = empresa?.pontoPrincipal()?.nome ?? "Ponto de retirada";
   const atividadesPorTipo = useAtividadesPorTipo();
   const agora = useRelogio();
   const resultadosRef = useRef<HTMLElement>(null);
@@ -260,7 +263,7 @@ export default function BuscarPage() {
             retirada={periodo.retirada}
             devolucao={periodo.devolucao}
             duracao={rotuloDuracao}
-            ponto={LOCADORA.ponto.nome}
+            ponto={pontoDeRetirada}
           />
         )}
 
