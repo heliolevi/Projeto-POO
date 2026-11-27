@@ -289,8 +289,10 @@ async function cenarioCorridaPix(reserva) {
   if (!reserva) return registrar("corrida no Pix", false, "sem reserva para pagar");
   const saidas = await emParalelo(25, () => chamar("POST", "/api/pagamentos", { token: reserva.token, corpo: { reservaId: reserva.id, metodo: "PIX" } }), 25);
   const sucesso = saidas.filter((r) => r.status === 200 || r.status === 201);
-  if (saidas.every((r) => r.status === 502)) {
-    return registrar("corrida no Pix", true, "Stripe não configurada neste ambiente (502 em todas): nada a conferir");
+  // Sem chave da Stripe nenhum Pix é criado: tudo é 502, ou 429 quando o cliente já gastou parte do limite
+  // de cobranças em cenários anteriores. Nos dois casos não há o que conferir.
+  if (sucesso.length === 0 && saidas.some((r) => r.status === 502) && saidas.every((r) => r.status === 502 || r.status === 429)) {
+    return registrar("corrida no Pix", true, `Stripe não configurada neste ambiente (sem nenhum Pix criado; status ${JSON.stringify(contar(saidas))}): nada a conferir`);
   }
   const ids = new Set(sucesso.map((r) => r.json.data.pagamentoId));
   const codigos = new Set(sucesso.map((r) => r.json.data.pix.copiaECola));

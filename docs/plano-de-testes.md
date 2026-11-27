@@ -54,7 +54,7 @@ PR ou issue do defeito.
 | Migrations | `cd db && npm run migrar:simular` antes de aplicar qualquer migration |
 | Pagamentos | Pix pela Stripe no **sandbox** (`STRIPE_SECRET_KEY=sk_test_...`): o PaymentIntent e o copia e cola são reais, mas nada é cobrado. O webhook local precisa de `STRIPE_WEBHOOK_SECRET` |
 | Dados | Dados fictícios ou da locadora, sem dados pessoais reais |
-| Variáveis | `.env.local` na máquina (fora do Git). `SESSION_SECRET` obrigatório; `HEALTH_DB_SECRET` opcional; `MP_WEBHOOK_SECRET` só quando o webhook existir (stand by) |
+| Variáveis | `.env.local` na máquina (fora do Git). `SESSION_SECRET` obrigatório; `HEALTH_DB_SECRET` opcional; `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` obrigatórias em produção (o app avisa na subida) |
 
 ## 4. Casos de teste
 
@@ -62,17 +62,17 @@ PR ou issue do defeito.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
-| CT-CAD-01 | P0 | Cadastro com todos os campos válidos | 201 com `token`, `tipo: Bearer`, `expiraEm` (24 h) e `usuario` com perfil `CLIENTE`; a resposta não traz senha nem hash | Integração | Pendente |
+| CT-CAD-01 | P0 | Cadastro com todos os campos válidos | 201 com `token`, `tipo: Bearer`, `expiraEm` (24 h) e `usuario` com perfil `CLIENTE`; a resposta não traz senha nem hash | Integração | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: 201, `Bearer`, expira em 24 h, perfil `CLIENTE`, sem chave de senha ou hash na resposta) |
 | CT-CAD-02 | P0 | CPF com dígitos verificadores inválidos | 400 com `details.cpf` | Auto | Automatizado |
 | CT-CAD-03 | P0 | Senha sem letra ou sem número | 400 com `details.senha` | Auto | Automatizado |
 | CT-CAD-04 | P1 | Senha com 7 e com 129 caracteres (limites 8 a 128) | 400 com `details.senha` | Auto | Pendente |
-| CT-CAD-05 | P0 | `aceiteTermos` ausente, `false` ou texto `"true"` | 400: precisa ser o booleano `true` | Auto | Pendente |
+| CT-CAD-05 | P0 | `aceiteTermos` ausente, `false` ou texto `"true"` | 400: precisa ser o booleano `true` | Auto | Parcial: `validacao.test.ts` cobre `aceiteTermos: false`; ausente e o texto `"true"` caem na mesma regra (`!== true`), mas não têm teste próprio |
 | CT-CAD-06 | P0 | Corpo que não é um objeto ou JSON quebrado | 400, sem erro 500 | Auto | Automatizado |
 | CT-CAD-07 | P1 | Nome, e-mail e CPF com espaços, máscara e maiúsculas | Valores normalizados antes de salvar | Auto | Automatizado |
 | CT-CAD-08 | P1 | Nome com menos de 3 ou mais de 120 caracteres | 400 com `details.nome` | Auto | Pendente |
 | CT-CAD-09 | P1 | `alturaCm` fora de 100 a 250 ou não inteira | 400 com `details.alturaCm` | Auto | Pendente |
 | CT-CAD-10 | P1 | `dataNascimento` fora do formato `AAAA-MM-DD` | 400 com `details.dataNascimento` | Auto | Pendente |
-| CT-CAD-11 | P0 | E-mail ou CPF já cadastrado | 409 `CONFLICT` | Integração | Pendente |
+| CT-CAD-11 | P0 | E-mail ou CPF já cadastrado | 409 `CONFLICT` | Integração | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: e-mail repetido e CPF repetido dão 409 `CONFLICT`) |
 | CT-CAD-12 | P1 | E-mails que só diferem em maiúsculas (`Maria@x.com` e `maria@x.com`) | Tratados como o mesmo e-mail: o segundo recebe 409 | Integração | Pendente |
 | CT-CAD-13 | P1 | Muitos cadastros do mesmo IP | 429 com `Retry-After` | Integração | Pendente |
 | CT-CAD-14 | P1 | Corpo maior que 16 KiB | 413, sem ler o corpo todo | Auto | Automatizado |
@@ -81,8 +81,8 @@ PR ou issue do defeito.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
-| CT-LOG-01 | P0 | Login com e-mail e senha corretos | 200 no mesmo formato do cadastro | Integração | Pendente |
-| CT-LOG-02 | P0 | Senha errada, e-mail inexistente e conta inativa | 401 com a **mesma** mensagem nos três casos | Integração | Pendente |
+| CT-LOG-01 | P0 | Login com e-mail e senha corretos | 200 no mesmo formato do cadastro | Integração | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: 200 com token `Bearer` e perfil `CLIENTE`) |
+| CT-LOG-02 | P0 | Senha errada, e-mail inexistente e conta inativa | 401 com a **mesma** mensagem nos três casos | Integração | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: senha errada e e-mail inexistente dão 401 com a mesma mensagem; a conta inativa é conferida no CT-SES-10) |
 | CT-LOG-03 | P0 | Tempo de resposta com e-mail inexistente | Parecido com o de senha errada: o login também executa o scrypt completo com um hash falso | Auto | Automatizado (o hash falso tem teste; que a rota o use ainda precisa de conferência) |
 | CT-LOG-04 | P0 | Login sem e-mail ou sem senha | 400 | Auto | Automatizado |
 | CT-LOG-05 | P0 | Lógica do limite de tentativas (máximo e tentativa seguinte, chaves separadas) | 429 com `Retry-After`; cada chave tem a própria contagem | Auto | Automatizado |
@@ -100,10 +100,10 @@ PR ou issue do defeito.
 | CT-SES-04 | P0 | Conta desativada com token ainda válido | 401 | Auto | Automatizado |
 | CT-SES-05 | P0 | Token com `sub` que não é UUID | Recusado antes de chegar ao banco | Auto | Automatizado |
 | CT-SES-06 | P0 | Perfil alterado no banco depois de emitir o token | Vale o perfil do banco, não o do token | Auto | Automatizado |
-| CT-SES-07 | P0 | Rota restrita chamada por perfil não permitido (`exigirPerfil`), por exemplo um `CLIENTE` em rota de `ADMIN` | 403 | Auto | Em revisão (PR #15) |
-| CT-SES-08 | P0 | Rota restrita chamada sem sessão | 401, e o 401 vem antes do 403 | Auto | Em revisão (PR #15) |
-| CT-SES-09 | P0 | O banco devolve um perfil fora de `CLIENTE`, `OPERADOR` e `ADMIN` | `exigirSessao` recusa com 401 | Auto | Em revisão (PR #15) |
-| CT-SES-10 | P0 | Usar o token de uma conta logo depois de desativá-la | 401 na hora | Integração | Pendente |
+| CT-SES-07 | P0 | Rota restrita chamada por perfil não permitido (`exigirPerfil`), por exemplo um `CLIENTE` em rota de `ADMIN` | 403 | Auto | Automatizado (`exigir-sessao.test.ts`: `exigirPerfil` responde 403 para perfil sem acesso) |
+| CT-SES-08 | P0 | Rota restrita chamada sem sessão | 401, e o 401 vem antes do 403 | Auto | Automatizado (`exigir-sessao.test.ts`: sem sessão válida é 401 antes de olhar o perfil) |
+| CT-SES-09 | P0 | O banco devolve um perfil fora de `CLIENTE`, `OPERADOR` e `ADMIN` | `exigirSessao` recusa com 401 | Auto | Automatizado (`exigir-sessao.test.ts`: perfil que não existe no modelo, vindo do banco, não ganha acesso) |
+| CT-SES-10 | P0 | Usar o token de uma conta logo depois de desativá-la | 401 na hora | Integração | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: com a conta desativada, o token recebe 401 e o login com a senha certa também) |
 
 ### 4.4 Contas: gestão da conta (rotas 3 a 8)
 
@@ -119,10 +119,10 @@ PR ou issue do defeito.
 | CT-CTA-08 | P0 | `POST /api/conta/senha` com senha atual incorreta | 401 e nada é trocado | Auto | Automatizado (`alterar-senha.test.ts`) |
 | CT-CTA-09 | P1 | Várias tentativas de senha com a senha atual errada | 429 até a janela passar; acertar zera a contagem; o limite é por usuário | Auto | Automatizado (`alterar-senha.test.ts`) |
 | CT-CTA-10 | P1 | Nova senha fraca, fora de 8 a 128 ou igual à atual | 400 (a regra "igual à atual" não está no contrato) | Auto | Automatizado (`validacao.test.ts`) |
-| CT-CTA-11 | P0 | `POST /api/conta/altura` como `CLIENTE`, com 172 e com 99 | 204 com 172; 400 com `details.alturaCm` com 99 | Integração | Pendente (o validador de altura já tem teste) |
-| CT-CTA-12 | P0 | `OPERADOR` ou `ADMIN` em `altura` ou `termos` | 403 e nada gravado (antes respondia 204 sem gravar) | Integração | Em revisão (PR #15) |
-| CT-CTA-13 | P0 | `POST /api/conta/termos` com a versão vigente (`2026-11`) e com versão diferente, vazia ou grande demais | 204 com a vigente; 400 nos outros | Integração | Pendente (o validador da versão dos termos já tem teste) |
-| CT-CTA-14 | P0 | `POST /api/conta/desativar` | 204; a conta fica inativa (não é apagada) e o login seguinte recebe 401 | Integração | Pendente |
+| CT-CTA-11 | P0 | `POST /api/conta/altura` como `CLIENTE`, com 172 e com 99 | 204 com 172; 400 com `details.alturaCm` com 99 | Integração | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: 172 cm dá 204 e a altura é gravada; 99 cm dá 400 com `details.alturaCm`) |
+| CT-CTA-12 | P0 | `OPERADOR` ou `ADMIN` em `altura` ou `termos` | 403 e nada gravado (antes respondia 204 sem gravar) | Integração | Parcial: `exigirPerfil` é testado (`exigir-sessao.test.ts`) e o PUT do perfil recusa quem não é cliente (`perfil-ciclista.test.ts`); a chamada de `altura` e `termos` com token de `OPERADOR` ainda não foi executada |
+| CT-CTA-13 | P0 | `POST /api/conta/termos` com a versão vigente (`2026-11`) e com versão diferente, vazia ou grande demais | 204 com a vigente; 400 nos outros | Integração | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: versão vigente `2026-11` dá 204 e versão antiga dá 400 com `details.versao`; versão vazia ou grande demais ficam no teste do validador) |
+| CT-CTA-14 | P0 | `POST /api/conta/desativar` | 204; a conta fica inativa (não é apagada) e o login seguinte recebe 401 | Integração | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: 204; o token e o login seguintes recebem 401) |
 | CT-CTA-15 | P1 | `perfil` e `id` enviados no corpo de altura ou termos | Ignorados | Integração | Em revisão (PR #15) |
 | CT-CTA-16 | P1 | `PUT /api/conta/perfil-ciclista` com corpo `{}`, só com campos que não são do perfil (ex.: `"altura"`) ou com um campo certo ao lado de um errado (ex.: `{"alturaCm": 180, "atividde": "TRILHA"}`) | 400 com `details.corpo`, que cita o campo desconhecido; o perfil não é apagado nem alterado. Para apagar de propósito, as três chaves vão como `null` | Auto | Automatizado (`perfil-ciclista.test.ts`) |
 
@@ -132,9 +132,9 @@ PR ou issue do defeito.
 |---|---|---|---|---|---|
 | CT-SEG-01 | P0 | Subir o app em produção sem `SESSION_SECRET` (ou sem `DATABASE_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) | A mensagem em português, com todas as variáveis que faltam e sem os valores, vai para o log do servidor. O servidor **continua de pé, mas todas as rotas respondem 500** até corrigir e reiniciar | Auto | Automatizado (`validador-do-ambiente.test.ts` confere a mensagem; o gancho é `src/instrumentation.ts`). O comportamento do servidor real é o CT-SEG-12 |
 | CT-SEG-02 | P0 | `SESSION_SECRET` curto ou igual ao exemplo do `.env.example` | Recusado | Auto | Automatizado |
-| CT-SEG-03 | P0 | `/api/health/db` sem segredo configurado, com segredo errado e com o segredo certo | 404 sem segredo configurado; 401 com segredo errado; 200 com o certo | Integração | Pendente (a função `bearerConfere` tem teste, a rota não) |
-| CT-SEG-04 | P0 | `/api/health` | Responde 200 sem dados sensíveis | Manual | Pendente |
-| CT-SEG-05 | P0 | Procurar segredos no repositório e no que o PR altera (`.env`, senhas, tokens, strings de conexão) | Nenhum encontrado | Manual | Pendente |
+| CT-SEG-03 | P0 | `/api/health/db` sem segredo configurado, com segredo errado e com o segredo certo | 404 sem segredo configurado; 401 com segredo errado; 200 com o certo | Integração | Parcial: sem segredo configurado e com segredo errado a rota responde 404 (conferido em 27/11/2026 com `scripts/verificar-p0.mjs`); o 200 com o segredo certo não foi executado, porque o `.env.local` de teste não tem `HEALTH_DB_SECRET` (conferir na Vercel, com o tech lead) |
+| CT-SEG-04 | P0 | `/api/health` | Responde 200 sem dados sensíveis | Manual | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: 200 com `{"status":"ok"}`, sem dado sensível) |
+| CT-SEG-05 | P0 | Procurar segredos no repositório e no que o PR altera (`.env`, senhas, tokens, strings de conexão) | Nenhum encontrado | Manual | Passou em 27/11/2026 (busca por chaves da Stripe, `whsec_`, `npg_`, chaves privadas, tokens do GitHub e URLs de conexão com senha, no código da `dev` e nos 372 commits de todas as branches: só aparecem os modelos do `.env.example`, os valores de teste dos testes e os `postgres:postgres` e `placeholder` da CI; nenhum `.env` foi versionado) |
 | CT-SEG-06 | P1 | Consultas ao banco usam parâmetros (`$1`), sem montar SQL com texto do usuário | Nenhuma consulta concatena entrada do usuário | Manual | Pendente |
 | CT-SEG-07 | P1 | Logs de erro e de requisição | Sem senha, token, CPF ou outros dados pessoais | Manual | Aguarda fase 6 |
 | CT-SEG-08 | P1 | Erro inesperado em qualquer rota | 500 `INTERNAL_ERROR` com mensagem genérica, sem stack nem SQL | Integração | Pendente |
@@ -151,10 +151,10 @@ blackbox), que a CI roda com `npm run teste:banco`.
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
 | CT-BD-01 | P0 | Aplicar e reverter todas as migrations (`migrar:simular` e job da CI) | Sem erro | Integração | Automatizado (CI) |
-| CT-BD-02 | P0 | Editar uma migration já aplicada | O runner avisa que o arquivo mudou | Integração | Pendente |
-| CT-BD-03 | P0 | Host mostrado pelo runner antes de aplicar | É o branch `dev` do Neon, nunca o `production` sem combinado | Manual | Pendente |
+| CT-BD-02 | P0 | Editar uma migration já aplicada | O runner avisa que o arquivo mudou | Integração | Pendente (rodar `cd db && npm run migrar:simular` depois de editar uma migration só na máquina e desfazer com `git checkout`; o runner compara o checksum em `db/migrar.mjs`) |
+| CT-BD-03 | P0 | Host mostrado pelo runner antes de aplicar | É o branch `dev` do Neon, nunca o `production` sem combinado | Manual | Passou em 27/11/2026 (`migrar:simular` e `migrar:status` mostram o host do branch `dev` do Neon, sem `-pooler`; o tech lead confirmou que é o `dev`) |
 | CT-BD-04 | P1 | App conectado com o papel `app_login` (sem `BYPASSRLS`) | As políticas de RLS valem de verdade | Integração | Bloqueado (o `.env` de desenvolvimento conecta como dono do banco; pendência do tech lead) |
-| CT-BD-05 | P0 | `comSessao` com sessão de cliente, de equipe e de visitante | `sessao_perfil()` e `sessao_usuario_id()` leem o que foi declarado; o visitante lê nulos; a sessão não vaza para a próxima consulta na mesma conexão | Integração | Em revisão (PR #15) |
+| CT-BD-05 | P0 | `comSessao` com sessão de cliente, de equipe e de visitante | `sessao_perfil()` e `sessao_usuario_id()` leem o que foi declarado; o visitante lê nulos; a sessão não vaza para a próxima consulta na mesma conexão | Integração | Automatizado (`src/shared/db/sessao.test.ts`: perfil e usuário como parâmetros, visitante com nulos, ROLLBACK e conexão devolvida) |
 | CT-BD-06 | P0 | Período da reserva vazio, com limite inferior exclusivo ou superior inclusivo | Rejeitado (`reserva_periodo_formato`); o formato `[início, fim)` é aceito | Auto | Automatizado (db/tests) |
 | CT-BD-07 | P0 | Valor de aluguel, caução ou pagamento negativo | Rejeitado | Auto | Automatizado (db/tests) |
 | CT-BD-08 | P1 | `cancelada_em` incoerente com o status `CANCELADA` | Rejeitado nos dois sentidos | Auto | Automatizado (db/tests) |
@@ -204,7 +204,7 @@ blackbox), que a CI roda com `npm run teste:banco`.
 | CT-ADM-05 | P0 | `POST /api/admin/bicicletas` válida, com código repetido, com tipo ou ponto inexistente e com ponto inativo | 201 com status `DISPONIVEL`; 409 para código repetido; 404 para tipo ou ponto inexistente; 409 para ponto inativo | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-06 | P1 | `PATCH /api/admin/bicicletas/{id}` com `MANUTENCAO`, e com corpo vazio | A bicicleta deixa de ser reservável; corpo vazio recebe 400 | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
 | CT-ADM-07 | P1 | `GET /api/admin/bicicletas` com filtros `tipoId` e `status` | Filtra; status inválido recebe 400 | Integração | Automatizado (`catalogo.test.ts` e `validacao.test.ts`) e conferido de ponta a ponta no Neon `dev` |
-| CT-ADM-08 | P0 | `GET /api/admin/reservas` por `OPERADOR` e `ADMIN`, com filtros `status` e `data` (fuso de São Luís); por `CLIENTE` | Equipe recebe a lista com cliente e unidade; `CLIENTE` recebe 403 | Integração | Aguarda rota |
+| CT-ADM-08 | P0 | `GET /api/admin/reservas` por `OPERADOR` e `ADMIN`, com filtros `status` e `data` (fuso de São Luís); por `CLIENTE` | Equipe recebe a lista com cliente e unidade; `CLIENTE` recebe 403 | Integração | Automatizado (`painel.test.ts`, `painel-de-reservas.test.ts` e `controlador-do-painel.test.ts`, com 401, 403, 400 e 200; o #85 está na `dev`) e conferido contra o banco real pelo autor do #85 |
 
 ### 4.8 Recomendação (rota 11)
 
@@ -213,18 +213,18 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
-| CT-REC-01 | P0 | Cliente com altura dentro da faixa de um tipo | O tipo entra na lista | Auto | Em revisão (PR #14) |
-| CT-REC-02 | P0 | Cliente com altura fora da faixa de um tipo | O tipo não entra na lista | Auto | Em revisão (PR #14) |
-| CT-REC-03 | P0 | Cliente sem altura informada | Nenhum tipo é excluído por altura | Auto | Em revisão (PR #14) |
-| CT-REC-04 | P0 | Tipo inativo ou sem unidade livre no período | Não aparece | Auto | Em revisão (PR #14) |
-| CT-REC-05 | P0 | Pontuação: altura 50 (máximo no centro da faixa, zero nas pontas), atividade 30 e experiência 20 | Nota de 0 a 100 | Auto | Em revisão (PR #14) |
-| CT-REC-06 | P0 | Exemplo do contrato: 172 cm, iniciante, passeio, 4 h, tipo Passeio do seed | 90 pontos e R$ 48,00 | Auto | Em revisão (PR #14) |
-| CT-REC-07 | P0 | Dado que falta no perfil (altura, experiência ou atividade) | Não pontua para nenhum tipo; ninguém é favorecido | Auto | Em revisão (PR #14) |
+| CT-REC-01 | P0 | Cliente com altura dentro da faixa de um tipo | O tipo entra na lista | Auto | Automatizado (`recomendacao.test.ts` e `criterios-e-servico.test.ts`: só ficam os tipos em que o cliente cabe) |
+| CT-REC-02 | P0 | Cliente com altura fora da faixa de um tipo | O tipo não entra na lista | Auto | Automatizado (`recomendacao.test.ts` e `buscar-recomendacoes.test.ts`: o filtro de altura tira os tipos em que o cliente não cabe) |
+| CT-REC-03 | P0 | Cliente sem altura informada | Nenhum tipo é excluído por altura | Auto | Automatizado (`recomendacao.test.ts` e `buscar-recomendacoes.test.ts`: sem altura, nenhum tipo sai por altura) |
+| CT-REC-04 | P0 | Tipo inativo ou sem unidade livre no período | Não aparece | Auto | Automatizado (`recomendacao.test.ts` e `buscar-recomendacoes.test.ts`: tipo inativo ou sem unidade livre não aparece) |
+| CT-REC-05 | P0 | Pontuação: altura 50 (máximo no centro da faixa, zero nas pontas), atividade 30 e experiência 20 | Nota de 0 a 100 | Auto | Automatizado (`criterios-e-servico.test.ts`: os pesos somam 100; `recomendacao.test.ts`: os pontos ficam entre 0 e 100) |
+| CT-REC-06 | P0 | Exemplo do contrato: 172 cm, iniciante, passeio, 4 h, tipo Passeio do seed | 90 pontos e R$ 48,00 | Auto | Automatizado (`recomendacao.test.ts` e `buscar-recomendacoes.test.ts`: exemplo do contrato com 90 pontos) |
+| CT-REC-07 | P0 | Dado que falta no perfil (altura, experiência ou atividade) | Não pontua para nenhum tipo; ninguém é favorecido | Auto | Automatizado (`criterios-e-servico.test.ts`: sem dado o critério não pontua; sem nenhum dado, ninguém ganha nada) |
 | CT-REC-08 | P1 | Ordem do resultado | Por pontos; empate pelo menor preço por dia; depois pelo nome | Auto | Em revisão (PR #14) |
 | CT-REC-09 | P1 | Motivos de cada resultado | Texto com o que favorece e o que pesa contra (por exemplo "Não é a mais indicada para trilha") | Auto | Em revisão (PR #14) |
-| CT-REC-10 | P0 | Preço: horas arredondadas para cima; cada 24 h vale o preço do dia; as horas que sobram custam o preço por hora, limitadas a um dia (3 h 10 min = 4 h; 24 h = 1 diária; 25 h = 1 diária + 1 hora) | Valor em centavos inteiros conforme a regra, pela mesma função (`calcularValorAluguel`) na recomendação e na reserva | Auto | Em revisão (este PR; `reservas/domain/preco.test.ts`) |
-| CT-REC-11 | P0 | Parâmetros `inicio`, `fim` e `atividade` inválidos ou ausentes | 400 com `details` do campo | Auto | Em revisão (PR #14) |
-| CT-REC-12 | P0 | `inicio` ou `fim` sem fuso horário | Recusado (sem fuso, a hora seria lida em UTC na Vercel) | Auto | Em revisão (PR #14) |
+| CT-REC-10 | P0 | Preço: horas arredondadas para cima; cada 24 h vale o preço do dia; as horas que sobram custam o preço por hora, limitadas a um dia (3 h 10 min = 4 h; 24 h = 1 diária; 25 h = 1 diária + 1 hora) | Valor em centavos inteiros conforme a regra, pela mesma função (`calcularValorAluguel`) na recomendação e na reserva | Auto | Automatizado (`reservas/domain/preco.test.ts`) |
+| CT-REC-11 | P0 | Parâmetros `inicio`, `fim` e `atividade` inválidos ou ausentes | 400 com `details` do campo | Auto | Automatizado (`buscar-recomendacoes.test.ts`: parâmetros inválidos respondem 400 com `details` e não tocam o banco) |
+| CT-REC-12 | P0 | `inicio` ou `fim` sem fuso horário | Recusado (sem fuso, a hora seria lida em UTC na Vercel) | Auto | Automatizado (`buscar-recomendacoes.test.ts` e `reserva.test.ts`: o caso `sem fuso` é recusado) |
 | CT-REC-13 | P1 | `inicio` "agora", com até 5 minutos de atraso | Aceito pela folga de 5 minutos; mais que isso no passado é recusado | Auto | Em revisão (PR #14) |
 | CT-REC-14 | P1 | Trocar a atividade na busca | Vale a atividade da busca, não a do perfil | Auto | Em revisão (PR #14) |
 | CT-REC-15 | P0 | `GET /api/recomendacao` sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para quem não é cliente | Integração | Automatizado (`buscar-recomendacoes.test.ts`) e conferido de ponta a ponta no Neon `dev` |
@@ -253,7 +253,7 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-RES-13 | P0 | `POST /api/reservas/{id}/cancelar` em reserva `PENDENTE_PAGAMENTO` ou `CONFIRMADA` ainda não retirada | 200 `CANCELADA`; a bicicleta volta a ficar livre | Integração | Automatizado (`criar-reserva.test.ts` e `consultar-e-cancelar.test.ts`; contra o banco, `db/tests/blackbox/reservas_api.test.mjs`) |
 | CT-RES-14 | P0 | Cancelar reserva já retirada, concluída, cancelada ou expirada | 409 | Integração | Automatizado (`criar-reserva.test.ts` e `consultar-e-cancelar.test.ts`; contra o banco, `db/tests/blackbox/reservas_api.test.mjs`) |
 | CT-RES-15 | P1 | Mais de 20 reservas por hora do mesmo usuário | 429 | Integração | Pendente: o limite está implementado e o limite compartilhado é testado em `limite-tentativas.test.ts`, mas a rota ainda não tem teste do 429 |
-| CT-RES-16 | P0 | Rotas de reserva sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para a equipe | Integração | Parcial: o 401 sem login foi conferido à mão nas 4 rotas com o app no ar (`next start`, sem cookie) e `exigirPerfil` é testado em `exigir-sessao.test.ts`. Pendente: teste da rota com 403 para a equipe |
+| CT-RES-16 | P0 | Rotas de reserva sem login e com `OPERADOR` ou `ADMIN` | 401 sem login; 403 para a equipe | Integração | Parcial: o 401 sem login nas 4 rotas passou em 27/11/2026 (`scripts/verificar-p0.mjs`) e `exigirPerfil` é testado em `exigir-sessao.test.ts`. Pendente: chamar as rotas com token de `OPERADOR` (403) |
 | CT-RES-17 | P0 | Reservar o mesmo período depois que uma reserva pendente venceu e ninguém a listou | 201 para a nova reserva, sem 409 falso; a pendente vencida vira `EXPIRADA` (`POST /api/reservas` expira ou ignora as vencidas antes de reservar) | Integração | Automatizado (`criar-reserva.test.ts` e `consultar-e-cancelar.test.ts`; contra o banco, `db/tests/blackbox/reservas_api.test.mjs`) |
 
 ### 4.10 Pagamentos por Pix (rotas 16 a 18)
@@ -263,37 +263,37 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
-| CT-PAG-01 | P0 | `POST /api/pagamentos` com `PIX` em reserva pendente | 201 com `qrCodeBase64`, `copiaECola` e `expiraEm`; cobra só o aluguel (a caução é combinada no balcão) | Integração | Aguarda rota |
-| CT-PAG-02 | P0 | Repetir a chamada com um Pix pendente ainda válido | 200 com o mesmo Pix, sem criar outro | Integração | Aguarda rota |
-| CT-PAG-03 | P0 | Pagar reserva que não está `PENDENTE_PAGAMENTO` ou que já está paga | 409 | Integração | Aguarda rota |
-| CT-PAG-04 | P0 | `metodo` diferente de `PIX` | 400 | Integração | Aguarda rota |
-| CT-PAG-05 | P0 | Reserva de outro cliente ou inexistente | 404 | Integração | Aguarda rota |
-| CT-PAG-06 | P0 | Mercado Pago fora do ar ou recusando a criação da cobrança | 502 `PAGAMENTO_INDISPONIVEL`; a reserva continua pendente | Integração | Stand by (sem Mercado Pago) |
+| CT-PAG-01 | P0 | `POST /api/pagamentos` com `PIX` em reserva pendente | 201 com `qrCodeBase64`, `copiaECola` e `expiraEm`; cobra só o aluguel (a caução é combinada no balcão) | Integração | Automatizado (`pagar-reserva.test.ts`: cria o Pix na Stripe e devolve o copia e cola com o QR, 201; `db/tests/blackbox/pagamentos_api.test.mjs` no banco). O HTTP da rota não tem teste próprio |
+| CT-PAG-02 | P0 | Repetir a chamada com um Pix pendente ainda válido | 200 com o mesmo Pix, sem criar outro | Integração | Automatizado (`pagar-reserva.test.ts`: pedir de novo devolve o mesmo Pix, 200, sem nova cobrança; `pagamentos_api.test.mjs`) |
+| CT-PAG-03 | P0 | Pagar reserva que não está `PENDENTE_PAGAMENTO` ou que já está paga | 409 | Integração | Automatizado (`pagar-reserva.test.ts`: reserva já confirmada ou expirada é 409) |
+| CT-PAG-04 | P0 | `metodo` diferente de `PIX` | 400 | Integração | Automatizado (`pagar-reserva.test.ts`: corpo inválido é 400 com o erro de cada campo); rota conferida em 27/11/2026 (`scripts/verificar-p0.mjs`: `BOLETO` dá 400 com `details.metodo`) |
+| CT-PAG-05 | P0 | Reserva de outro cliente ou inexistente | 404 | Integração | Automatizado (`pagar-reserva.test.ts` e `pagamentos_api.test.mjs`: o cliente B não cobra a reserva do cliente A, 404); rota conferida em 27/11/2026 (`scripts/verificar-p0.mjs`: reserva inexistente; `scripts/teste-de-estresse.mjs`: reserva de outro cliente, `pagar 404`) |
+| CT-PAG-06 | P0 | Stripe fora do ar ou recusando a criação da cobrança | 502 `PAGAMENTO_INDISPONIVEL`; a reserva continua pendente e nada é gravado | Integração | Automatizado (`pagar-reserva.test.ts`: Stripe fora do ar é 502 e nada é gravado; `pagamentos_api.test.mjs`) |
 | CT-PAG-07 | P1 | Mais de 10 pedidos de pagamento por hora do mesmo usuário | 429 | Integração | Aguarda rota |
-| CT-PAG-08 | P0 | `GET /api/pagamentos/{reservaId}/status` | `statusPagamento` e `statusReserva`; `statusPagamento` é `null` sem cobrança; reserva de outro cliente recebe 404 | Integração | Aguarda rota |
-| CT-PAG-09 | P0 | Webhook com assinatura válida e pagamento aprovado no Mercado Pago | Pagamento `APROVADO` e reserva `CONFIRMADA` na mesma transação; resposta 200 `{ recebido: true }` | Integração | Stand by (sem Mercado Pago) |
-| CT-PAG-10 | P0 | O mesmo webhook chega duas vezes | Nada é duplicado (`mp_payment_id` único); resposta 200 | Integração | Stand by (sem Mercado Pago) |
-| CT-PAG-11 | P0 | Webhook sem assinatura ou com assinatura inválida (`x-signature`, `x-request-id`) | 401 e nada é alterado | Integração | Stand by (sem Mercado Pago) |
-| CT-PAG-12 | P0 | Webhook cujo corpo diz "aprovado", mas o Mercado Pago não confirma o `data.id` | Nada muda: o servidor não confia no corpo | Integração | Stand by (sem Mercado Pago) |
-| CT-PAG-13 | P1 | Webhook de outro tipo ou de pagamento desconhecido | 200, ignorado | Integração | Stand by (sem Mercado Pago) |
+| CT-PAG-08 | P0 | `GET /api/pagamentos/{reservaId}/status` | `statusPagamento` e `statusReserva`; `statusPagamento` é `null` sem cobrança; reserva de outro cliente recebe 404 | Integração | Automatizado (`pagar-reserva.test.ts`: `statusPagamento` nulo, confirmação pela consulta e id que não é UUID); 404 para reserva de outro cliente conferido na rota em 27/11/2026 (`scripts/teste-de-estresse.mjs`: `status 404`) |
+| CT-PAG-09 | P0 | Webhook com assinatura válida e pagamento aprovado na Stripe | Pagamento `APROVADO` e reserva `CONFIRMADA` na mesma transação; resposta 200 `{ recebido: true }` | Integração | Automatizado (`pagar-reserva.test.ts`, `gateway-stripe.test.ts` e `pagamentos_api.test.mjs`, rota 18: aviso assinado e aprovado confirma o pagamento e a reserva) |
+| CT-PAG-10 | P0 | O mesmo webhook chega duas vezes | Nada é duplicado (a cobrança da Stripe é única por pagamento); resposta 200 | Integração | Automatizado (`pagar-reserva.test.ts`: o mesmo aviso de novo não muda nada, inclusive 5 mil avisos repetidos; `pagamentos_api.test.mjs`) |
+| CT-PAG-11 | P0 | Webhook sem assinatura ou com assinatura inválida (`stripe-signature`) | 401 e nada é alterado | Integração | Automatizado (`gateway-stripe.test.ts`: sem assinatura, com assinatura de outro segredo ou corpo alterado dá `AssinaturaInvalida`, que a rota responde com 401); rota conferida em 27/11/2026 (`scripts/verificar-p0.mjs` e `scripts/teste-de-estresse.mjs`: 401 com `STRIPE_WEBHOOK_SECRET` de teste) |
+| CT-PAG-12 | P0 | Aviso cujo corpo foi alterado depois de assinado (diz "aprovado", mas a assinatura não confere) | 401 e nada muda: o servidor só confia no que a assinatura da Stripe cobre | Integração | Automatizado (`gateway-stripe.test.ts`: corpo alterado depois de assinado é recusado) |
+| CT-PAG-13 | P1 | Webhook de outro tipo ou de pagamento desconhecido | 200, ignorado | Integração | Automatizado (`gateway-stripe.test.ts`: evento que não interessa é ignorado; `pagar-reserva.test.ts`: cobrança desconhecida é ignorada, 200) |
 | CT-PAG-14 | P1 | Pix não pago em 15 minutos | Pagamento `EXPIRADO` e reserva `EXPIRADA` (o contrato só diz que a reserva expira; confirmar se o pagamento também muda) | Integração | Aguarda rota |
 | CT-PAG-15 | P1 | Stripe sem chave (`STRIPE_SECRET_KEY` ausente) | `502 PAGAMENTO_INDISPONIVEL` na rota 16, sem gravar nada; o webhook só precisa do `STRIPE_WEBHOOK_SECRET` | Auto | Automatizado (`pagar-reserva.test.ts`, `pagamento-tardio-e-webhook.test.ts`) |
 | CT-PAG-16 | P1 | Valores monetários | Sempre inteiros em centavos, sem arredondamento errado | Auto | Aguarda rota |
-| CT-PAG-17 | P0 | Pix aprovado depois que a reserva expirou (e a bicicleta já foi reservada por outra pessoa) | O webhook não confirma a reserva expirada: ela continua `EXPIRADA`, não há duas reservas ativas na mesma bicicleta e o pagamento fica registrado para tratamento manual | Integração | Stand by (sem Mercado Pago) |
-| CT-PAG-18 | P0 | Webhook com valor pago diferente do cobrado | O servidor compara com `valor_aluguel_centavos`; se for diferente, não confirma a reserva e registra a divergência | Integração | Stand by (sem Mercado Pago) |
-| CT-PAG-19 | P0 | Dois pagamentos `APROVADO` na mesma reserva | O segundo é recusado ou ignorado; hoje nada no banco impede isso (sugestão: índice único parcial em `pagamento(reserva_id)` para `APROVADO`) | Integração | Pendente (o banco ainda não impede) |
-| CT-PAG-20 | P0 | Webhook sem sessão de usuário atualizando `pagamento` e `reserva` com a RLS ligada | A atualização funciona pelo papel ou perfil de serviço do webhook; um visitante ou cliente não consegue fazer o mesmo | Integração | Stand by (sem Mercado Pago; hoje também não existe perfil para isso) |
+| CT-PAG-17 | P0 | Pix aprovado depois que a reserva expirou (e a bicicleta já foi reservada por outra pessoa) | O aviso não confirma a reserva expirada: ela continua `EXPIRADA`, a Stripe devolve o valor e o pagamento fica `ESTORNADO`; não há duas reservas ativas na mesma bicicleta | Integração | Automatizado (`pagar-reserva.test.ts`: pago depois do prazo ou no último segundo estorna em vez de confirmar; `pagamentos_api.test.mjs`) |
+| CT-PAG-18 | P0 | Aviso com valor pago diferente do cobrado | Hoje não há valor para comparar no aviso: depende da decisão ao lado | Integração | Bloqueado (decisão do tech lead: com a Stripe o valor é fixado pelo servidor ao criar o Pix e o aviso traz só o id e a situação; ou o caso deixa de existir, ou o aviso passa a trazer o valor para conferência) |
+| CT-PAG-19 | P0 | Dois pagamentos `APROVADO` na mesma reserva | O segundo é recusado pelo índice único parcial `pagamento_um_ativo_por_reserva` (migration 0012) | Integração | Automatizado (`pagamentos_api.test.mjs`: a mesma reserva não tem dois pagamentos `PENDENTE` ou `APROVADO`; índice `pagamento_um_ativo_por_reserva`, migration 0012) |
+| CT-PAG-20 | P0 | Aviso da Stripe sem sessão de usuário atualizando `pagamento` e `reserva` com a RLS ligada | A atualização funciona pela função `cliente_do_pagamento()`, que acha o dono da cobrança; um visitante ou um cliente não consegue fazer o mesmo | Integração | Automatizado (`pagamentos_api.test.mjs`, rota 18: o aviso sem sessão de usuário confirma pela função `cliente_do_pagamento()`, migration 0012; `isolamento_rls.test.mjs`: visitante e cliente não alteram `pagamento` nem `reserva`) |
 
 ### 4.11 Operação: retirada e devolução (rotas 25 a 27)
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
-| CT-OPE-01 | P0 | Retirada de reserva `CONFIRMADA` por `OPERADOR` ou `ADMIN`, a partir de 30 minutos antes do início | 200, `EM_ANDAMENTO`, com a bicicleta (`id` e `codigo`) | Integração | Aguarda rota |
-| CT-OPE-02 | P0 | Retirada antes da janela de 30 minutos ou com checklist inválido | 400 | Integração | Aguarda rota |
-| CT-OPE-03 | P0 | Retirada de reserva que não está `CONFIRMADA`, ou retirada repetida | 409 | Integração | Aguarda rota |
-| CT-OPE-04 | P0 | Devolução de reserva `EM_ANDAMENTO` | 200, `CONCLUIDA`; a bicicleta volta a ficar livre | Integração | Aguarda rota |
-| CT-OPE-05 | P0 | Devolução de reserva que não está `EM_ANDAMENTO`, ou devolução repetida | 409 | Integração | Aguarda rota |
-| CT-OPE-06 | P0 | Retirada ou devolução por `CLIENTE` ou sem login | 403 para `CLIENTE`; 401 sem login | Integração | Aguarda rota |
+| CT-OPE-01 | P0 | Retirada de reserva `CONFIRMADA` por `OPERADOR` ou `ADMIN`, a partir de 30 minutos antes do início | 200, `EM_ANDAMENTO`, com a bicicleta (`id` e `codigo`) | Integração | Automatizado (`operacao-service.test.ts` e `operacao_api.test.mjs`: CONFIRMADA passa a EM_ANDAMENTO com o checklist gravado) |
+| CT-OPE-02 | P0 | Retirada antes da janela de 30 minutos ou com checklist inválido | 400 | Integração | Automatizado (`operacao-service.test.ts`: abre exatamente 30 minutos antes, fora da janela é 400, checklist inválido é 400; `operacao_api.test.mjs`) |
+| CT-OPE-03 | P0 | Retirada de reserva que não está `CONFIRMADA`, ou retirada repetida | 409 | Integração | Automatizado (`operacao-service.test.ts` e `operacao_api.test.mjs`: reserva que não está CONFIRMADA e retirada repetida dão 409) |
+| CT-OPE-04 | P0 | Devolução de reserva `EM_ANDAMENTO` | 200, `CONCLUIDA`; a bicicleta volta a ficar livre | Integração | Automatizado (`operacao-service.test.ts` e `operacao_api.test.mjs`: devolução leva a CONCLUIDA) |
+| CT-OPE-05 | P0 | Devolução de reserva que não está `EM_ANDAMENTO`, ou devolução repetida | 409 | Integração | Automatizado (`operacao-service.test.ts` e `operacao_api.test.mjs`: devolução sem retirada ou repetida dá 409) |
+| CT-OPE-06 | P0 | Retirada ou devolução por `CLIENTE` ou sem login | 403 para `CLIENTE`; 401 sem login | Integração | Passou em 27/11/2026 (`scripts/verificar-p0.mjs`: sem login retirada e devolução dão 401; como `CLIENTE` dão 403; a RLS também recusa com sessão de cliente em `operacao_api.test.mjs`) |
 | CT-OPE-07 | P1 | Checklist com itens (`nome` e `ok`) e observações | É guardado e fica consultável | Integração | Aguarda rota |
 | CT-OPE-08 | P1 | Retirada ou devolução de reserva inexistente | 404 | Integração | Aguarda rota |
 
@@ -305,12 +305,12 @@ Os casos CT-UI-04 e CT-UI-05 falharam na primeira revisão e foram corrigidos; r
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
-| CT-UI-01 | P0 | Abrir `/app` sem token de sessão | Redireciona para `/login` | Manual | Em revisão (PR #19) |
-| CT-UI-02 | P0 | Abrir `/app` com token expirado | Redireciona para `/login` | Manual | Em revisão (PR #19) |
-| CT-UI-03 | P0 | Entrar como `CLIENTE` | Menu inferior com Início, Reservas e Perfil | Manual | Em revisão (PR #19) |
-| CT-UI-04 | P0 | Entrar como `ADMIN` e como `OPERADOR` (perfis do modelo novo) | A tela carrega, sem "This page couldn't load" | Manual | Em revisão (PR #19, corrigido e aprovado; reexecutar após o merge) |
-| CT-UI-05 | P0 | Token com perfil desconhecido ou ausente | A tela nunca quebra: volta ao `/login` | Manual | Em revisão (PR #19, corrigido e aprovado; reexecutar após o merge) |
-| CT-UI-06 | P0 | `lerSessao` com token válido, expirado, malformado e sem `perfil` | Devolve a sessão ou nada, sem lançar erro | Auto | Em revisão (PR #19, testes novos de `lerSessao`) |
+| CT-UI-01 | P0 | Abrir `/app` sem token de sessão | Redireciona para `/login` | Manual | Passou em 27/11/2026 (William: janela anônima em `/app` vai para `/login?next=%2Fapp`) |
+| CT-UI-02 | P0 | Abrir `/app` com token expirado | Redireciona para `/login` | Manual | Passou em 27/11/2026 (William: token expirado no `localStorage` leva a `/login?next=%2Fapp` e o token é apagado) |
+| CT-UI-03 | P0 | Entrar como `CLIENTE` | Menu inferior com Início, Reservas e Perfil | Manual | Passou em 27/11/2026 (William: cliente entra e vê o menu inferior com Início, Reservas e Perfil) |
+| CT-UI-04 | P0 | Entrar como `ADMIN` e como `OPERADOR` (perfis do modelo novo) | A tela carrega, sem "This page couldn't load" | Manual | Passou em 27/11/2026 (William: `OPERADOR` e `ADMIN` carregam a tela sem "This page couldn't load"; o admin vê "Painel da equipe", não mais "Painel da plataforma") |
+| CT-UI-05 | P0 | Token com perfil desconhecido ou ausente | A tela nunca quebra: volta ao `/login` | Manual | Passou em 27/11/2026 (William: token com perfil desconhecido e token sem perfil voltam ao `/login`, sem quebrar a tela) |
+| CT-UI-06 | P0 | `lerSessao` com token válido, expirado, malformado e sem `perfil` | Devolve a sessão ou nada, sem lançar erro | Auto | Automatizado (`src/shared/auth/sessao.test.ts`: token válido, expirado, malformado, sem `perfil`, com perfil desconhecido e sem `exp`) |
 | CT-UI-07 | P1 | Cadastro e login concluídos | Levam a `/app` em vez de `/` | Manual | Em revisão (PR #19) |
 | CT-UI-08 | P1 | Cabeçalho do app | Logo e botão de sair; sair encerra a sessão; item ativo do menu destacado | Manual | Em revisão (PR #19) |
 | CT-UI-09 | P2 | Telas de destino ainda "em construção" | Mostram o aviso, sem erro | Manual | Em revisão (PR #19) |
@@ -406,8 +406,9 @@ O MVP só é considerado pronto quando:
 1. Todos os casos P0 estão em `Passou` ou `Automatizado`, e nenhum está `Falhou`.
 2. Os casos P1 que falharem têm defeito registrado e acordo da equipe sobre ficar para depois.
 3. A CI da `dev` está verde (`lint`, `typecheck`, testes, migrations, testes de banco e `build`).
-4. As variáveis `SESSION_SECRET`, `MP_WEBHOOK_SECRET` (e `HEALTH_DB_SECRET`, se usada) estão cadastradas na
-   Vercel, com valores diferentes em Preview e Production.
+4. As variáveis `SESSION_SECRET`, `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` (e `HEALTH_DB_SECRET`, se usada)
+   estão cadastradas na Vercel, em Preview e em Production (sem elas o servidor responde 500 em tudo), com
+   `SESSION_SECRET` diferente em cada ambiente.
 5. O fluxo completo (cadastro, login, busca com recomendação, reserva, Pix no sandbox da Stripe,
    retirada e devolução) foi percorrido do início ao fim, no celular e no computador.
 6. Nenhum segredo, dado pessoal real ou pagamento real foi usado nos testes.
@@ -429,7 +430,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 | 7 | A RLS só vale com o papel `app_login`, e o `.env` de desenvolvimento conecta como dono do banco | CT-BD-04 fica `Bloqueado` até o tech lead fechar a pendência |
 | 8 | `src/shared/http/api-cliente.ts` ainda declara `GERENTE_LOCADORA` e `ADMIN_PLATAFORMA` no tipo do perfil, e `lerSessao` aceita token sem `exp` (sugestões do tech lead no PR #19, para outro PR) | Alinhar os tipos com o modelo novo; caso CT-UI-10 |
 | 9 | O PR #15 está com base em `feat/contas-gestao-conta-cliente`, que já foi mesclada pelo #9, e não em `dev` | Trocar a base para `dev` antes do merge. Dependem dele CT-SES-07 a CT-SES-09, CT-CTA-12 e CT-BD-05 |
-| 10 | Riscos de reserva e pagamento apontados na revisão do tech lead: pendente vencida que ninguém listou, Pix aprovado depois da expiração, valor pago diferente do cobrado, dois pagamentos aprovados na mesma reserva e webhook sem perfil sob RLS | CT-RES-17, CT-REC-20 e CT-PAG-17 a CT-PAG-20 |
+| 10 | Riscos de reserva e pagamento apontados na revisão do tech lead: pendente vencida que ninguém listou, Pix aprovado depois da expiração, valor pago diferente do cobrado, dois pagamentos aprovados na mesma reserva e webhook sem perfil sob RLS | CT-RES-17, CT-REC-20 e CT-PAG-17 a CT-PAG-20. Resolvidos e com teste: CT-RES-17, CT-PAG-17, CT-PAG-19 e CT-PAG-20. Em aberto: CT-PAG-18, porque com a Stripe o valor é fixado pelo servidor e o aviso não o traz |
 | 11 | Na revisão do PR #19, o `/app` do `ADMIN` aparece como "Painel da plataforma", nome do modelo antigo; com uma só locadora o nome esperado é o da locadora | Confirmar o texto com o Renan e o Luis; conferir em CT-UI-04 |
 
 ### Decisões ainda em aberto
@@ -440,8 +441,8 @@ Encontrados ao comparar o contrato com o código e os testes.
 | Formato final de `horarios` do ponto (`diaSemana` de 0 a 6?) | Resultado esperado do CT-CAT-01 |
 | Texto exato das mensagens de erro 409 mostradas ao cliente | Checklist das telas de reserva e cadastro |
 | Menu do perfil `ADMIN` (por enquanto pode ser igual ao do `OPERADOR`) | CT-UI-03, CT-UI-04 e o checklist de navegação |
-| O que fazer com um pagamento aprovado de uma reserva já expirada (devolver no balcão?) | Resultado esperado do CT-PAG-17 |
-| Perfil ou papel de serviço para o webhook atualizar `pagamento` e `reserva` sob a RLS | CT-PAG-20 |
+| O que fazer com um pagamento aprovado de uma reserva já expirada | Decidido nos PRs #80 e #84: a Stripe devolve o valor e o pagamento fica `ESTORNADO` (CT-PAG-17) |
+| Perfil ou papel de serviço para o webhook atualizar `pagamento` e `reserva` sob a RLS | Decidido no #84 (migration 0012): a função `cliente_do_pagamento()` acha o dono da cobrança, sem perfil de serviço (CT-PAG-20) |
 | Regras de preço (horas arredondadas para cima, 24 h = uma diária, horas que sobram limitadas a uma diária) e a folga de 5 minutos no início são regras assumidas (dados fictícios); reavaliar quando houver locadora real | CT-REC-10 e CT-REC-13 |
 
 ### Já decidido pelo contrato
@@ -456,6 +457,7 @@ Preencher a cada rodada de testes.
 | Data | Versão (commit na `dev`) | Quem testou | Casos executados | Passou | Falhou | Defeitos abertos |
 |---|---|---|---|---|---|---|
 | 10/11/2026 | `7c70046` | William | `npm ci`, `lint`, `typecheck`, `npm test` (70 testes) e `build` | 5 de 5 comandos (70 de 70 testes) | 0 | Nenhum |
+| 27/11/2026 | `19d093e` | William, com o Claude | P0 da S10: `scripts/verificar-p0.mjs` (15 casos), `scripts/teste-de-estresse.mjs` (11 cenários), `migrar:simular` e `migrar` no Neon `dev` | 15 de 15 casos, 11 de 11 cenários | 0 | Nenhum novo; CT-PAG-18 aguarda decisão do tech lead |
 
 Observações da rodada de 10/11/2026:
 
@@ -465,3 +467,17 @@ Observações da rodada de 10/11/2026:
 - O teste de `sessao.test.ts` ainda descreve `locadora` e `gerente` (modelo antigo); o PR #15 deve atualizar.
 - Segundo a revisão do PR #19, a união da branch do Renan com a `dev` e com os PRs #14 e #15 roda 109 testes, todos passando.
 - Os testes de banco (`db/tests`) não foram rodados localmente: rodam no job de banco da CI.
+
+Observações da rodada de 27/11/2026 (S10, casos P0):
+
+- Os P0 foram cruzados com os testes do repositório: pagamentos pela Stripe, retirada e devolução, recomendação, preço, sessão e perfis passaram de `Aguarda rota`, `Em revisão` ou `Stand by` para `Automatizado`, com o arquivo de teste que prova cada caso. Os casos de webhook agora descrevem a Stripe, não o Mercado Pago.
+- Cadastro, login, desativar conta, altura, termos e acesso sem login não tinham teste com banco. Foram conferidos na API real, com o banco `dev`, por `scripts/verificar-p0.mjs`, que cria uma conta `verificar.*@bikeilha.test` e a desativa no fim.
+- A parte de API da S7 passou: com o token do cliente B, ler, pagar, cancelar e consultar o status da reserva do cliente A dão 404 (`teste-de-estresse.mjs`, cenário de isolamento).
+- A corrida de Pix por HTTP não foi executada: o ambiente de teste não tem `STRIPE_SECRET_KEY`. A regra tem prova no banco (índice `pagamento_um_ativo_por_reserva`) e nos testes de `pagar-reserva`.
+- A migration `0012_pagamento_stripe.sql` estava pendente no Neon `dev` e foi aplicada em 27/11/2026, com autorização do tech lead. Antes disso, CT-PAG-19 e CT-PAG-20 só valiam no banco da CI.
+- CT-PAG-18 (valor pago diferente do cobrado) está `Bloqueado`: com a Stripe o servidor fixa o valor ao criar o Pix e o aviso não traz valor para comparar.
+- CT-SEG-03 ficou `Parcial` (sem o segredo certo não dá para provar o 200) e CT-RES-16 e CT-CTA-12 ficaram `Parcial` (falta chamar as rotas com token de `OPERADOR`).
+- Passaram à mão no navegador: CT-UI-01 a CT-UI-05. Segue `Pendente` só o CT-BD-02 (editar uma migration e ver o aviso de checksum).
+- Contas de teste criadas no Neon `dev` com `npm run criar-equipe` (e-mails `@bikeilha.test`): `qa.william.operador` e `qa.william.admin`, além das contas `verificar.*` (desativadas pelo script) e `estresse.*` dos scripts. O tech lead pode desativá-las depois da entrega.
+- Sobre a nota 11 da seção 7: o `/app` do `ADMIN` agora mostra "Painel da equipe", não mais "Painel da plataforma". O texto final continua para o Renan e o Luis confirmarem.
+- CT-SEG-05 passou: nenhuma chave, senha de banco ou `.env` no código nem nos 372 commits das branches conhecidas.
