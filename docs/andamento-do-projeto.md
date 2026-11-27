@@ -10,6 +10,41 @@ novembro de 2026 com a mudança de escopo.
 > entre locadoras descrevem o estado antigo e serão ajustados na fase 1 do plano. O novo escopo e o
 > plano estão em [mudanca-de-escopo.md](mudanca-de-escopo.md).
 
+## Situação em 28/11/2026 (atualização final)
+
+O resto deste documento registra as primeiras semanas e o modelo antigo. O estado atual é este:
+
+- **Escopo:** uma única locadora de São Luís (MA). As fases 1 a 6 do plano de `docs/mudanca-de-escopo.md`
+  foram entregues: banco no modelo novo (migrations `0001` a `0012`), perfis `CLIENTE`, `OPERADOR` e
+  `ADMIN`, RLS por cliente e papel `app_login` sem `BYPASSRLS`.
+- **Sistema de ponta a ponta:** cadastro e login, perfil de ciclista, catálogo (tipos, bicicletas,
+  pontos), recomendação da bicicleta, reserva com exclusion constraint contra sobreposição, pagamento por
+  Pix e cartão pela Stripe (webhook assinado e idempotente), painel da equipe, retirada e devolução com
+  checklist, expiração das reservas não pagas e telas para cada perfil. As 27 rotas do contrato
+  (`docs/contrato-api-mvp.md`) estão implementadas.
+- **Orientação a objetos:** todos os módulos (`contas`, `catalogo`, `recomendacao`, `reservas`,
+  `pagamentos`, `operacao`), as regras compartilhadas e a lógica das telas são classes, com injeção de
+  dependência por construtor. O que não é classe é o que o framework exige (`route.ts`, hooks do React,
+  componentes de interface). O desenho está em `docs/orientacao-a-objetos.md`; a conversão saiu nos PRs
+  #91, #92, #94 e #95 a #99, em cadeia.
+- **Testes:** cerca de 1.600 testes unitários na CI (`npm test`), 15 suítes de banco (`teste:banco`)
+  contra um PostgreSQL descartável e o fluxo completo pelos `route.ts` reais. Os defeitos injetados de
+  propósito em cada módulo foram todos pegos pelos testes. O plano e os resultados estão em
+  `docs/plano-de-testes.md`.
+- **Segurança:** scrypt, token de 24 h, limite de tentativas, corpo limitado, RLS e `npm audit` sem
+  vulnerabilidades (`docs/revisao-de-seguranca-mvp.md`).
+
+### O que ainda depende da equipe
+
+| Item | Responsável | Observação |
+|---|---|---|
+| Aplicar as migrations `0004` a `0012` no branch `production` do Neon e criar o papel `app_login` | Tech lead | Só com decisão da equipe; passo a passo em `db/README.md` (issue #23) |
+| Trocar a `DATABASE_URL` da Vercel para o papel `app_login` e cadastrar `SESSION_SECRET`, `HEALTH_DB_SECRET`, `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` | DevOps | Sem as chaves reais da Stripe o pagamento responde `PAGAMENTO_INDISPONIVEL` (502) |
+| Cadastrar o endpoint do webhook na Stripe e testar um pagamento real | DevOps e Hélio | O fluxo foi provado com a Stripe simulada e aviso assinado |
+| Rodar a expiração das reservas não pagas por agendamento (issue #73) | Hélio | Hoje a expiração acontece quando alguém lista, cria ou busca |
+| Ler o horário do balcão do banco em vez de fixo em `agenda.ts` (issue #82) | Renan | Pode divergir do cadastro do ponto |
+| Revisar e fazer o merge dos PRs #91, #92, #94 e #95 a #99 (nessa ordem, trocando a base para `dev`) | Luis e William | Cada PR tem o diff só do seu módulo |
+
 ## Equipe
 
 | Pessoa | Papel | Conta no GitHub |
@@ -135,7 +170,7 @@ limitador agora é aguardada, em vez de rodar solta.
 
 - `docs/mudanca-de-escopo.md`: o que mudou ao passar para uma única locadora e o plano de trabalho.
 - `docs/modelo-de-dados.md`: modelo de dados novo (uma locadora), recomendação e segurança por linha.
-- `docs/diagrama-de-classes.pdf`: planejamento das classes do modelo anterior (várias locadoras), a ser refeito.
+- `docs/diagrama-de-classes.pdf`: visão geral das classes do modelo de uma locadora; o detalhe das classes do código está em `docs/orientacao-a-objetos.md`.
 - `db/README.md`: como aplicar migrations e criar o papel do aplicativo.
 - Relatório de validação do backend (PDF entregue pelo William em 28/10, ainda não versionado).
 
