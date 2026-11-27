@@ -64,7 +64,7 @@ let segredoAnterior: string | undefined;
 before(async () => {
   segredoAnterior = process.env.SESSION_SECRET;
   process.env.SESSION_SECRET = SEGREDO;
-  // o pool do app é criado no primeiro uso e guardado aqui (src/shared/db/pool.ts)
+  // o pool do app é criado no primeiro uso e guardado aqui (src/shared/db/banco-de-dados.ts)
   (globalThis as { __bikeIlhaPool?: unknown }).__bikeIlhaPool = {
     connect: async () => clienteFalso(),
     query: (sql: string, valores?: unknown[]) => clienteFalso().query(sql, valores),
