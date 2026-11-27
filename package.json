@@ -15,18 +15,21 @@
     "criar-equipe": "node scripts/criar-equipe.mjs"
   },
   "dependencies": {
-    "next": "^16.4.2",
+    "next": "^16.4.6",
     "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "stripe": "^23.2.0"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/pg": "^8.23.1",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "^16.4.2",
+    "eslint-config-next": "^16.4.6",
     "typescript": "^5"
   }
 }
