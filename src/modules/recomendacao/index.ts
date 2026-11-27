@@ -14,19 +14,17 @@ export {
   type Experiencia,
   type PerfilCiclista,
 } from "./domain/perfil";
-export { validarBusca, type BuscaValidada } from "../../shared/dominio/periodo";
+export { ValidadorDePeriodo, type BuscaValidada } from "../../shared/dominio/validador-de-periodo";
 export {
   CriterioAltura,
   CriterioAtividade,
   CriterioExperiencia,
-  criteriosPadrao,
   type Avaliacao,
   type CriterioDeRecomendacao,
 } from "./domain/criterios";
 export {
   PESOS,
   RecomendacaoService,
-  recomendar,
   type CalcularValorAluguel,
   type Recomendacao,
   type TipoCandidato,

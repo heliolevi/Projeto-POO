@@ -1,19 +1,18 @@
 import {
-  ajusteDeAltura,
-  cabeNaAltura,
-  criteriosPadrao,
-  experienciaSuficiente,
+  CriterioAltura,
+  CriterioAtividade,
+  CriterioExperiencia,
   PESOS,
   type CriterioDeRecomendacao,
 } from "./criterios.ts";
 import type { Atividade, Experiencia, PerfilCiclista } from "./perfil.ts";
 
-// Os critérios e os pesos moram em criterios.ts; reexportados aqui para o endereço antigo continuar valendo.
-export { ajusteDeAltura, cabeNaAltura, experienciaSuficiente, PESOS };
+// Os critérios e os pesos moram em criterios.ts; os pesos são reexportados aqui para o endereço antigo continuar valendo.
+export { PESOS };
 
 // Recomendação de bicicletas (docs/modelo-de-dados.md, "Dados de recomendação").
 //
-// Função pura: recebe o perfil do cliente, os tipos do catálogo já com a contagem de
+// Sem estado e sem leitura de banco nem de relógio: recebe o perfil do cliente, os tipos do catálogo já com a contagem de
 // unidades livres no período e a função que calcula o valor do aluguel, e devolve a lista
 // ordenada. Não lê banco nem relógio, então o mesmo pedido dá sempre a mesma resposta e tudo
 // pode ser testado.
@@ -63,8 +62,13 @@ export type CalcularValorAluguel = (tipo: TipoCandidato) => number;
 export class RecomendacaoService {
   readonly #criterios: readonly CriterioDeRecomendacao[];
 
-  constructor(criterios: readonly CriterioDeRecomendacao[] = criteriosPadrao()) {
+  constructor(criterios: readonly CriterioDeRecomendacao[] = RecomendacaoService.criteriosPadrao()) {
     this.#criterios = [...criterios];
+  }
+
+  /** Altura, atividade e experiência. A ordem da lista é a ordem dos motivos devolvidos ao cliente. */
+  static criteriosPadrao(): CriterioDeRecomendacao[] {
+    return [new CriterioAltura(), new CriterioAtividade(), new CriterioExperiencia()];
   }
 
   // Soma os pontos dos critérios (0 a 100) e arredonda para inteiro no fim.
@@ -98,7 +102,7 @@ export class RecomendacaoService {
       (tipo) =>
         tipo.ativo &&
         tipo.unidadesLivres > 0 &&
-        (perfil.alturaCm === null || cabeNaAltura(perfil.alturaCm, tipo)),
+        (perfil.alturaCm === null || CriterioAltura.cabe(perfil.alturaCm, tipo)),
     );
 
     return candidatos
@@ -127,15 +131,4 @@ export class RecomendacaoService {
       )
       .map(({ resultado }) => resultado);
   }
-}
-
-const servicoPadrao = new RecomendacaoService();
-
-// Atalho com os critérios padrão: é o que a busca (GET /api/recomendacao) usa.
-export function recomendar(
-  perfil: PerfilCiclista,
-  tipos: readonly TipoCandidato[],
-  calcularValorAluguel: CalcularValorAluguel,
-): Recomendacao[] {
-  return servicoPadrao.recomendar(perfil, tipos, calcularValorAluguel);
 }

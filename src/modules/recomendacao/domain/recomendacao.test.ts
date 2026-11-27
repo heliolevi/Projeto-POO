@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { PerfilCiclista } from "./perfil.ts";
-import {
-  ajusteDeAltura,
-  experienciaSuficiente,
-  recomendar,
-  type TipoCandidato,
-} from "./recomendacao.ts";
+import { CriterioAltura, CriterioExperiencia } from "./criterios.ts";
+import { RecomendacaoService, type TipoCandidato } from "./recomendacao.ts";
+
+const servicoPadrao = new RecomendacaoService();
+const recomendar = (perfil: PerfilCiclista, tipos: readonly TipoCandidato[], valor: (t: TipoCandidato) => number) => servicoPadrao.recomendar(perfil, tipos, valor);
 
 // Os tipos do seed de desenvolvimento (db/seeds/dev.sql), com 2 unidades livres cada.
 function tipo(parcial: Partial<TipoCandidato> & Pick<TipoCandidato, "id" | "nome">): TipoCandidato {
@@ -44,22 +43,22 @@ const perfil = (p: Partial<PerfilCiclista> = {}): PerfilCiclista => ({
   ...p,
 });
 
-test("ajusteDeAltura vale 1 no centro da faixa e 0 nas pontas", () => {
+test("CriterioAltura.ajuste vale 1 no centro da faixa e 0 nas pontas", () => {
   const faixa = { alturaMinCm: 150, alturaMaxCm: 190 };
-  assert.equal(ajusteDeAltura(170, faixa), 1);
-  assert.equal(ajusteDeAltura(150, faixa), 0);
-  assert.equal(ajusteDeAltura(190, faixa), 0);
-  assert.equal(ajusteDeAltura(160, faixa), 0.5);
-  assert.equal(ajusteDeAltura(180, faixa), 0.5);
-  assert.equal(ajusteDeAltura(149, faixa), 0, "fora da faixa");
-  assert.equal(ajusteDeAltura(170, { alturaMinCm: 170, alturaMaxCm: 170 }), 1, "faixa de um valor só");
+  assert.equal(CriterioAltura.ajuste(170, faixa), 1);
+  assert.equal(CriterioAltura.ajuste(150, faixa), 0);
+  assert.equal(CriterioAltura.ajuste(190, faixa), 0);
+  assert.equal(CriterioAltura.ajuste(160, faixa), 0.5);
+  assert.equal(CriterioAltura.ajuste(180, faixa), 0.5);
+  assert.equal(CriterioAltura.ajuste(149, faixa), 0, "fora da faixa");
+  assert.equal(CriterioAltura.ajuste(170, { alturaMinCm: 170, alturaMaxCm: 170 }), 1, "faixa de um valor só");
 });
 
 test("experienciaSuficiente compara os níveis em ordem", () => {
-  assert.equal(experienciaSuficiente("INICIANTE", "INICIANTE"), true);
-  assert.equal(experienciaSuficiente("AVANCADO", "INTERMEDIARIO"), true);
-  assert.equal(experienciaSuficiente("INICIANTE", "INTERMEDIARIO"), false);
-  assert.equal(experienciaSuficiente("INTERMEDIARIO", "AVANCADO"), false);
+  assert.equal(CriterioExperiencia.suficiente("INICIANTE", "INICIANTE"), true);
+  assert.equal(CriterioExperiencia.suficiente("AVANCADO", "INTERMEDIARIO"), true);
+  assert.equal(CriterioExperiencia.suficiente("INICIANTE", "INTERMEDIARIO"), false);
+  assert.equal(CriterioExperiencia.suficiente("INTERMEDIARIO", "AVANCADO"), false);
 });
 
 test("exemplo do contrato: 172 cm, iniciante, passeio, 4 horas", () => {
