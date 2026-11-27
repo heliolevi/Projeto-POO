@@ -2,8 +2,19 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { after, before, test } from "node:test";
 import { ForbiddenError, UnauthorizedError } from "../../../shared/http/errors.ts";
-import { emitirToken } from "../infrastructure/token.ts";
-import { criarExigirSessao, extrairBearer, PerfisPermitidos } from "./exigir-sessao.ts";
+import { ServicoDeToken } from "../infrastructure/token.ts";
+import { PerfisPermitidos, SessaoDaRequisicao } from "./sessao-da-requisicao.ts";
+
+type Perfil = "CLIENTE" | "OPERADOR" | "ADMIN";
+const tokens = ServicoDeToken.padrao;
+const emitirToken = (usuario: { id: string; perfil: Perfil }) => tokens.emitir(usuario);
+const extrairBearer = SessaoDaRequisicao.extrairBearer;
+
+// A sessão sobre o token de verdade e um banco de mentira.
+function criarExigirSessao(buscar: (id: string) => Promise<{ perfil: Perfil; ativo: boolean } | null>) {
+  const sessao = new SessaoDaRequisicao({ tokens, usuarios: { buscarSituacaoPorId: buscar } });
+  return (request: Request) => sessao.exigir(request);
+}
 
 const SEGREDO = "segredo-de-teste-com-mais-de-32-caracteres-ok";
 const ID = "3f2b8c1e-5d4a-4b6f-9c7e-1a2b3c4d5e6f";

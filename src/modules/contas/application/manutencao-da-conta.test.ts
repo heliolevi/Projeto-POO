@@ -6,7 +6,8 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "../../../shared/http/errors.ts";
-import { criarAlterarSenha, LIMITE_TROCA_SENHA } from "./alterar-senha.ts";
+import { ValidadorDeConta } from "../domain/validador-de-conta.ts";
+import { LIMITE_TROCA_SENHA, ManutencaoDaConta } from "./manutencao-da-conta.ts";
 
 const ID = "3f2b8c1e-5d4a-4b6f-9c7e-1a2b3c4d5e6f";
 const CORRETA = "senha-atual-1";
@@ -26,15 +27,24 @@ function cenario() {
     return { rows: [] };
   };
   const senhas = new Map([[ID, `hash:${CORRETA}`]]);
-  const alterarSenha = criarAlterarSenha({
+  const manutencao = new ManutencaoDaConta({
     limite: new LimiteDeTentativas({ consultar }),
-    buscarSenhaHash: async (id) => senhas.get(id) ?? null,
-    salvarSenhaHash: async (id, hash) => {
-      senhas.set(id, hash);
+    validador: new ValidadorDeConta(),
+    senhas: {
+      verificar: async (senha: string, hash: string) => hash === `hash:${senha}`,
+      gerarHash: async (senha: string) => `hash:${senha}`,
     },
-    verificarSenha: async (senha, hash) => hash === `hash:${senha}`,
-    gerarHashSenha: async (senha) => `hash:${senha}`,
+    usuarios: {
+      buscarSenhaHashPorId: async (id: string) => senhas.get(id) ?? null,
+      atualizarSenha: async (id: string, hash: string) => {
+        senhas.set(id, hash);
+      },
+      atualizarAltura: async () => {},
+      registrarAceiteDeTermos: async () => {},
+      desativar: async () => {},
+    },
   });
+  const alterarSenha = (id: string, entrada: unknown) => manutencao.alterarSenha(id, entrada);
   return { alterarSenha, contagens, senhas };
 }
 

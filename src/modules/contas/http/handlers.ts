@@ -1,116 +1,44 @@
 import { BancoDeDados } from "@/shared/db/banco-de-dados";
 import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
-import { ClienteDaRequisicao } from "@/shared/http/cliente-da-requisicao";
 import { LeitorDeCorpo } from "@/shared/http/leitor-de-corpo";
-import { PerfisPermitidos } from "@/shared/http/perfis-permitidos";
-import { Resposta } from "@/shared/http/resposta";
-import { aceitarTermos } from "../application/aceitar-termos";
-import { criarAlterarSenha } from "../application/alterar-senha";
-import { atualizarAltura } from "../application/atualizar-altura";
-import { autenticar } from "../application/autenticar";
-import { cadastrarCliente } from "../application/cadastrar-cliente";
-import { desativarConta } from "../application/desativar-conta";
-import { criarPerfilCiclista } from "../application/perfil-ciclista";
-import {
-  atualizarSenha,
-  buscarConta,
-  buscarSenhaHashPorId,
-  gravarPerfilCiclista,
-} from "../infrastructure/repositorio-usuarios";
-import { gerarHashSenha, verificarSenha } from "../infrastructure/senha";
-import { exigirSessao } from "./sessao";
+import { Autenticador } from "../application/autenticador";
+import { CadastroDeCliente } from "../application/cadastro-de-cliente";
+import { EmissorDeSessao } from "../application/emissor-de-sessao";
+import { ManutencaoDaConta } from "../application/manutencao-da-conta";
+import { PerfilDoCiclista } from "../application/perfil-do-ciclista";
+import { ValidadorDeConta } from "../domain/validador-de-conta";
+import { RepositorioDeUsuarios } from "../infrastructure/repositorio-usuarios";
+import { ScryptDeSenha } from "../infrastructure/senha";
+import { ServicoDeToken } from "../infrastructure/token";
+import { ControladorDeContas } from "./controlador-de-contas";
+import { sessoes } from "./sessao";
 
-const leitor = new LeitorDeCorpo();
-const soCliente = new PerfisPermitidos("CLIENTE");
-
-const alterarSenha = criarAlterarSenha({
-  limite: new LimiteDeTentativas(BancoDeDados.padrao),
-  buscarSenhaHash: buscarSenhaHashPorId,
-  salvarSenhaHash: atualizarSenha,
-  verificarSenha,
-  gerarHashSenha,
-});
+// A ligação do módulo: as classes com as peças de verdade (banco, scrypt, token). Cada uma é criada uma
+// vez só; nenhuma guarda estado entre as requisições (a sessão chega a cada uma).
+const validador = new ValidadorDeConta();
+const limite = new LimiteDeTentativas(BancoDeDados.padrao);
+const usuarios = RepositorioDeUsuarios.padrao;
+const senhas = ScryptDeSenha.padrao;
+const emissor = new EmissorDeSessao(ServicoDeToken.padrao);
 
 // Exportado para outros módulos (a recomendação lê o perfil do ciclista) pelo index.ts.
-export const perfilCiclista = criarPerfilCiclista({ buscarConta, gravarPerfilCiclista });
+export const perfilDoCiclista = new PerfilDoCiclista({ usuarios, validador });
 
-const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
+const controlador = new ControladorDeContas({
+  sessoes,
+  cadastro: new CadastroDeCliente({ limite, validador, senhas, usuarios, sessoes: emissor }),
+  autenticador: new Autenticador({ limite, validador, senhas, usuarios, sessoes: emissor }),
+  perfil: perfilDoCiclista,
+  manutencao: new ManutencaoDaConta({ limite, validador, senhas, usuarios }),
+  leitor: new LeitorDeCorpo(),
+});
 
-export async function postCadastro(request: Request) {
-  try {
-    const contexto = { ip: new ClienteDaRequisicao(request.headers).ip };
-    return Resposta.criada(await cadastrarCliente(await leitor.lerJson(request), contexto), SEM_CACHE);
-  } catch (erro) {
-    return Resposta.deErro(erro);
-  }
-}
-
-export async function postLogin(request: Request) {
-  try {
-    const contexto = { ip: new ClienteDaRequisicao(request.headers).ip };
-    return Resposta.ok(await autenticar(await leitor.lerJson(request), contexto), SEM_CACHE);
-  } catch (erro) {
-    return Resposta.deErro(erro);
-  }
-}
-
-export async function postAlterarSenha(request: Request) {
-  try {
-    const sessao = await exigirSessao(request);
-    await alterarSenha(sessao.usuarioId, await leitor.lerJson(request));
-    return Resposta.semConteudo();
-  } catch (erro) {
-    return Resposta.deErro(erro);
-  }
-}
-
-export async function postDesativar(request: Request) {
-  try {
-    const sessao = await exigirSessao(request);
-    await desativarConta(sessao.usuarioId);
-    return Resposta.semConteudo();
-  } catch (erro) {
-    return Resposta.deErro(erro);
-  }
-}
-
-export async function postAtualizarAltura(request: Request) {
-  try {
-    const sessao = soCliente.exigir(await exigirSessao(request));
-    await atualizarAltura(sessao.usuarioId, await leitor.lerJson(request));
-    return Resposta.semConteudo();
-  } catch (erro) {
-    return Resposta.deErro(erro);
-  }
-}
-
-export async function postAceitarTermos(request: Request) {
-  try {
-    const sessao = soCliente.exigir(await exigirSessao(request));
-    await aceitarTermos(sessao.usuarioId, await leitor.lerJson(request));
-    return Resposta.semConteudo();
-  } catch (erro) {
-    return Resposta.deErro(erro);
-  }
-}
-
-// GET /api/conta/me: qualquer perfil logado; `ciclista` só vem para CLIENTE.
-export async function getMe(request: Request) {
-  try {
-    const sessao = await exigirSessao(request);
-    return Resposta.ok(await perfilCiclista.consultarConta(sessao.usuarioId), SEM_CACHE);
-  } catch (erro) {
-    return Resposta.deErro(erro);
-  }
-}
-
-// PUT /api/conta/perfil-ciclista: só CLIENTE, sempre na própria conta (o id vem do token).
-export async function putPerfilCiclista(request: Request) {
-  try {
-    const sessao = soCliente.exigir(await exigirSessao(request));
-    const corpo = await leitor.lerJson(request);
-    return Resposta.ok(await perfilCiclista.atualizarPerfilCiclista(sessao.usuarioId, corpo), SEM_CACHE);
-  } catch (erro) {
-    return Resposta.deErro(erro);
-  }
-}
+// Os pontos de entrada das rotas (o Next exige funções exportadas em route.ts); só chamam o controlador.
+export const postCadastro = (request: Request) => controlador.cadastro(request);
+export const postLogin = (request: Request) => controlador.login(request);
+export const postAlterarSenha = (request: Request) => controlador.alterarSenha(request);
+export const postDesativar = (request: Request) => controlador.desativar(request);
+export const postAtualizarAltura = (request: Request) => controlador.atualizarAltura(request);
+export const postAceitarTermos = (request: Request) => controlador.aceitarTermos(request);
+export const getMe = (request: Request) => controlador.me(request);
+export const putPerfilCiclista = (request: Request) => controlador.atualizarPerfilCiclista(request);

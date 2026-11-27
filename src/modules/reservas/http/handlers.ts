@@ -1,4 +1,4 @@
-import { exigirSessao, PerfisPermitidos } from "@/modules/contas";
+import { PerfisPermitidos, sessoes } from "@/modules/contas";
 import { BancoDeDados } from "@/shared/db/banco-de-dados";
 import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
 import { LeitorDeCorpo } from "@/shared/http/leitor-de-corpo";
@@ -28,7 +28,7 @@ const reservas = new ReservaService({
 
 // Todas as rotas de reserva são do CLIENTE: 401 sem sessão válida, 403 para a equipe.
 async function sessaoDoCliente(request: Request) {
-  return soCliente.exigir(await exigirSessao(request));
+  return soCliente.exigir(await sessoes.exigir(request));
 }
 
 // POST /api/reservas (rota 12)

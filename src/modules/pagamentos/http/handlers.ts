@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { exigirSessao, PerfisPermitidos } from "@/modules/contas";
+import { PerfisPermitidos, sessoes } from "@/modules/contas";
 import { BancoDeDados } from "@/shared/db/banco-de-dados";
 import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
 import { UnauthorizedError } from "@/shared/http/errors";
@@ -40,7 +40,7 @@ const pagamentos = new PagarReservaService({
 
 // As rotas 16 e 17 são do CLIENTE dono da reserva: 401 sem sessão válida, 403 para a equipe.
 async function sessaoDoCliente(request: Request) {
-  return soCliente.exigir(await exigirSessao(request));
+  return soCliente.exigir(await sessoes.exigir(request));
 }
 
 // POST /api/pagamentos (rota 16): 201 com a cobrança nova, 200 se reaproveitou o Pix pendente.

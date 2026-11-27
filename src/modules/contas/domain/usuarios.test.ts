@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import { UnauthorizedError, ValidationError } from "../../../shared/http/errors.ts";
 import { Admin, PERMISSOES_DO_ADMIN } from "./admin.ts";
 import { Cliente, PERMISSOES_DO_CLIENTE } from "./cliente.ts";
-import { criarUsuario } from "./fabrica-usuario.ts";
+import { FabricaDeUsuario } from "./fabrica-usuario.ts";
 import { Operador, PERMISSOES_DO_OPERADOR } from "./operador.ts";
 import { PERMISSOES, SenhaAtualIncorreta, Usuario, type ServicoDeSenha } from "./usuario-base.ts";
 
@@ -245,21 +245,27 @@ describe("Operador", () => {
   });
 });
 
-describe("criarUsuario (fábrica)", () => {
+describe("FabricaDeUsuario (fábrica)", () => {
   test("devolve a subclasse certa para cada perfil", () => {
-    assert.ok(criarUsuario({ ...base, perfil: "CLIENTE" }) instanceof Cliente);
-    assert.ok(criarUsuario({ ...base, perfil: "OPERADOR" }) instanceof Operador);
-    assert.ok(criarUsuario({ ...base, perfil: "ADMIN" }) instanceof Admin);
+    assert.ok(FabricaDeUsuario.criar({ ...base, perfil: "CLIENTE" }) instanceof Cliente);
+    assert.ok(FabricaDeUsuario.criar({ ...base, perfil: "OPERADOR" }) instanceof Operador);
+    assert.ok(FabricaDeUsuario.criar({ ...base, perfil: "ADMIN" }) instanceof Admin);
   });
 
   test("repassa os dados específicos de cada perfil", () => {
-    const c = criarUsuario({ ...base, perfil: "CLIENTE", ciclista: { alturaCm: 170 } }) as Cliente;
+    const c = FabricaDeUsuario.criar({ ...base, perfil: "CLIENTE", ciclista: { alturaCm: 170 } }) as Cliente;
     assert.equal(c.ciclista.alturaCm, 170);
-    const o = criarUsuario({ ...base, perfil: "OPERADOR", pontoId: "p1" }) as Operador;
+    const o = FabricaDeUsuario.criar({ ...base, perfil: "OPERADOR", pontoId: "p1" }) as Operador;
     assert.equal(o.pontoId, "p1");
   });
 
   test("um perfil desconhecido não vira objeto", () => {
-    assert.throws(() => criarUsuario({ ...base, perfil: "GERENTE_LOCADORA" as never }), RangeError);
+    assert.throws(() => FabricaDeUsuario.criar({ ...base, perfil: "GERENTE_LOCADORA" as never }), RangeError);
+  });
+});
+
+describe("FabricaDeUsuario não é instanciável", () => {
+  test("lança ao tentar criar uma instância", () => {
+    assert.throws(() => new (FabricaDeUsuario as unknown as new () => unknown)(), TypeError);
   });
 });

@@ -6,8 +6,8 @@ import {
   ValidationError,
 } from "../../../shared/http/errors.ts";
 import type { ContaLogada, PerfilCiclistaConta } from "../domain/usuario.ts";
-import type { DadosPerfilCiclista } from "../domain/validacao.ts";
-import { criarPerfilCiclista } from "./perfil-ciclista.ts";
+import { ValidadorDeConta, type DadosPerfilCiclista } from "../domain/validador-de-conta.ts";
+import { PerfilDoCiclista } from "./perfil-do-ciclista.ts";
 
 const CLIENTE = "3f2b8c1e-5d4a-4b6f-9c7e-1a2b3c4d5e6f";
 const ADMIN = "aaaaaaaa-0000-4000-8000-000000000001";
@@ -28,14 +28,17 @@ function cenario() {
     [ADMIN, { id: ADMIN, perfil: "ADMIN", nome: "Admin", email: "admin@exemplo.com" }],
   ]);
   const gravacoes: { id: string; dados: DadosPerfilCiclista }[] = [];
-  const servico = criarPerfilCiclista({
-    buscarConta: async (id) => contas.get(id) ?? null,
-    gravarPerfilCiclista: async (id, dados): Promise<PerfilCiclistaConta | null> => {
-      gravacoes.push({ id, dados });
-      const conta = contas.get(id);
-      if (!conta || conta.perfil !== "CLIENTE") return null; // como o WHERE perfil = 'CLIENTE'
-      conta.ciclista = { ...dados };
-      return conta.ciclista;
+  const servico = new PerfilDoCiclista({
+    validador: new ValidadorDeConta(),
+    usuarios: {
+      buscarConta: async (id: string) => contas.get(id) ?? null,
+      gravarPerfilCiclista: async (id: string, dados: DadosPerfilCiclista): Promise<PerfilCiclistaConta | null> => {
+        gravacoes.push({ id, dados });
+        const conta = contas.get(id);
+        if (!conta || conta.perfil !== "CLIENTE") return null; // como o WHERE perfil = 'CLIENTE'
+        conta.ciclista = { ...dados };
+        return conta.ciclista;
+      },
     },
   });
   return { servico, gravacoes };
@@ -43,7 +46,7 @@ function cenario() {
 
 test("GET /me devolve nome, e-mail, perfil e os três dados do ciclista", async () => {
   const { servico } = cenario();
-  await servico.atualizarPerfilCiclista(CLIENTE, {
+  await servico.atualizar(CLIENTE, {
     alturaCm: 172,
     experiencia: "INICIANTE",
     atividade: "PASSEIO",
@@ -71,7 +74,7 @@ test("GET /me de conta que sumiu responde 401", async () => {
 
 test("PUT devolve os três dados gravados", async () => {
   const { servico } = cenario();
-  const gravado = await servico.atualizarPerfilCiclista(CLIENTE, {
+  const gravado = await servico.atualizar(CLIENTE, {
     alturaCm: 180,
     experiencia: "AVANCADO",
     atividade: "TRILHA",
@@ -81,14 +84,14 @@ test("PUT devolve os três dados gravados", async () => {
 
 test("PUT substitui os três campos: o que vem ausente ou null é apagado", async () => {
   const { servico } = cenario();
-  await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" });
-  assert.deepEqual(await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 175 }), {
+  await servico.atualizar(CLIENTE, { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" });
+  assert.deepEqual(await servico.atualizar(CLIENTE, { alturaCm: 175 }), {
     alturaCm: 175,
     experiencia: null,
     atividade: null,
   });
   assert.deepEqual(
-    await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: null, experiencia: null, atividade: null }),
+    await servico.atualizar(CLIENTE, { alturaCm: null, experiencia: null, atividade: null }),
     { alturaCm: null, experiencia: null, atividade: null },
   );
 });
@@ -96,12 +99,12 @@ test("PUT substitui os três campos: o que vem ausente ou null é apagado", asyn
 test("PUT sem nenhuma das três chaves responde 400 e não apaga o perfil (corpo vazio ou campo errado)", async () => {
   const { servico, gravacoes } = cenario();
   const perfil = { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" };
-  await servico.atualizarPerfilCiclista(CLIENTE, perfil);
+  await servico.atualizar(CLIENTE, perfil);
   const antes = gravacoes.length;
   // {} e um nome de campo errado ("altura" em vez de "alturaCm") não trazem nenhuma chave do perfil
   for (const corpo of [{}, { altura: 180 }, { id: CLIENTE }, { Atividade: "TRILHA" }]) {
     await assert.rejects(
-      servico.atualizarPerfilCiclista(CLIENTE, corpo),
+      servico.atualizar(CLIENTE, corpo),
       (erro: unknown) => {
         assert.ok(erro instanceof ValidationError, JSON.stringify(corpo));
         assert.ok((erro.details as Record<string, string>).corpo, JSON.stringify(corpo));
@@ -117,8 +120,8 @@ test("PUT sem nenhuma das três chaves responde 400 e não apaga o perfil (corpo
 // campos", acima)
 test("basta uma chave presente para o corpo valer; as ausentes continuam sendo apagadas", async () => {
   const { servico } = cenario();
-  await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" });
-  assert.deepEqual(await servico.atualizarPerfilCiclista(CLIENTE, { experiencia: "AVANCADO" }), {
+  await servico.atualizar(CLIENTE, { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" });
+  assert.deepEqual(await servico.atualizar(CLIENTE, { experiencia: "AVANCADO" }), {
     alturaCm: null,
     experiencia: "AVANCADO",
     atividade: null,
@@ -129,7 +132,7 @@ test("PUT valida a altura (100 a 250, inteiro) com o mesmo validador da rota de 
   const { servico, gravacoes } = cenario();
   for (const alturaCm of [99, 251, 172.5, "172", true, [], {}, NaN, -1]) {
     await assert.rejects(
-      servico.atualizarPerfilCiclista(CLIENTE, { alturaCm }),
+      servico.atualizar(CLIENTE, { alturaCm }),
       (erro: unknown) => {
         assert.ok(erro instanceof ValidationError, String(alturaCm));
         assert.match((erro.details as Record<string, string>).alturaCm, /100 e 250/);
@@ -138,7 +141,7 @@ test("PUT valida a altura (100 a 250, inteiro) com o mesmo validador da rota de 
     );
   }
   for (const alturaCm of [100, 250]) {
-    await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm });
+    await servico.atualizar(CLIENTE, { alturaCm });
   }
   assert.equal(gravacoes.length, 2, "valores inválidos nunca chegam ao banco");
 });
@@ -146,23 +149,23 @@ test("PUT valida a altura (100 a 250, inteiro) com o mesmo validador da rota de 
 test("PUT valida experiência e atividade contra as enumerações do banco", async () => {
   const { servico } = cenario();
   for (const experiencia of ["iniciante", "EXPERT", "", 1, true]) {
-    await assert.rejects(servico.atualizarPerfilCiclista(CLIENTE, { experiencia }), ValidationError, String(experiencia));
+    await assert.rejects(servico.atualizar(CLIENTE, { experiencia }), ValidationError, String(experiencia));
   }
   for (const atividade of ["passeio", "CORRIDA", "", 2, ["PASSEIO"]]) {
-    await assert.rejects(servico.atualizarPerfilCiclista(CLIENTE, { atividade }), ValidationError, String(atividade));
+    await assert.rejects(servico.atualizar(CLIENTE, { atividade }), ValidationError, String(atividade));
   }
   for (const experiencia of ["INICIANTE", "INTERMEDIARIO", "AVANCADO"]) {
-    await servico.atualizarPerfilCiclista(CLIENTE, { experiencia });
+    await servico.atualizar(CLIENTE, { experiencia });
   }
   for (const atividade of ["PASSEIO", "URBANO", "TRILHA", "ESPORTE", "TURISMO"]) {
-    await servico.atualizarPerfilCiclista(CLIENTE, { atividade });
+    await servico.atualizar(CLIENTE, { atividade });
   }
 });
 
 test("PUT junta os erros de todos os campos", async () => {
   const { servico } = cenario();
   await assert.rejects(
-    servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 5, experiencia: "x", atividade: "y" }),
+    servico.atualizar(CLIENTE, { alturaCm: 5, experiencia: "x", atividade: "y" }),
     (erro: unknown) => {
       assert.ok(erro instanceof ValidationError);
       assert.deepEqual(Object.keys(erro.details as object).sort(), ["alturaCm", "atividade", "experiencia"]);
@@ -174,7 +177,7 @@ test("PUT junta os erros de todos os campos", async () => {
 test("PUT com corpo que não é um objeto responde 400", async () => {
   const { servico, gravacoes } = cenario();
   for (const corpo of [null, undefined, "texto", 42, [], [{ alturaCm: 170 }]]) {
-    await assert.rejects(servico.atualizarPerfilCiclista(CLIENTE, corpo), ValidationError, String(corpo));
+    await assert.rejects(servico.atualizar(CLIENTE, corpo), ValidationError, String(corpo));
   }
   assert.equal(gravacoes.length, 0);
 });
@@ -182,7 +185,7 @@ test("PUT com corpo que não é um objeto responde 400", async () => {
 test("PUT de conta que não é de cliente responde 403 e não grava", async () => {
   const { servico } = cenario();
   await assert.rejects(
-    servico.atualizarPerfilCiclista(ADMIN, { alturaCm: 170 }),
+    servico.atualizar(ADMIN, { alturaCm: 170 }),
     ForbiddenError,
   );
 });
@@ -190,11 +193,11 @@ test("PUT de conta que não é de cliente responde 403 e não grava", async () =
 test("chave desconhecida ao lado de um campo certo responde 400 e não grava nada (typo não apaga o dado)", async () => {
   const { servico, gravacoes } = cenario();
   const perfil = { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" };
-  await servico.atualizarPerfilCiclista(CLIENTE, perfil);
+  await servico.atualizar(CLIENTE, perfil);
   const antes = gravacoes.length;
   // o caso do review do PR #35: "atividde" (typo) junto de um campo certo apagaria a atividade
   await assert.rejects(
-    servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 180, atividde: "TRILHA" }),
+    servico.atualizar(CLIENTE, { alturaCm: 180, atividde: "TRILHA" }),
     (erro: unknown) => {
       assert.ok(erro instanceof ValidationError);
       const msg = (erro.details as Record<string, string>).corpo;
@@ -211,14 +214,14 @@ test("id, usuarioId e perfil no corpo também são chaves desconhecidas: 400, e 
   const { servico, gravacoes } = cenario();
   for (const extra of [{ id: ADMIN }, { usuarioId: ADMIN }, { perfil: "ADMIN" }, { nome: "Outro nome" }]) {
     await assert.rejects(
-      servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 170, ...extra }),
+      servico.atualizar(CLIENTE, { alturaCm: 170, ...extra }),
       ValidationError,
       JSON.stringify(extra),
     );
   }
   assert.equal(gravacoes.length, 0, "nada foi gravado, nem na conta do token nem na do id enviado");
   // sem a chave extra, o mesmo corpo é aceito e grava na conta do token
-  await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 170 });
+  await servico.atualizar(CLIENTE, { alturaCm: 170 });
   assert.equal(gravacoes.length, 1);
   assert.equal(gravacoes[0].id, CLIENTE);
 });
@@ -227,7 +230,7 @@ test("o corte do nome da chave não parte um emoji ao meio", async () => {
   const { servico } = cenario();
   // 39 letras + 2 emojis: o corte em 40 caracteres cai no meio do segundo emoji se for por unidade UTF-16
   const chave = "x".repeat(39) + "😀😀";
-  await assert.rejects(servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 170, [chave]: 1 }), (erro: unknown) => {
+  await assert.rejects(servico.atualizar(CLIENTE, { alturaCm: 170, [chave]: 1 }), (erro: unknown) => {
     assert.ok(erro instanceof ValidationError);
     const msg = (erro.details as Record<string, string>).corpo;
     assert.ok(msg.isWellFormed(), "a mensagem tem um caractere quebrado (surrogate solto)");
@@ -241,7 +244,7 @@ test("a mensagem lista poucas chaves e curtas, mesmo com um corpo cheio de campo
   const { servico } = cenario();
   const corpo: Record<string, unknown> = { alturaCm: 170 };
   for (let i = 0; i < 50; i++) corpo[`${"x".repeat(100)}${i}`] = 1;
-  await assert.rejects(servico.atualizarPerfilCiclista(CLIENTE, corpo), (erro: unknown) => {
+  await assert.rejects(servico.atualizar(CLIENTE, corpo), (erro: unknown) => {
     assert.ok(erro instanceof ValidationError);
     const msg = (erro.details as Record<string, string>).corpo;
     assert.ok(msg.length < 400, `mensagem grande demais: ${msg.length}`);
@@ -252,11 +255,11 @@ test("a mensagem lista poucas chaves e curtas, mesmo com um corpo cheio de campo
 
 test("consultarPerfilCiclista devolve só os três dados, e é 403 para quem não é cliente", async () => {
   const { servico } = cenario();
-  await servico.atualizarPerfilCiclista(CLIENTE, { alturaCm: 168, experiencia: "INTERMEDIARIO", atividade: "URBANO" });
-  assert.deepEqual(await servico.consultarPerfilCiclista(CLIENTE), {
+  await servico.atualizar(CLIENTE, { alturaCm: 168, experiencia: "INTERMEDIARIO", atividade: "URBANO" });
+  assert.deepEqual(await servico.consultar(CLIENTE), {
     alturaCm: 168,
     experiencia: "INTERMEDIARIO",
     atividade: "URBANO",
   });
-  await assert.rejects(servico.consultarPerfilCiclista(ADMIN), ForbiddenError);
+  await assert.rejects(servico.consultar(ADMIN), ForbiddenError);
 });
