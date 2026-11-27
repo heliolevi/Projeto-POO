@@ -50,6 +50,14 @@ function patternsDoModulo(atual) {
 // é como `npm test` executa o código): ela gera JavaScript, então o Node falha ou o código muda de
 // comportamento. Tipos, interfaces, `private`/`readonly` em campo e `#campo` são apagáveis e
 // continuam liberados. Cada regra diz o que escrever no lugar.
+//
+// Declarações ambientes (`declare enum`, `declare namespace`, `declare module`, e o que estiver
+// dentro delas) só descrevem tipos e o Node as apaga: ficam liberadas. O nó de dentro de um
+// `declare namespace` não tem `declare=true`, por isso o seletor também olha os ancestrais.
+// A mesma regra é conferida pelo TypeScript (`erasableSyntaxOnly` no tsconfig), que cobre também os
+// .ts fora de src (como o next.config.ts).
+const DENTRO_DE_DECLARE = "TSModuleDeclaration[declare=true] *";
+
 export const sintaxeNaoApagavel = [
   {
     selector: "TSParameterProperty",
@@ -57,12 +65,12 @@ export const sintaxeNaoApagavel = [
       "Propriedade de parâmetro (constructor(private x)) não é apagável. Declare o campo (readonly #x) e atribua no corpo do construtor.",
   },
   {
-    selector: "TSEnumDeclaration",
+    selector: `TSEnumDeclaration:not([declare=true]):not(${DENTRO_DE_DECLARE})`,
     message:
       "enum não é apagável. Use um objeto `as const` com um tipo união: const X = { A: \"A\" } as const.",
   },
   {
-    selector: "TSModuleDeclaration:not([declare=true])",
+    selector: `TSModuleDeclaration:not([declare=true]):not(${DENTRO_DE_DECLARE})`,
     message:
       "namespace/module com código não é apagável. Use um arquivo (módulo ES) ou um objeto no lugar.",
   },
@@ -80,8 +88,9 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    // Sintaxe não apagável: vale para todo o código-fonte em TypeScript.
+    // Sintaxe não apagável: vale para todo o código-fonte em TypeScript. Um .d.ts é todo ambiente.
     files: ["src/**/*.{ts,tsx}"],
+    ignores: ["**/*.d.ts"],
     rules: {
       "no-restricted-syntax": ["error", ...sintaxeNaoApagavel],
     },

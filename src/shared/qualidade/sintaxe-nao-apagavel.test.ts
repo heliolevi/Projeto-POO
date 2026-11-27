@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import { ESLint } from "eslint";
 
 // B3: o lint tem de reprovar a sintaxe de TypeScript que o Node não apaga (o `npm test` roda os .ts
@@ -44,6 +45,11 @@ const PERMITIDOS: Record<string, string> = {
   "objeto as const": "export const Cor = { Verde: 'Verde' } as const;",
   "declare namespace (só tipos)": "declare namespace Util { const a: number }",
   "declare global": "declare global { interface Window { x: number } }\nexport {};",
+  // declarações ambientes só descrevem tipos: o Node apaga (conferido rodando com node arquivo.ts)
+  "declare enum": "declare enum E { A }\nexport {};",
+  "declare const enum": "declare const enum E { A }\nexport {};",
+  "declare namespace aninhado": "declare namespace A { namespace B { const x: number } }\nexport {};",
+  "augmentation de módulo com namespace": "declare module 'lib' { namespace N { const a: number } }\nexport {};",
 };
 
 for (const [nome, codigo] of Object.entries(PERMITIDOS)) {
@@ -51,3 +57,10 @@ for (const [nome, codigo] of Object.entries(PERMITIDOS)) {
     assert.deepEqual(await errosDaRegra(codigo), []);
   });
 }
+
+// Segunda barreira: o próprio TypeScript (job typecheck) recusa a sintaxe não apagável em todo .ts
+// do projeto, inclusive fora de src (next.config.ts). Apagar a opção do tsconfig faz este teste falhar.
+test("o tsconfig liga erasableSyntaxOnly", () => {
+  const tsconfig = JSON.parse(readFileSync("tsconfig.json", "utf8"));
+  assert.equal(tsconfig.compilerOptions?.erasableSyntaxOnly, true);
+});
