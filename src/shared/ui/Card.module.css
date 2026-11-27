@@ -27,6 +27,7 @@
 }
 
 .title {
+  overflow-wrap: anywhere;
   margin: 0;
   font-family: var(--font-heading);
   font-size: var(--font-size-lg);
