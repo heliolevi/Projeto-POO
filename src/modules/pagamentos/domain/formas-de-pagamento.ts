@@ -8,9 +8,6 @@ import {
   type MetodoPagamento,
 } from "./pagamento.ts";
 
-// O Pix vale 15 minutos, o mesmo prazo da reserva pendente (uma constante só para os dois).
-export const PRAZO_DO_PIX_MS = PrazoDePagamento.MS;
-
 export type CobrancaPix = CobrancaGerada & {
   metodo: "PIX";
   // pagavelEmBanco: o copia e cola segue o BR Code do Banco Central (false no modo de teste da
@@ -22,6 +19,9 @@ export type CobrancaPix = CobrancaGerada & {
 // cola"; só depois disso o Pix tem o que mostrar ao cliente. O copia e cola é um CodigoPix
 // (composição): é ele que sabe se o texto é um BR Code de verdade.
 export class PagamentoPix extends Pagamento {
+  /** O Pix vale 15 minutos, o mesmo prazo da reserva pendente (um valor só para os dois). */
+  static readonly PRAZO_MS = PrazoDePagamento.MS;
+
   readonly #expiraEm: Date;
   #codigo: CodigoPix | null;
 
@@ -30,7 +30,7 @@ export class PagamentoPix extends Pagamento {
     // sem prazo informado, vale 15 minutos a partir da criação; com o prazo da reserva, vale até ele
     this.#expiraEm = dados.expiraEm
       ? new Date(dados.expiraEm)
-      : new Date(this.criadoEm.getTime() + PRAZO_DO_PIX_MS);
+      : new Date(this.criadoEm.getTime() + PagamentoPix.PRAZO_MS);
     if (this.#expiraEm.getTime() <= this.criadoEm.getTime()) {
       throw new RangeError("O prazo do Pix precisa ser depois da criação do pagamento.");
     }
@@ -98,9 +98,6 @@ export type CobrancaCartao = CobrancaGerada & {
   cartao: { finalDoCartao: string };
 };
 
-const TOKEN_DE_CARTAO = /^[A-Za-z0-9_-]{8,}$/;
-const FINAL_DO_CARTAO = /^\d{4}$/;
-
 export type DadosPagamentoCartao = DadosPagamento & { debito?: boolean };
 
 // Cartão de crédito ou débito. Os dados do cartão nunca passam por aqui: o navegador troca o cartão
@@ -108,6 +105,9 @@ export type DadosPagamentoCartao = DadosPagamento & { debito?: boolean };
 // do cartão, que vem do meio de pagamento junto com o token (os últimos caracteres do token não
 // têm relação com o número do cartão).
 export class PagamentoCartao extends Pagamento {
+  static readonly #TOKEN = /^[A-Za-z0-9_-]{8,}$/;
+  static readonly #FINAL = /^\d{4}$/;
+
   readonly #debito: boolean;
   #token: string | null = null;
   #finalDoCartao: string | null = null;
@@ -125,10 +125,10 @@ export class PagamentoCartao extends Pagamento {
   // cobrança. O pagamento continua PENDENTE até a operadora responder (confirmar, recusar).
   cobrarCartao(token: string, finalDoCartao: string): void {
     this.exigirPendente();
-    if (!TOKEN_DE_CARTAO.test(token)) {
+    if (!PagamentoCartao.#TOKEN.test(token)) {
       throw new RangeError("Token de cartão inválido.");
     }
-    if (!FINAL_DO_CARTAO.test(finalDoCartao)) {
+    if (!PagamentoCartao.#FINAL.test(finalDoCartao)) {
       throw new RangeError("O final do cartão precisa ter 4 dígitos.");
     }
     this.#token = token;
@@ -158,18 +158,25 @@ export class PagamentoCartao extends Pagamento {
   }
 }
 
-// Fábrica: escolhe a subclasse pela forma de pagamento. Quem usa só conhece Pagamento.
-export function criarPagamento(metodo: MetodoPagamento, dados: DadosPagamento): Pagamento {
-  switch (metodo) {
-    case "PIX":
-      return new PagamentoPix(dados);
-    case "CARTAO_CREDITO":
-      return new PagamentoCartao({ ...dados, debito: false });
-    case "CARTAO_DEBITO":
-      return new PagamentoCartao({ ...dados, debito: true });
-    default: {
-      const desconhecido: never = metodo;
-      throw new RangeError(`Forma de pagamento desconhecida: ${String(desconhecido)}`);
+// Fábrica: escolhe a subclasse pela forma de pagamento. Quem usa só conhece Pagamento. Só tem método
+// estático: não se cria instância.
+export class FabricaDePagamento {
+  private constructor() {
+    throw new TypeError("FabricaDePagamento só tem método estático; não se cria instância.");
+  }
+
+  static criar(metodo: MetodoPagamento, dados: DadosPagamento): Pagamento {
+    switch (metodo) {
+      case "PIX":
+        return new PagamentoPix(dados);
+      case "CARTAO_CREDITO":
+        return new PagamentoCartao({ ...dados, debito: false });
+      case "CARTAO_DEBITO":
+        return new PagamentoCartao({ ...dados, debito: true });
+      default: {
+        const desconhecido: never = metodo;
+        throw new RangeError(`Forma de pagamento desconhecida: ${String(desconhecido)}`);
+      }
     }
   }
 }

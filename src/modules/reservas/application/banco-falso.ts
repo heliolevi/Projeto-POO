@@ -2,14 +2,14 @@
 // exclusion constraint (23P01), o código único (23505), a RLS (reserva de outro cliente é
 // invisível) e o ROLLBACK da transação quando o caso de uso falha.
 import { CodigoRepetido, SobreposicaoDePeriodo } from "../domain/erros.ts";
-import { PRAZO_PAGAMENTO_MS, type StatusReserva } from "../domain/reserva.ts";
+import { RegrasDeReserva, type StatusReserva } from "../domain/reserva.ts";
 import type {
+  ExecutorDeReservas,
   LinhaReserva,
   OperacoesReservas,
   ReservaParaGravar,
   SessaoCliente,
   TipoReservavel,
-  Transacao,
 } from "./portas.ts";
 
 export type Unidade = { id: string; tipoId: string; pontoId: string; codigo: string; status: string };
@@ -51,7 +51,7 @@ export function criarBancoFalso(agora: () => Date) {
         for (const r of reservas) {
           if (
             r.status === "PENDENTE_PAGAMENTO" &&
-            r.criadoEm.getTime() <= agora().getTime() - PRAZO_PAGAMENTO_MS
+            r.criadoEm.getTime() <= agora().getTime() - RegrasDeReserva.PRAZO_PAGAMENTO_MS
           ) {
             const anterior = r.status;
             r.status = "EXPIRADA";
@@ -152,22 +152,24 @@ export function criarBancoFalso(agora: () => Date) {
   }
 
   // como o comSessao: se o caso de uso lançar, tudo o que ele gravou é desfeito
-  const transacao: Transacao = async (sessao, fn) => {
-    log.push("BEGIN");
-    const desfazer: (() => void)[] = [];
-    try {
-      const resultado = await fn(operacoes(sessao, desfazer));
-      log.push("COMMIT");
-      return resultado;
-    } catch (erro) {
-      for (const passo of desfazer.reverse()) passo();
-      log.push("ROLLBACK");
-      throw erro;
-    }
+  const executor: ExecutorDeReservas = {
+    async executar(sessao, fn) {
+      log.push("BEGIN");
+      const desfazer: (() => void)[] = [];
+      try {
+        const resultado = await fn(operacoes(sessao, desfazer));
+        log.push("COMMIT");
+        return resultado;
+      } catch (erro) {
+        for (const passo of desfazer.reverse()) passo();
+        log.push("ROLLBACK");
+        throw erro;
+      }
+    },
   };
 
   return {
-    transacao,
+    executor,
     log,
     estado,
     unidades,

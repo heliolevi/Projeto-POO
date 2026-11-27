@@ -9,13 +9,13 @@
 import pg from 'pg';
 import { rodarSuite } from '../suporte.mjs';
 import { criarFixtures, criarReserva } from '../fixtures.mjs';
-import { criarCriarReserva } from '../../../src/modules/reservas/application/criar-reserva.ts';
-import { criarBuscarReserva, criarListarReservas } from '../../../src/modules/reservas/application/consultar-reservas.ts';
-import { criarCancelarReserva } from '../../../src/modules/reservas/application/cancelar-reserva.ts';
-import { operacoesNoBanco } from '../../../src/modules/reservas/infrastructure/repositorio-reservas.ts';
+import { CriadorDeReserva } from '../../../src/modules/reservas/application/criar-reserva.ts';
+import { ConsultaDeReservas } from '../../../src/modules/reservas/application/consultar-reservas.ts';
+import { CancelamentoDeReserva } from '../../../src/modules/reservas/application/cancelar-reserva.ts';
+import { OperacoesDeReservasNoBanco } from '../../../src/modules/reservas/infrastructure/repositorio-reservas.ts';
 import { CalculadoraDeAluguel } from '../../../src/shared/dominio/preco-aluguel.ts';
-const calcularValorAluguel = (p, pr) => CalculadoraDeAluguel.padrao.calcularValorAluguel(p, pr);
-import { gerarCodigoReserva } from '../../../src/modules/reservas/domain/reserva.ts';
+import { GeradorDeCodigoDeReserva } from '../../../src/modules/reservas/domain/gerador-de-codigo.ts';
+import { ValidadorDeNovaReserva } from '../../../src/modules/reservas/domain/validador-de-nova-reserva.ts';
 import { TransacaoComSessao } from '../../../src/shared/db/sessao.ts';
 
 const HORA = 60 * 60 * 1000;
@@ -44,9 +44,23 @@ await rodarSuite('blackbox/reservas_api', async (executor, client) => {
   const sessaoA = { perfil: 'CLIENTE', usuarioId: ctx.clienteAId };
   const sessaoB = { perfil: 'CLIENTE', usuarioId: ctx.clienteBId };
 
+  // As operações do app são uma classe (métodos no protótipo): os ajustes dos testes fazem
+  // { ...op, escolherUnidade() {...} }, que só copia propriedades próprias. Este objeto simples
+  // delega cada operação à instância, e o espalhamento funciona.
+  const comoObjeto = (op) => ({
+    expirarVencidas: () => op.expirarVencidas(),
+    buscarTipo: (...a) => op.buscarTipo(...a),
+    escolherUnidade: (...a) => op.escolherUnidade(...a),
+    inserir: (...a) => op.inserir(...a),
+    listar: (...a) => op.listar(...a),
+    buscar: (...a) => op.buscar(...a),
+    travarReserva: (...a) => op.travarReserva(...a),
+    marcarCancelada: (...a) => op.marcarCancelada(...a),
+  });
+
   // Imita o comSessao do app sobre a transação da suíte: papel do app, sessão declarada e um
   // savepoint, para um caso de uso que falha (404, 409...) não estragar a transação da suíte.
-  async function transacao(sessao, fn, ajustar = (op) => op) {
+  async function executar(sessao, fn, ajustar = (op) => op) {
     await client.query('SET ROLE app_backend');
     await client.query('SAVEPOINT caso_de_uso');
     try {
@@ -54,7 +68,7 @@ await rodarSuite('blackbox/reservas_api', async (executor, client) => {
         "SELECT set_config('app.perfil', $1, true), set_config('app.usuario_id', $2, true)",
         [sessao.perfil, sessao.usuarioId],
       );
-      const resultado = await fn(ajustar(operacoesNoBanco(client)));
+      const resultado = await fn(ajustar(comoObjeto(new OperacoesDeReservasNoBanco(client))));
       await client.query('RELEASE SAVEPOINT caso_de_uso');
       return resultado;
     } catch (erro) {
@@ -65,13 +79,22 @@ await rodarSuite('blackbox/reservas_api', async (executor, client) => {
     }
   }
 
-  const montar = (ajustar, gerarCodigo = gerarCodigoReserva) => {
-    const t = (s, fn) => transacao(s, fn, ajustar);
+  const montar = (ajustar, gerarCodigo = () => GeradorDeCodigoDeReserva.padrao.gerar()) => {
+    const executor = { executar: (s, fn) => executar(s, fn, ajustar) };
+    const criador = new CriadorDeReserva({
+      executor,
+      agora: () => new Date(),
+      geradorDeCodigo: { gerar: gerarCodigo },
+      calculadora: CalculadoraDeAluguel.padrao,
+      validador: ValidadorDeNovaReserva.padrao,
+    });
+    const consulta = new ConsultaDeReservas(executor);
+    const cancelamento = new CancelamentoDeReserva({ executor, agora: () => new Date() });
     return {
-      criar: criarCriarReserva({ transacao: t, agora: () => new Date(), gerarCodigo, calcularValorAluguel }),
-      listar: criarListarReservas({ transacao: t }),
-      buscar: criarBuscarReserva({ transacao: t }),
-      cancelar: criarCancelarReserva({ transacao: t, agora: () => new Date() }),
+      criar: (s, c) => criador.criar(s, c),
+      listar: (s, f) => consulta.listar(s, f),
+      buscar: (s, id) => consulta.buscar(s, id),
+      cancelar: (s, id) => cancelamento.cancelar(s, id),
     };
   };
   const { criar, listar, buscar, cancelar } = montar();
@@ -394,9 +417,19 @@ async function rodarSuiteConcorrencia() {
     conexoes.push(c);
     return c;
   };
-  const transacao = (sessao, fn) => new TransacaoComSessao(conectar).executar(sessao, (c) => fn(operacoesNoBanco(c)));
-  const criar = criarCriarReserva({ transacao, agora: () => new Date(), gerarCodigo: gerarCodigoReserva, calcularValorAluguel });
-  const cancelarReal = criarCancelarReserva({ transacao, agora: () => new Date() });
+  const executorReal = {
+    executar: (sessao, fn) => new TransacaoComSessao(conectar).executar(sessao, (c) => fn(new OperacoesDeReservasNoBanco(c))),
+  };
+  const criador = new CriadorDeReserva({
+    executor: executorReal,
+    agora: () => new Date(),
+    geradorDeCodigo: GeradorDeCodigoDeReserva.padrao,
+    calculadora: CalculadoraDeAluguel.padrao,
+    validador: ValidadorDeNovaReserva.padrao,
+  });
+  const criar = (s, c) => criador.criar(s, c);
+  const cancelamentoReal = new CancelamentoDeReserva({ executor: executorReal, agora: () => new Date() });
+  const cancelarReal = (s, id) => cancelamentoReal.cancelar(s, id);
 
   try {
     console.log('\nconcorrência (conexões reais):');

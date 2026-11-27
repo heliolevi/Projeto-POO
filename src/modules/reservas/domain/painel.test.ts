@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { FiltroDoPainel } from "./filtro-do-painel.ts";
 import { ReservaDoPainel, type DadosDaReservaDoPainel } from "./reserva-do-painel.ts";
-import { STATUS_RESERVA } from "./reserva.ts";
+import { RegrasDeReserva } from "./reserva.ts";
 
 const lido = (parametros: { status?: unknown; data?: unknown }) => FiltroDoPainel.validar(parametros);
 const filtroOuFalha = (parametros: { status?: unknown; data?: unknown }) => {
@@ -28,7 +28,7 @@ test("sem parâmetros (ausentes, nulos ou vazios) não há filtro", () => {
 });
 
 test("aceita cada status do contrato", () => {
-  for (const status of STATUS_RESERVA) assert.equal(filtroOuFalha({ status }).status, status);
+  for (const status of RegrasDeReserva.STATUS) assert.equal(filtroOuFalha({ status }).status, status);
 });
 
 test("recusa status que não existe, em minúsculo, com espaço, de outro tipo ou com SQL", () => {

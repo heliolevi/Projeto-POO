@@ -26,10 +26,10 @@ function montar(unidades = 1) {
   for (let i = 1; i <= unidades; i++) banco.adicionarUnidade({ id: `bike-${i}`, tipoId: TIPO });
   let n = 0;
   const servico = new ReservaService({
-    transacao: banco.transacao,
+    executor: banco.executor,
     agora: () => AGORA,
-    gerarCodigo: () => `BIC-TESTE${++n}`,
-    calcularValorAluguel: (periodo, precos) => CalculadoraDeAluguel.padrao.calcularValorAluguel(periodo, precos),
+    geradorDeCodigo: { gerar: () => `BIC-TESTE${++n}` },
+    calculadora: CalculadoraDeAluguel.padrao,
   });
   return { banco, servico };
 }

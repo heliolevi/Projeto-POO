@@ -71,3 +71,20 @@ export type GatewayPix = {
   // cancela uma cobrança ainda não paga (a que nasceu na Stripe mas não chegou ao banco)
   cancelar(idExterno: string): Promise<void>;
 };
+
+// Imagem PNG do QR code do "copia e cola", em base64 (sem o prefixo data:).
+export type GeradorDeQrCode = {
+  gerarBase64(texto: string): Promise<string>;
+};
+
+// O aviso da Stripe (webhook), já com a assinatura conferida e traduzido: de qual cobrança e o que houve.
+export type AvisoDoGateway = { idExterno: string; situacao: SituacaoNoGateway };
+
+// Confere a assinatura do aviso e o traduz. Devolve null para o evento que não interessa. Lança
+// AssinaturaInvalida (401) sem assinatura válida e PagamentoIndisponivelError (502) sem o segredo.
+export type LeitorDeAviso = {
+  ler(corpo: string, assinatura: string | null): AvisoDoGateway | null;
+};
+
+// O aviso chegou sem assinatura ou com uma assinatura que não confere. A rota responde 401.
+export class AssinaturaInvalida extends Error {}
