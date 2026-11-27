@@ -12,7 +12,7 @@ import {
   UmDosValores,
   validarAmbiente,
   ValidadorDoAmbiente,
-} from "./ambiente.ts";
+} from "./validador-do-ambiente.ts";
 
 // Valores de mentira só para o teste (nenhum é segredo de verdade).
 const SEGREDO = "x".repeat(48);

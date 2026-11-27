@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { REGRA_DO_SEGREDO_DE_SESSAO } from "../../../shared/config/ambiente.ts";
+import { REGRA_DO_SEGREDO_DE_SESSAO } from "../../../shared/config/validador-do-ambiente.ts";
 import { requireEnv } from "../../../shared/config/env.ts";
 import type { PerfilUsuario } from "../domain/usuario";
 

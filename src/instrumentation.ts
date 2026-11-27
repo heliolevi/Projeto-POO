@@ -6,6 +6,6 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   // O build do Next não tem as variáveis de produção (elas existem só onde o app roda).
   if (process.env.NEXT_PHASE === "phase-production-build") return;
-  const { garantirAmbiente } = await import("./shared/config/ambiente");
+  const { garantirAmbiente } = await import("./shared/config/validador-do-ambiente");
   garantirAmbiente();
 }

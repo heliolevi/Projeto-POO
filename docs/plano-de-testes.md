@@ -130,7 +130,7 @@ PR ou issue do defeito.
 
 | ID | Prio | Caso | Resultado esperado | Tipo | Status |
 |---|---|---|---|---|---|
-| CT-SEG-01 | P0 | Subir o app em produção sem `SESSION_SECRET` (ou sem `DATABASE_URL`, `APP_URL`, `PAGAMENTO_MODO`) | A mensagem em português, com todas as variáveis que faltam e sem os valores, vai para o log do servidor. O servidor **continua de pé, mas todas as rotas respondem 500** até corrigir e reiniciar | Auto | Automatizado (`ambiente.test.ts` confere a mensagem; o gancho é `src/instrumentation.ts`). O comportamento do servidor real é o CT-SEG-12 |
+| CT-SEG-01 | P0 | Subir o app em produção sem `SESSION_SECRET` (ou sem `DATABASE_URL`, `APP_URL`, `PAGAMENTO_MODO`) | A mensagem em português, com todas as variáveis que faltam e sem os valores, vai para o log do servidor. O servidor **continua de pé, mas todas as rotas respondem 500** até corrigir e reiniciar | Auto | Automatizado (`validador-do-ambiente.test.ts` confere a mensagem; o gancho é `src/instrumentation.ts`). O comportamento do servidor real é o CT-SEG-12 |
 | CT-SEG-02 | P0 | `SESSION_SECRET` curto ou igual ao exemplo do `.env.example` | Recusado | Auto | Automatizado |
 | CT-SEG-03 | P0 | `/api/health/db` sem segredo configurado, com segredo errado e com o segredo certo | 404 sem segredo configurado; 401 com segredo errado; 200 com o certo | Integração | Pendente (a função `bearerConfere` tem teste, a rota não) |
 | CT-SEG-04 | P0 | `/api/health` | Responde 200 sem dados sensíveis | Manual | Pendente |
@@ -139,7 +139,7 @@ PR ou issue do defeito.
 | CT-SEG-07 | P1 | Logs de erro e de requisição | Sem senha, token, CPF ou outros dados pessoais | Manual | Aguarda fase 6 |
 | CT-SEG-08 | P1 | Erro inesperado em qualquer rota | 500 `INTERNAL_ERROR` com mensagem genérica, sem stack nem SQL | Integração | Pendente |
 | CT-SEG-09 | P1 | Formato de erro de todas as rotas | `{ error: { code, message, details } }`, com os `code` da tabela do contrato | Integração | Pendente |
-| CT-SEG-10 | P1 | Variáveis usadas pelo código (incluindo `PAGAMENTO_MODO`, `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET`) | Todas listadas no `.env.example`, sem valor real | Auto | Automatizado (`ambiente.test.ts` varre `src`, `db` e `scripts`; não enxerga leitura dinâmica, como `process.env[nome]`) |
+| CT-SEG-10 | P1 | Variáveis usadas pelo código (incluindo `PAGAMENTO_MODO`, `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET`) | Todas listadas no `.env.example`, sem valor real | Auto | Automatizado (`validador-do-ambiente.test.ts` varre `src`, `db` e `scripts`; não enxerga leitura dinâmica, como `process.env[nome]`) |
 | CT-SEG-11 | P1 | Função `bearerConfere` | Aceita o formato `Bearer` certo; recusa segredo errado, de outro tamanho, sem header ou com outro esquema; sem segredo configurado ou curto demais, nada passa | Auto | Automatizado (`segredo.test.ts`) |
 | CT-SEG-12 | P0 | Roteiro com o servidor real: `npm run build`, depois `npm start` com NODE_ENV de produção (a) sem nenhuma variável, (b) com `APP_URL` e `PAGAMENTO_MODO` mas sem `SESSION_SECRET`, (c) com tudo certo | (a) e (b): o log lista as variáveis com problema, sem valores, e `GET /api/health` e `GET /` respondem 500 sem a mensagem no corpo; (c): `GET /api/health` responde 200 | Manual | Passou em 27/11/2026 (William, `next start` em Windows com Node 24): (a) sem nenhuma variável, o log lista as 4 com problema, sem valores, e `GET /` responde 500; (c) com tudo certo, `GET /api/health` responde 200. O caso (b) usa a mesma regra e não foi executado |
 
