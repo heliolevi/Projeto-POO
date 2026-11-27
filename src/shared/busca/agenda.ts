@@ -30,8 +30,8 @@ const MES_LONGO = [
   "dezembro",
 ] as const;
 
-// Horário do balcão por dia da semana (0 = domingo), o mesmo de src/shared/landing/locadora.ts:
-// segunda a sexta das 8h às 18h, sábado das 8h às 16h e domingo das 8h às 14h. A última retirada
+// Horário do balcão por dia da semana (0 = domingo), o mesmo do ponto no seed (db/seeds/dev.sql) e
+// de GET /api/empresa: segunda a sexta das 8h às 18h, sábado das 8h às 16h e domingo das 8h às 14h. A última retirada
 // é uma hora antes de fechar.
 const BALCAO: Record<number, { abre: number; fecha: number }> = {
   0: { abre: 8, fecha: 14 },
