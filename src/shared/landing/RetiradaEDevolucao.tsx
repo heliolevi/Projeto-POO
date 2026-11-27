@@ -73,12 +73,17 @@ function PontosDaEmpresa({ empresa }: { empresa: EmpresaDaLocadora }) {
         const horarios = ponto.horarios.resumir();
         const endereco = ponto.endereco();
         const telefone = empresa.telefoneDoPonto(ponto);
+        const ligar = telefone?.link() ?? null;
         return (
           <Fragment key={ponto.id}>
             <Card title={ponto.nome}>
               <ul className={styles.listaSimples}>
                 {endereco && <li>{endereco}</li>}
-                {telefone && <li>Telefone: {telefone}</li>}
+                {telefone && (
+                  <li>
+                    Telefone: {ligar ? <a href={ligar}>{telefone.formatado()}</a> : telefone.formatado()}
+                  </li>
+                )}
                 {empresa.email && <li>E-mail: {empresa.email}</li>}
                 {!endereco && !telefone && !empresa.email && <li>Dados de contato não informados.</li>}
               </ul>

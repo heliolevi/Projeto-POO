@@ -6,6 +6,7 @@ export { GradeDeHorarios, type LinhaDeHorario } from "./grade-de-horarios";
 export { HorarioDoDia, type HorarioDoPonto } from "./horario-do-dia";
 export { LeitorDeObjeto } from "./leitor-de-objeto";
 export { PontoDeRetirada, type DadosDoPonto, type OpcaoDePonto, type PontoDto } from "./ponto-de-retirada";
+export { Telefone } from "./telefone";
 export {
   EmpresaCarregada,
   EmpresaIndisponivel,
