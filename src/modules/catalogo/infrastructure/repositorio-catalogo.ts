@@ -2,9 +2,15 @@ import type { PoolClient } from "pg";
 import { BancoDeDados } from "@/shared/db/banco-de-dados";
 import type { SessaoBanco } from "@/shared/db/sessao";
 import type { Atividade, Experiencia } from "@/shared/dominio/ciclista";
-import type { RepositorioCatalogo } from "../application/catalogo";
+import type { RepositorioCatalogo } from "../application/portas";
 import type { BicicletaAdmin, TipoAdmin } from "../domain/catalogo";
-import { horarioDoBanco, type HorarioDoBanco } from "../domain/ponto";
+import { Ponto, type HorarioDoBanco } from "../domain/ponto";
+import type {
+  DadosAtualizacaoBicicleta,
+  DadosNovaBicicleta,
+  DadosTipo,
+  FiltroBicicletas,
+} from "../domain/validador-do-catalogo";
 import {
   CodigoDeBicicletaJaExiste,
   NomeDeTipoJaExiste,
@@ -115,12 +121,22 @@ type LinhaPonto = {
   ativo: boolean;
 };
 
-export const repositorioCatalogo: RepositorioCatalogo = {
+// O catálogo no PostgreSQL. O banco entra pelo construtor (o do app, ou um de mentira nos testes).
+export class RepositorioDoCatalogo implements RepositorioCatalogo {
+  /** O do app. */
+  static readonly padrao = new RepositorioDoCatalogo(BancoDeDados.padrao);
+
+  readonly #banco: Pick<BancoDeDados, "comSessao">;
+
+  constructor(banco: Pick<BancoDeDados, "comSessao">) {
+    this.#banco = banco;
+  }
+
   // Lê a view empresa_publica (nunca a tabela empresa): a view já esconde CNPJ e conta.
   // Os pontos: a política ponto_publico (USING ativo) já filtra para o visitante, e o WHERE repete
-  // o filtro. O jsonb horarios usa dia_semana; horarioDoBanco converte para diaSemana.
+  // o filtro. O jsonb horarios usa dia_semana; Ponto.horarioDoBanco converte para diaSemana.
   obterEmpresaPublica(sessao: SessaoBanco) {
-    return BancoDeDados.padrao.comSessao(sessao, async (client) => {
+    return this.#banco.comSessao(sessao, async (client) => {
       const { rows } = await client.query<LinhaEmpresa>(
         `SELECT nome_fantasia, telefone, email FROM empresa_publica`,
       );
@@ -147,15 +163,15 @@ export const repositorioCatalogo: RepositorioCatalogo = {
           cidade: p.cidade,
           uf: p.uf,
           telefone: p.telefone,
-          horarios: (p.horarios ?? []).map(horarioDoBanco),
+          horarios: (p.horarios ?? []).map((h) => Ponto.horarioDoBanco(h)),
           ativo: p.ativo,
         })),
       };
     });
-  },
+  }
 
-  listarTipos(sessao: SessaoBanco, { apenasAtivos }) {
-    return BancoDeDados.padrao.comSessao(sessao, async (client) => {
+  listarTipos(sessao: SessaoBanco, { apenasAtivos }: { apenasAtivos: boolean }): Promise<TipoAdmin[]> {
+    return this.#banco.comSessao(sessao, async (client) => {
       const { rows } = await client.query<LinhaTipo>(
         `SELECT ${COLUNAS_TIPO} FROM tipo_bicicleta
           WHERE ($1::boolean = false OR ativo)
@@ -164,10 +180,10 @@ export const repositorioCatalogo: RepositorioCatalogo = {
       );
       return rows.map(paraTipo);
     });
-  },
+  }
 
-  criarTipo(sessao, dados) {
-    return BancoDeDados.padrao.comSessao(sessao, async (client) => {
+  criarTipo(sessao: SessaoBanco, dados: DadosTipo): Promise<TipoAdmin> {
+    return this.#banco.comSessao(sessao, async (client) => {
       try {
         const { rows } = await client.query<LinhaTipo>(
           `INSERT INTO tipo_bicicleta
@@ -195,10 +211,10 @@ export const repositorioCatalogo: RepositorioCatalogo = {
         throw erro;
       }
     });
-  },
+  }
 
-  atualizarTipo(sessao, id, dados) {
-    return BancoDeDados.padrao.comSessao(sessao, async (client) => {
+  atualizarTipo(sessao: SessaoBanco, id: string, dados: DadosTipo): Promise<TipoAdmin | null> {
+    return this.#banco.comSessao(sessao, async (client) => {
       try {
         const { rows } = await client.query<LinhaTipo>(
           // os obrigatórios são substituídos; os opcionais que não vieram no corpo mantêm o valor
@@ -234,10 +250,10 @@ export const repositorioCatalogo: RepositorioCatalogo = {
         throw erro;
       }
     });
-  },
+  }
 
-  listarBicicletas(sessao, filtro) {
-    return BancoDeDados.padrao.comSessao(sessao, async (client) => {
+  listarBicicletas(sessao: SessaoBanco, filtro: FiltroBicicletas): Promise<BicicletaAdmin[]> {
+    return this.#banco.comSessao(sessao, async (client) => {
       const { rows } = await client.query<LinhaBicicleta>(
         `${SELECT_BICICLETA}
           WHERE ($1::uuid IS NULL OR b.tipo_id = $1)
@@ -247,10 +263,10 @@ export const repositorioCatalogo: RepositorioCatalogo = {
       );
       return rows.map(paraBicicleta);
     });
-  },
+  }
 
-  criarBicicleta(sessao, dados) {
-    return BancoDeDados.padrao.comSessao(sessao, async (client) => {
+  criarBicicleta(sessao: SessaoBanco, dados: DadosNovaBicicleta): Promise<BicicletaAdmin> {
+    return this.#banco.comSessao(sessao, async (client) => {
       // confere antes, para dizer qual dos dois não existe; a FK continua valendo como rede
       // ponto_ativo é null quando o ponto não existe
       const { rows: existe } = await client.query<{ tipo: boolean; ponto_ativo: boolean | null }>(
@@ -280,10 +296,10 @@ export const repositorioCatalogo: RepositorioCatalogo = {
         throw erro;
       }
     });
-  },
+  }
 
-  atualizarBicicleta(sessao, id, dados) {
-    return BancoDeDados.padrao.comSessao(sessao, async (client) => {
+  atualizarBicicleta(sessao: SessaoBanco, id: string, dados: DadosAtualizacaoBicicleta): Promise<BicicletaAdmin | null> {
+    return this.#banco.comSessao(sessao, async (client) => {
       const { rows } = await client.query<{ id: string }>(
         `UPDATE bicicleta
             SET status = COALESCE($2::status_bicicleta, status),
@@ -294,5 +310,5 @@ export const repositorioCatalogo: RepositorioCatalogo = {
       );
       return rows[0] ? await buscarBicicleta(client, rows[0].id) : null;
     });
-  },
-};
+  }
+}
