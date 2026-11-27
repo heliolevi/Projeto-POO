@@ -36,10 +36,16 @@ function paraPagamento(l: LinhaPagamento): Pagamento {
   });
 }
 
-// Operações das rotas 16, 17 e 18, dentro da transação do comSessao (papel do
-// app, sessão do cliente declarada). A RLS de reserva e de pagamento (migration 0006) é quem
-// garante que o cliente só toca nas próprias reservas: uma reserva de outro cliente simplesmente
-// não aparece (404). SQL sempre parametrizado; datas vão como ISO.
+// Operações das rotas 16, 17 e 18, dentro da transação do comSessao (sessão do cliente declarada).
+// Toda consulta filtra pelo cliente da sessão (sessao_usuario_id()) no próprio SQL, e não só pela RLS
+// de reserva e de pagamento (migration 0006): o dono do banco ignora a RLS, então, se a DATABASE_URL
+// for a do dono (como no ambiente local), só a RLS deixaria o cliente B cobrar a reserva do cliente A
+// (achado do teste de estresse, scripts/teste-de-estresse.mjs). Com o filtro aqui, a reserva de
+// outro cliente não aparece (404) com qualquer papel; a RLS continua como segunda barreira.
+// SQL sempre parametrizado; datas vão como ISO.
+
+// Só os pagamentos de reservas do cliente da sessão.
+const DO_CLIENTE = `reserva_id IN (SELECT id FROM reserva WHERE cliente_id = sessao_usuario_id())`;
 export function operacoesNoBanco(client: PoolClient): OperacoesPagamento {
   return {
     async expirarVencidas() {
@@ -56,7 +62,7 @@ export function operacoesNoBanco(client: PoolClient): OperacoesPagamento {
         criado_em: Date;
       }>(
         `SELECT id, status, valor_aluguel_centavos, criado_em
-           FROM reserva WHERE id = $1 FOR UPDATE`,
+           FROM reserva WHERE id = $1 AND cliente_id = sessao_usuario_id() FOR UPDATE`,
         [reservaId],
       );
       const r = rows[0];
@@ -86,7 +92,7 @@ export function operacoesNoBanco(client: PoolClient): OperacoesPagamento {
     async confirmarReserva(reservaId) {
       const { rowCount } = await client.query(
         `UPDATE reserva SET status = 'CONFIRMADA'
-          WHERE id = $1 AND status = 'PENDENTE_PAGAMENTO'
+          WHERE id = $1 AND cliente_id = sessao_usuario_id() AND status = 'PENDENTE_PAGAMENTO'
             AND criado_em > now() - make_interval(secs => $2::double precision / 1000)`,
         [reservaId, PRAZO_DE_PAGAMENTO_MS],
       );
@@ -134,7 +140,7 @@ export function operacoesNoBanco(client: PoolClient): OperacoesPagamento {
 
     async buscarPorIdExterno(idExterno) {
       const { rows } = await client.query<LinhaPagamento>(
-        `SELECT ${COLUNAS} FROM pagamento WHERE mp_payment_id = $1`,
+        `SELECT ${COLUNAS} FROM pagamento WHERE mp_payment_id = $1 AND ${DO_CLIENTE}`,
         [idExterno],
       );
       return rows[0] ? paraPagamento(rows[0]) : null;
@@ -142,21 +148,21 @@ export function operacoesNoBanco(client: PoolClient): OperacoesPagamento {
 
     async travarPorIdExterno(idExterno) {
       const { rows } = await client.query<LinhaPagamento>(
-        `SELECT ${COLUNAS} FROM pagamento WHERE mp_payment_id = $1 FOR UPDATE`,
+        `SELECT ${COLUNAS} FROM pagamento WHERE mp_payment_id = $1 AND ${DO_CLIENTE} FOR UPDATE`,
         [idExterno],
       );
       return rows[0] ? paraPagamento(rows[0]) : null;
     },
 
     async buscarPorId(id) {
-      const { rows } = await client.query<LinhaPagamento>(`SELECT ${COLUNAS} FROM pagamento WHERE id = $1`, [id]);
+      const { rows } = await client.query<LinhaPagamento>(`SELECT ${COLUNAS} FROM pagamento WHERE id = $1 AND ${DO_CLIENTE}`, [id]);
       return rows[0] ? paraPagamento(rows[0]) : null;
     },
 
     async buscarPendenteDaReserva(reservaId) {
       const { rows } = await client.query<LinhaPagamento>(
         `SELECT ${COLUNAS} FROM pagamento
-          WHERE reserva_id = $1 AND status = 'PENDENTE'
+          WHERE reserva_id = $1 AND status = 'PENDENTE' AND ${DO_CLIENTE}
           ORDER BY criado_em DESC LIMIT 1`,
         [reservaId],
       );

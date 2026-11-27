@@ -9,7 +9,8 @@ export type CobrancaPix = {
   metodo: "PIX";
   status: StatusPagamento;
   valorCentavos: number;
-  pix: { qrCodeBase64: string; copiaECola: string; expiraEm: string };
+  // pagavelEmBanco: false quando a Stripe está em modo de teste (código fictício, nenhum banco paga)
+  pix: { qrCodeBase64: string; copiaECola: string; expiraEm: string; pagavelEmBanco: boolean };
 };
 
 // GET /api/pagamentos/{reservaId}/status (contrato, rota 17)

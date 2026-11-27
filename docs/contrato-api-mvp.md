@@ -456,13 +456,20 @@ Idempotente: se a reserva já tem um Pix `PENDENTE` ainda válido, devolve o mes
 ```json
 { "data": { "pagamentoId": "uuid", "reservaId": "uuid", "metodo": "PIX", "status": "PENDENTE",
             "valorCentavos": 4000,
-            "pix": { "qrCodeBase64": "iVBORw0KGgo...", "copiaECola": "0002012658...", "expiraEm": "2026-11-14T11:15:00.000Z" } } }
+            "pix": { "qrCodeBase64": "iVBORw0KGgo...", "copiaECola": "0002012658...", "expiraEm": "2026-11-14T11:15:00.000Z",
+                     "pagavelEmBanco": true } } }
 ```
 
 A cobrança é criada na **Stripe** (PaymentIntent com Pix), com o nome e o e-mail do cliente. `copiaECola`
 é o texto que a Stripe devolve e `qrCodeBase64` é o PNG desse texto. O Pix vale o mesmo prazo da reserva
 pendente (`expiraEm`). No sandbox da Stripe, o QR abre uma página de teste para autorizar ou expirar o
 pagamento; em produção, o cliente paga no app do banco.
+
+`pagavelEmBanco` diz se `copiaECola` é um BR Code do Banco Central (formato EMV com CRC16 que confere),
+ou seja, se qualquer banco consegue pagar. Com a chave de teste da Stripe (`sk_test_`) ele é `false`: o
+texto é fictício de propósito e a tela mostra o aviso "Pix de teste". Com a chave de produção
+(`sk_live_`) ele é `true`; se a Stripe em produção devolver um código fora do padrão, a rota responde
+`502` em vez de mostrar ao cliente um código que nenhum banco aceita.
 
 **Erros:** `400`, `401`, `403`, `404` (reserva inexistente ou de outro cliente), `409` (reserva que não
 está `PENDENTE_PAGAMENTO`, já paga, ou com menos de 1 minuto de prazo: a Stripe não aceita Pix mais

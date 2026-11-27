@@ -256,6 +256,14 @@ export default function PagamentoPixPage() {
                 Escaneie o QR code ou use o Pix copia e cola no aplicativo do seu banco.
               </p>
 
+              {!estado.cobranca.pix.pagavelEmBanco && (
+                <p className={styles.aviso} role="alert">
+                  Pix de teste: este código é fictício e nenhum banco aceita. Para simular o
+                  pagamento, aponte a câmera do celular para o QR code: ele abre a página de teste
+                  da Stripe. Nenhum valor será cobrado.
+                </p>
+              )}
+
               <div className={pagamentoStyles.qrBloco}>
                 {/* QR vem da API em base64; next/image não ajuda com data URI. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}

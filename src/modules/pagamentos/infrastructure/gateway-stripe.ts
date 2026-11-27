@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { PagamentoIndisponivelError } from "../../../shared/http/errors.ts";
+import { CodigoPix } from "../domain/codigo-pix.ts";
 import type { GatewayPix, NovaCobrancaPix, SituacaoNoGateway } from "../application/portas.ts";
 
 // Meio de pagamento: Stripe, Pix pela API de PaymentIntents (https://docs.stripe.com/payments/pix).
@@ -9,6 +10,11 @@ import type { GatewayPix, NovaCobrancaPix, SituacaoNoGateway } from "../applicat
 // - STRIPE_WEBHOOK_SECRET: segredo de assinatura do endpoint do webhook (whsec_...).
 //
 // A conta precisa ser do Brasil e ter o Pix ativado em Configurações > Métodos de pagamento.
+//
+// Teste x produção: com sk_test_ a Stripe devolve um copia e cola FICTÍCIO (nenhum banco paga), e o
+// pagamento só se aprova pelo painel de testes da Stripe. Com sk_live_ o código é um BR Code de
+// verdade, que qualquer banco paga, e o dinheiro é real. A cobrança diz qual é o caso
+// (pix.pagavelEmBanco), e a tela avisa quando o código é de teste.
 
 const DESCRICAO = "Aluguel de bicicleta - Bike Ilha Club";
 
@@ -58,6 +64,18 @@ export function situacaoDoPaymentIntent(pi: Pick<Stripe.PaymentIntent, "status" 
   }
 }
 
+// Em produção (livemode), um código que não segue o BR Code não pode ir para o cliente: ele pagaria
+// nada, ou o banco recusaria. Vira 502 (semVazarErro registra o motivo no log). No modo de teste o
+// código fictício passa, porque é o único que existe ali.
+export function exigirCodigoDeVerdadeEmProducao(
+  pi: Pick<Stripe.PaymentIntent, "id" | "livemode">,
+  copiaECola: string,
+): void {
+  if (pi.livemode && !CodigoPix.de(copiaECola).pagavelEmBanco) {
+    throw new Error(`PaymentIntent ${pi.id} em produção com copia e cola fora do padrão BR Code.`);
+  }
+}
+
 // O meio de pagamento de verdade: implementa a interface GatewayPix, que é tudo o que os casos de uso
 // conhecem (os testes usam outra implementação, em memória).
 export class GatewayStripe implements GatewayPix {
@@ -84,8 +102,18 @@ export class GatewayStripe implements GatewayPix {
         { idempotencyKey: `pagamento-${dados.pagamentoId}` },
       );
       const copiaECola = pi.next_action?.pix_display_qr_code?.data;
-      if (!copiaECola) {
-        throw new Error(`PaymentIntent ${pi.id} sem pix_display_qr_code (status ${pi.status}).`);
+      try {
+        if (!copiaECola) {
+          throw new Error(`PaymentIntent ${pi.id} sem pix_display_qr_code (status ${pi.status}).`);
+        }
+        exigirCodigoDeVerdadeEmProducao(pi, copiaECola);
+      } catch (erro) {
+        // o PaymentIntent já nasceu confirmado na Stripe: sem um código que dê para mostrar, ele não
+        // pode ficar aberto lá (cada nova tentativa cria outro)
+        await stripe()
+          .paymentIntents.cancel(pi.id, {}, { idempotencyKey: `cancelamento-${pi.id}` })
+          .catch((falha: unknown) => console.error(`[stripe] falha ao cancelar ${pi.id}:`, falha));
+        throw erro;
       }
       return { idExterno: pi.id, copiaECola };
     });

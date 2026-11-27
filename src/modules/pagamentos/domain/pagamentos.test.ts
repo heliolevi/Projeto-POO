@@ -263,8 +263,34 @@ describe("PagamentoPix", () => {
       metodo: "PIX",
       status: "PENDENTE",
       valorCentavos: 4800,
-      pix: { copiaECola: COPIA, expiraEm: "2026-11-14T11:15:00.000Z" },
+      // COPIA não é um BR Code completo (sem CRC): a cobrança diz que não dá para pagar em banco
+      pix: { copiaECola: COPIA, expiraEm: "2026-11-14T11:15:00.000Z", pagavelEmBanco: false },
     });
+  });
+
+  test("com um BR Code de verdade, a cobrança diz que qualquer banco paga", () => {
+    const brCode =
+      "00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-426655440000" +
+      "5204000053039865802BR5913Fulano de Tal6008BRASILIA62070503***63041D3D";
+    const p = new PagamentoPix(dados({ copiaECola: brCode }));
+    assert.equal(p.pagavelEmBanco, true);
+    assert.equal(p.gerar(CRIADO).pix.pagavelEmBanco, true);
+  });
+
+  test("linha do banco com copia e cola só de espaços é lida como sem cobrança (não quebra a leitura)", () => {
+    const p = new PagamentoPix(dados({ copiaECola: "   " }));
+    assert.equal(p.copiaECola, null);
+    assert.equal(p.pagavelEmBanco, false);
+  });
+
+  test("sem cobrança registrada, ainda não é pagável", () => {
+    assert.equal(new PagamentoPix(dados()).pagavelEmBanco, false);
+  });
+
+  test("registrarCobranca com copia e cola só de espaços é recusada e não liga o id", () => {
+    const p = new PagamentoPix(dados());
+    assert.throws(() => p.registrarCobranca("pi_1", "   "), RangeError);
+    assert.equal(p.mpPaymentId, null);
   });
 });
 

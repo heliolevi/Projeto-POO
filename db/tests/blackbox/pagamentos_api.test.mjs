@@ -140,6 +140,63 @@ await rodarSuite('blackbox/pagamentos_api', async (executor, client) => {
     }
   });
 
+  // Achado do teste de estresse: com a DATABASE_URL do dono do banco (ambiente local), a RLS não vale
+  // e o cliente B gerava o Pix da reserva do cliente A. Aqui a transação roda SEM o SET ROLE (como o
+  // dono): só o filtro pelo cliente da sessão, no SQL do repositório, segura o acesso.
+  async function transacaoSemRls(sessao, fn) {
+    await client.query('SAVEPOINT sem_rls');
+    try {
+      await client.query(
+        "SELECT set_config('app.perfil', $1, true), set_config('app.usuario_id', $2, true)",
+        [sessao.perfil, sessao.usuarioId],
+      );
+      const resultado = await fn(operacoesNoBanco(client));
+      await client.query('RELEASE SAVEPOINT sem_rls');
+      return resultado;
+    } catch (erro) {
+      await client.query('ROLLBACK TO SAVEPOINT sem_rls');
+      throw erro;
+    } finally {
+      await client.query("SELECT set_config('app.perfil', '', true), set_config('app.usuario_id', '', true)");
+    }
+  }
+
+  await teste('mesmo sem a RLS (papel dono do banco), o cliente B não cobra nem vê o Pix do cliente A', async () => {
+    const semRls = new PagarReservaService({ ...deps, transacao: transacaoSemRls });
+    const reservaId = await reservaPendente();
+    const pixDeA = await semRls.iniciar(sessaoA, { reservaId, metodo: 'PIX' });
+    assert(pixDeA.criada, 'o dono da reserva cobra normalmente sem a RLS');
+
+    for (const [nome, chamada] of [
+      ['cobrar', () => semRls.iniciar(sessaoB, { reservaId, metodo: 'PIX' })],
+      ['ver o status', () => semRls.consultarStatus(sessaoB, reservaId)],
+    ]) {
+      try {
+        await chamada();
+        throw new Error(`${nome}: aceitou`);
+      } catch (erro) {
+        assert(nomeErro(erro) === 'NotFoundError', `${nome}: esperava 404, veio ${nomeErro(erro)}: ${erro.message}`);
+      }
+    }
+
+    const idExterno = (await linhaPagamento(pixDeA.cobranca.pagamentoId)).mp_payment_id;
+    const deB = await transacaoSemRls(sessaoB, async (op) => ({
+      pendente: await op.buscarPendenteDaReserva(reservaId),
+      porId: await op.buscarPorId(pixDeA.cobranca.pagamentoId),
+      porIdExterno: await op.travarPorIdExterno(idExterno),
+      porIdExternoSemTrava: await op.buscarPorIdExterno(idExterno),
+      reserva: await op.travarReserva(reservaId),
+      confirmou: await op.confirmarReserva(reservaId),
+    }));
+    assert(
+      deB.pendente === null && deB.porId === null && deB.porIdExterno === null && deB.porIdExternoSemTrava === null,
+      'B não lê o pagamento de A',
+    );
+    assert(deB.reserva === null, 'B não trava a reserva de A');
+    assert(deB.confirmou === false, 'B não confirma a reserva de A');
+    assert((await statusReserva(reservaId)) === 'PENDENTE_PAGAMENTO', 'a reserva de A continua como estava');
+  });
+
   await teste('Stripe fora do ar: nada é gravado', async () => {
     const reservaId = await reservaPendente();
     stripeFora = true;
