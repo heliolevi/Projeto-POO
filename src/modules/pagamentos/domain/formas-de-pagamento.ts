@@ -15,10 +15,11 @@ export type CobrancaPix = CobrancaGerada & {
   pix: { copiaECola: string; expiraEm: string };
 };
 
-// Pix. No MVP o pagamento é simulado (a integração com o Mercado Pago está em stand by): o "copia e
-// cola" é um texto reconhecível como de teste, no formato "PIX-SIMULADO|id|valor".
+// Pix. A cobrança é registrada no meio de pagamento (Stripe), que devolve o id dela e o "copia e
+// cola" verdadeiro; só depois disso o Pix tem o que mostrar ao cliente. Não existe Pix simulado.
 export class PagamentoPix extends Pagamento {
   readonly #expiraEm: Date;
+  #copiaECola: string | null;
 
   constructor(dados: DadosPagamento) {
     super(dados);
@@ -29,6 +30,18 @@ export class PagamentoPix extends Pagamento {
     if (this.#expiraEm.getTime() <= this.criadoEm.getTime()) {
       throw new RangeError("O prazo do Pix precisa ser depois da criação do pagamento.");
     }
+    this.#copiaECola = dados.copiaECola ?? null;
+  }
+
+  // Liga o pagamento à cobrança criada no meio de pagamento (id e "copia e cola").
+  registrarCobranca(idExterno: string, copiaECola: string): void {
+    if (!copiaECola) throw new RangeError("O meio de pagamento não devolveu o copia e cola do Pix.");
+    this.vincularIdExterno(idExterno);
+    this.#copiaECola = copiaECola;
+  }
+
+  get copiaECola(): string | null {
+    return this.#copiaECola;
   }
 
   get metodo(): MetodoPagamento {
@@ -49,7 +62,10 @@ export class PagamentoPix extends Pagamento {
     if (agora.getTime() >= this.expiraEm().getTime()) {
       throw new TransicaoDePagamentoInvalida("O prazo deste Pix já venceu: gere uma nova cobrança.");
     }
-    return `PIX-SIMULADO|${this.id}|${this.valor.centavos}`;
+    if (this.#copiaECola === null) {
+      throw new TransicaoDePagamentoInvalida("A cobrança Pix ainda não foi registrada no meio de pagamento.");
+    }
+    return this.#copiaECola;
   }
 
   gerar(agora: Date): CobrancaPix {
