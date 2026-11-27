@@ -166,8 +166,8 @@ blackbox), que a CI roda com `npm run teste:banco`.
 | CT-BD-15 | P1 | Índices de apoio e tipos de coluna | Existem como na migration | Auto | Automatizado (db/tests) |
 | CT-BD-16 | P1 | Enumerações de reserva, método e status de pagamento | Iguais ao modelo de dados | Auto | Automatizado (db/tests) |
 | CT-BD-17 | P0 | O cliente A consulta reservas | Vê só a própria; o cliente B também | Auto | Automatizado (db/tests, precisa de `SET ROLE app_backend`) |
-| CT-BD-18 | P0 | O cliente A consulta pagamentos do cliente B | Não vê (hoje só há inspeção da política, sem teste de comportamento) | Integração | Pendente |
-| CT-BD-19 | P0 | `OPERADOR` e `ADMIN` consultam reservas; visitante consulta | Equipe vê todas; visitante não vê nenhuma | Integração | Pendente |
+| CT-BD-18 | P0 | O cliente A consulta pagamentos do cliente B | Não vê | Auto | Automatizado (CT-BD-29, db/tests: `isolamento_rls`) |
+| CT-BD-19 | P0 | `OPERADOR` e `ADMIN` consultam reservas; visitante consulta | Equipe vê todas; visitante não vê nenhuma | Auto | Automatizado (CT-BD-30 e CT-BD-32, db/tests: `isolamento_rls`) |
 | CT-BD-20 | P0 | Duas conexões diferentes disputam a mesma bicicleta ao mesmo tempo | Só uma reserva é criada | Integração | Automatizado (`criar_reserva.test.mjs`: `escolher_unidade_para_reserva()` com `SKIP LOCKED` entre 3 conexões; `reservas_api.test.mjs`: corrida pela reserva) |
 | CT-BD-21 | P1 | Seed `db/seeds/dev.sql` aplicado no Neon `dev` | Cria empresa, pontos, tipos e bicicletas usados pela demo, e pode ser reaplicado | Manual | Pendente |
 | CT-BD-22 | P0 | Reservar uma bicicleta já reservada em horário que se sobrepõe | A segunda reserva é rejeitada | Auto | Automatizado (db/tests, blackbox) |
@@ -423,7 +423,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 | 2 | As rotas 6 (altura) e 7 (termos) listam só `CLIENTE` e os erros 400, 401 e 413. O PR #15 faz a equipe receber 403 | Acrescentar o 403 ao contrato |
 | 3 | O contrato diz que `inicio` "não pode estar no passado"; o PR #14 aceita 5 minutos de folga | Alinhar o texto do contrato com o código |
 | 4 | O cadastro responde 409 para e-mail ou CPF já cadastrado, enquanto o login é cuidadoso para não revelar se a conta existe | Risco de descobrir quem tem conta. Decidir se é aceito no MVP |
-| 5 | Os testes de banco usam uma conexão com savepoint, então não provam concorrência (a disputa pela mesma bicicleta já é coberta com conexões reais, CT-BD-20); a RLS de `pagamento` e o acesso da equipe agora também são exercitados com consultas e escritas reais (CT-BD-29 a CT-BD-39), mas sempre com `SET ROLE app_backend` na conexão do dono, não com o login do `app_login` | Casos CT-BD-18, CT-BD-19 e CT-BD-04 |
+| 5 | Os testes de banco usam uma conexão com savepoint, então não provam concorrência (a disputa pela mesma bicicleta já é coberta com conexões reais, CT-BD-20); a RLS de `pagamento` e o acesso da equipe agora também são exercitados com consultas e escritas reais (CT-BD-29 a CT-BD-39), mas sempre com `SET ROLE app_backend` na conexão do dono, não com o login do `app_login` | Caso CT-BD-04 |
 | 6 | O `npm test` da raiz agora roda só `src/**/*.test.ts`; os testes de banco rodam apenas no job de banco da CI | Quem mexer em migration precisa rodar os testes de `db` ou esperar a CI |
 | 7 | A RLS só vale com o papel `app_login`, e o `.env` de desenvolvimento conecta como dono do banco | CT-BD-04 fica `Bloqueado` até o tech lead fechar a pendência |
 | 8 | `src/shared/http/api-cliente.ts` ainda declara `GERENTE_LOCADORA` e `ADMIN_PLATAFORMA` no tipo do perfil, e `lerSessao` aceita token sem `exp` (sugestões do tech lead no PR #19, para outro PR) | Alinhar os tipos com o modelo novo; caso CT-UI-10 |

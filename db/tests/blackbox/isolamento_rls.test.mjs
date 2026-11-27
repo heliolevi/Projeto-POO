@@ -10,8 +10,11 @@
 // de conexão desse papel, que é do tech lead. app_login é um papel com login que herda
 // app_backend e não tem BYPASSRLS, então as mesmas políticas valem para ele.
 //
-// Todo caso negativo tem um controle positivo (a mesma operação, feita pelo dono da linha,
-// funciona), para o teste não passar por motivo errado (dado inválido, constraint etc.).
+// Os casos de leitura, alteração, criação e mudança de reserva do pagamento têm um controle
+// positivo (a mesma operação, feita pelo dono da linha, funciona), para o teste não passar por
+// motivo errado (dado inválido, constraint etc.). Sem controle, com o motivo no próprio caso: passar
+// a reserva para outro cliente (não há "dono" para quem a mudança seria legítima) e o DELETE (o app
+// não tem a permissão em nenhuma linha). A alteração do visitante confere só as 0 linhas.
 //
 // node tests/blackbox/isolamento_rls.test.mjs
 
@@ -230,12 +233,25 @@ await rodarSuite('blackbox/isolamento_rls', async (executor, client) => {
   // abre o buraco; o teste falha quando as duas deixam passar (conferido sabotando as políticas).
   await teste('o cliente não consegue mover o próprio pagamento para a reserva de outro', () =>
     comSavepoint(async () => {
-      await esperarErro(
-        () => como(clienteA, () => client.query('UPDATE pagamento SET reserva_id = $2 WHERE id = $1', [pagamentoA, reservaB])),
-        '42501',
+      // um pagamento RECUSADO fica fora do índice "um pagamento ativo por reserva" (0012): se a RLS
+      // falhar, o UPDATE é aceito e o teste acusa o buraco, em vez de esbarrar no índice (23505)
+      const { rows: [recusado] } = await client.query(
+        `INSERT INTO pagamento (reserva_id, metodo, valor_centavos, status) VALUES ($1, 'PIX', 5000, 'RECUSADO') RETURNING id`,
+        [reservaA],
       );
-      const { rows: [p] } = await client.query('SELECT reserva_id FROM pagamento WHERE id = $1', [pagamentoA]);
+      const mover = (destino) =>
+        como(clienteA, () => client.query('UPDATE pagamento SET reserva_id = $2 WHERE id = $1', [recusado.id, destino]));
+      await esperarErro(() => mover(reservaB), '42501');
+      const { rows: [p] } = await client.query('SELECT reserva_id FROM pagamento WHERE id = $1', [recusado.id]);
       assert(p.reserva_id === reservaA, 'o pagamento do cliente A mudou de reserva');
+
+      // controle: entre duas reservas do próprio cliente A, a mesma mudança funciona
+      const outraDeA = await criarReserva(client, ctx, {
+        clienteId: ctx.clienteAId,
+        inicio: '2026-08-12T10:00:00Z',
+        fim: '2026-08-12T14:00:00Z',
+      });
+      assert((await mover(outraDeA)).rowCount === 1, 'controle: o cliente A deveria mover entre as próprias reservas');
     }));
 
   await teste('o cliente não consegue apagar reserva nem pagamento (nem os próprios)', () =>
