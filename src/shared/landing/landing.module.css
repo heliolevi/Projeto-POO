@@ -167,7 +167,9 @@
 .grade {
   display: grid;
   gap: var(--space-16);
-  grid-template-columns: 1fr;
+  /* minmax(0, 1fr): sem isso a coluna não encolhe abaixo da palavra mais longa (nome ou e-mail
+     enorme vindo da API estoura a largura da tela). */
+  grid-template-columns: minmax(0, 1fr);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -199,6 +201,7 @@
 }
 
 .listaSimples {
+  overflow-wrap: anywhere;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -225,11 +228,11 @@
   }
 
   .grade3 {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .grade2 {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
