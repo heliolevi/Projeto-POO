@@ -11,6 +11,7 @@ import {
   type CobrancaPix,
   type StatusDoPagamento,
 } from "@/shared/pagamentos/pagamento";
+import { SimuladorDePagamento } from "@/shared/pagamentos/simulador-de-pagamento";
 import pagamentoStyles from "@/shared/pagamentos/pagamento.module.css";
 import {
   formatarContagem,
@@ -21,6 +22,7 @@ import styles from "@/shared/reservas/reservas.module.css";
 import { Alert } from "@/shared/ui/Alert";
 
 const INTERVALO_DA_CONSULTA_MS = 3000;
+const simulador = new SimuladorDePagamento();
 
 type Estado =
   | { tipo: "carregando" }
@@ -41,6 +43,9 @@ export default function PagamentoPixPage() {
   const [tentativa, setTentativa] = useState(0);
   const [agora, setAgora] = useState(() => new Date());
   const [copiado, setCopiado] = useState(false);
+  const [simulando, setSimulando] = useState(false);
+  const [avisoDaSimulacao, setAvisoDaSimulacao] = useState<{ texto: string; tom: "info" | "erro" } | null>(null);
+  const travaDaSimulacao = useRef(false);
   const temporizadorDaCopia = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cria (ou reaproveita, a rota é idempotente) a cobrança Pix da reserva.
@@ -160,6 +165,29 @@ export default function PagamentoPixPage() {
     }
   }
 
+  // MVP: o pagamento é simulado, então o cliente aprova o Pix por aqui. A regra de cada resposta
+  // mora no SimuladorDePagamento; a tela só aplica o resultado.
+  async function simularPagamento() {
+    if (travaDaSimulacao.current) return;
+    travaDaSimulacao.current = true;
+    setSimulando(true);
+    setAvisoDaSimulacao(null);
+    try {
+      const resultado = await simulador.aprovar(id);
+      const situacao = resultado.situacaoFinal();
+      if (situacao === "confirmado") setEstado({ tipo: "confirmado" });
+      else if (situacao === "encerrado") setEstado({ tipo: "encerrado" });
+      else if (situacao === "pagoSemReserva") setEstado({ tipo: "pagoSemReserva" });
+      else {
+        const texto = resultado.aviso();
+        setAvisoDaSimulacao(texto ? { texto, tom: resultado.tomDoAviso() } : null);
+      }
+    } finally {
+      travaDaSimulacao.current = false;
+      setSimulando(false);
+    }
+  }
+
   function tentarDeNovo() {
     setEstado({ tipo: "carregando" });
     setTentativa((atual) => atual + 1);
@@ -272,6 +300,21 @@ export default function PagamentoPixPage() {
                   {copiado ? "Código copiado!" : "Copiar código Pix"}
                 </button>
               </div>
+
+              <div className={styles.acoes} style={{ marginTop: "var(--space-12)" }}>
+                <button
+                  type="button"
+                  className={styles.botaoPrimario}
+                  onClick={simularPagamento}
+                  disabled={simulando}
+                >
+                  {simulando ? "Simulando..." : "Simular pagamento"}
+                </button>
+              </div>
+              <p className={styles.subtitulo}>
+                Modo de teste: nenhuma cobrança real é feita.
+              </p>
+              {avisoDaSimulacao && <Alert variant={avisoDaSimulacao.tom}>{avisoDaSimulacao.texto}</Alert>}
 
               <ol className={pagamentoStyles.passos} style={{ marginTop: "var(--space-20)" }}>
                 <li>Abra o aplicativo do seu banco e escolha pagar com Pix.</li>

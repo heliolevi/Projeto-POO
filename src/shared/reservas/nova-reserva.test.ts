@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  enderecoDoPonto,
   linkDaReserva,
   lerPedidoDaReserva,
   motivoDoErro,
@@ -51,22 +50,4 @@ test("motivoDoErro prefere o motivo do campo à mensagem genérica", () => {
   );
   assert.equal(motivoDoErro({ message: "Dados inválidos.", details: {} }), "Dados inválidos.");
   assert.equal(motivoDoErro({ message: "Erro." }), "Erro.");
-});
-
-test("enderecoDoPonto junta rua, complemento, bairro e cidade", () => {
-  const base = {
-    id: "p1",
-    nome: "Ponto Litorânea",
-    logradouro: "Av. Litorânea",
-    numero: "100",
-    complemento: null,
-    bairro: "Calhau",
-    cidade: "São Luís",
-    uf: "MA",
-  };
-  assert.equal(enderecoDoPonto(base), "Av. Litorânea, 100, Calhau, São Luís/MA");
-  assert.equal(
-    enderecoDoPonto({ ...base, complemento: "loja 2" }),
-    "Av. Litorânea, 100 (loja 2), Calhau, São Luís/MA",
-  );
 });

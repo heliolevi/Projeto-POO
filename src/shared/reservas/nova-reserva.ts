@@ -36,23 +36,3 @@ export function lerPedidoDaReserva(parametros: { get(nome: string): string | nul
   if (new Date(fim).getTime() <= new Date(inicio).getTime()) return null;
   return { tipoId, inicio, fim };
 }
-
-// Ponto de retirada de GET /api/empresa (contrato, rota 9).
-export type PontoDaEmpresa = {
-  id: string;
-  nome: string;
-  logradouro: string;
-  numero: string;
-  complemento: string | null;
-  bairro: string;
-  cidade: string;
-  uf: string;
-};
-
-export type Empresa = { nomeFantasia: string; pontos: PontoDaEmpresa[] };
-
-export function enderecoDoPonto(ponto: PontoDaEmpresa): string {
-  const rua = [ponto.logradouro, ponto.numero].filter(Boolean).join(", ");
-  const complemento = ponto.complemento ? ` (${ponto.complemento})` : "";
-  return `${rua}${complemento}, ${ponto.bairro}, ${ponto.cidade}/${ponto.uf}`;
-}

@@ -7,11 +7,8 @@
 
 import { rodarSuite } from '../suporte.mjs';
 import { criarFixtures, criarReserva } from '../fixtures.mjs';
-import {
-  criarConsultarStatus,
-  criarIniciarPagamento,
-  criarProcessarAviso,
-} from '../../../src/modules/pagamentos/application/pagar-reserva.ts';
+import { PagarReservaService } from '../../../src/modules/pagamentos/application/pagar-reserva.ts';
+import { IntervaloDeConsulta } from '../../../src/modules/pagamentos/application/intervalo-de-consulta.ts';
 import { operacoesNoBanco } from '../../../src/modules/pagamentos/infrastructure/repositorio-pagamentos.ts';
 
 const HORA = 60 * 60 * 1000;
@@ -66,6 +63,9 @@ await rodarSuite('blackbox/pagamentos_api', async (executor, client) => {
     async estornar(id) {
       estornos.push(id);
     },
+    async cancelar(id) {
+      naStripe.set(id, 'expirado');
+    },
   };
 
   // O aviso chega sem sessão: a função do banco (SECURITY DEFINER) diz de quem é a cobrança.
@@ -86,10 +86,13 @@ await rodarSuite('blackbox/pagamentos_api', async (executor, client) => {
     gerarQrCode: async (t) => `png:${t}`,
     gateway: () => gateway,
     clienteDoPagamento,
+    // nos testes a rota 17 pergunta à Stripe toda vez
+    intervaloDeConsulta: new IntervaloDeConsulta(0),
   };
-  const iniciar = criarIniciarPagamento(deps);
-  const status = criarConsultarStatus(deps);
-  const aviso = criarProcessarAviso(deps);
+  const servico = new PagarReservaService(deps);
+  const iniciar = (sessao, corpo) => servico.iniciar(sessao, corpo);
+  const status = (sessao, id) => servico.consultarStatus(sessao, id);
+  const aviso = (id, situacao) => servico.processarAviso(id, situacao);
 
   const reservaPendente = (clienteId = ctx.clienteAId, desloca = 0) =>
     criarReserva(client, ctx, {
@@ -258,5 +261,20 @@ await rodarSuite('blackbox/pagamentos_api', async (executor, client) => {
   await teste('rota 18: cobrança desconhecida é ignorada', async () => {
     assert((await clienteDoPagamento('pi_nao_existe')) === null, 'sem dono');
     assert((await aviso('pi_nao_existe', 'aprovado')) === 'ignorado', 'ignorado');
+  });
+
+  await teste('rota 18: Pix pago no último segundo, aviso depois de expirar_reservas_vencidas(): ESTORNADO', async () => {
+    const reservaId = await reservaPendente();
+    const { cobranca } = await iniciar(sessaoA, { reservaId, metodo: 'PIX' });
+    const idExterno = (await linhaPagamento(cobranca.pagamentoId)).mp_payment_id;
+    // a reserva venceu e a função real do banco expirou a reserva E o pagamento
+    await client.query(`UPDATE reserva SET criado_em = now() - interval '20 minutes' WHERE id = $1`, [reservaId]);
+    await client.query('SELECT expirar_reservas_vencidas()');
+    assert((await linhaPagamento(cobranca.pagamentoId)).status === 'EXPIRADO', 'o banco expirou o pagamento');
+    assert((await aviso(idExterno, 'aprovado')) === 'estornado', 'estornou');
+    assert(estornos.includes(idExterno), 'pediu o estorno à Stripe');
+    const linha = await linhaPagamento(cobranca.pagamentoId);
+    assert(linha.status === 'ESTORNADO' && linha.pago_em === null, `ficou ${linha.status}`);
+    assert((await aviso(idExterno, 'aprovado')) === 'ignorado', 'não estorna duas vezes');
   });
 });

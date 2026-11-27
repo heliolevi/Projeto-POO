@@ -118,6 +118,7 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 14 | `GET /api/reservas/{id}` | CLIENTE | existe | Luis | Renan |
 | 15 | `POST /api/reservas/{id}/cancelar` | CLIENTE | existe | Luis | Renan |
 | 16 | `POST /api/pagamentos` | CLIENTE | novo | Hélio | Renan |
+| 16a | `POST /api/pagamentos/{reservaId}/simular` | CLIENTE | novo (proposta, aguarda o aceite do Hélio) | Hélio | Renan |
 | 17 | `GET /api/pagamentos/{reservaId}/status` | CLIENTE | novo | Hélio | Renan |
 | 18 | `POST /api/pagamentos/webhook` | Stripe | novo | Hélio | Stripe |
 | 19 | `GET /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
@@ -474,6 +475,32 @@ texto é fictício de propósito e a tela mostra o aviso "Pix de teste". Com a c
 está `PENDENTE_PAGAMENTO`, já paga, ou com menos de 1 minuto de prazo: a Stripe não aceita Pix mais
 curto), `429`, `502` (`PAGAMENTO_INDISPONIVEL`: Stripe fora do ar ou chave não configurada).
 
+### 16a. `POST /api/pagamentos/{reservaId}/simular`
+
+Aprova o Pix simulado da reserva, no lugar do aviso do Mercado Pago. **Novo; proposta do front (PR #75),
+aguardando o aceite do Hélio (S4).** A tela do Pix chama no botão "Simular pagamento" e depois confere
+a rota 17.
+
+| | |
+|---|---|
+| **Quem** | CLIENTE (dono da reserva) |
+| **Disponível** | só com `PAGAMENTO_MODO=simulado`; fora dele a rota responde `404 SIMULACAO_INDISPONIVEL` |
+
+**Corpo:** nenhum (`{}`).
+
+Na mesma transação: expira as reservas vencidas (`expirar_reservas_vencidas()`), marca o pagamento
+`PENDENTE` como `APROVADO` e a reserva como `CONFIRMADA`. **Idempotente:** repetir com o pagamento já
+aprovado devolve `200`, sem alterar nada.
+
+**Sucesso `200`:** `{ "data": { "reservaId": "uuid", "statusPagamento": "APROVADO", "statusReserva": "CONFIRMADA" } }`
+
+**Erros:** `401`; `403`; `404 NOT_FOUND` (reserva inexistente ou de outro cliente); `404
+SIMULACAO_INDISPONIVEL` (modo não simulado); `409` (reserva que não está `PENDENTE_PAGAMENTO`, por
+exemplo vencida ou cancelada; reserva já paga não é erro, vale a idempotência acima); `429`.
+
+A tela só confia no `code`: `NOT_FOUND` é a reserva, `SIMULACAO_INDISPONIVEL` (ou um 404 sem o JSON do
+contrato, rota ainda não publicada) é "aprovação simulada indisponível".
+
 ### 17. `GET /api/pagamentos/{reservaId}/status`
 
 A tela chama a cada 3 segundos na tela do Pix, até a reserva ficar confirmada. **Novo.**
@@ -512,21 +539,6 @@ duplica nada, garantido pelo `mp_payment_id` único, que guarda o id do PaymentI
 eventos ou cobranças desconhecidas (ignorados), para a Stripe não ficar reenviando.
 
 **Erros:** `401` (assinatura ausente ou inválida), `413`, `502` (webhook não configurado no ambiente).
-
----|---|
-| **Quem** | Mercado Pago (sem token de usuário; a autenticação é a **assinatura** do aviso) |
-| **Cabeçalhos** | `x-signature` e `x-request-id` (o servidor valida com `MP_WEBHOOK_SECRET`) |
-
-**Corpo (do Mercado Pago):** `{ "type": "payment", "action": "payment.updated", "data": { "id": "123456789" } }`
-
-O servidor **não confia no corpo**: com o `data.id`, consulta o pagamento na API do Mercado Pago. Se
-estiver aprovado, na mesma transação marca o pagamento como `APROVADO` e a reserva como `CONFIRMADA`.
-É **idempotente** (o mesmo aviso repetido não duplica nada, garantido pelo `mp_payment_id` único).
-
-**Sucesso `200`:** `{ "data": { "recebido": true } }`. Também `200` para avisos de outros tipos ou de
-pagamentos desconhecidos (ignorados), para o Mercado Pago não ficar reenviando.
-
-**Erros:** `401` (assinatura ausente ou inválida), `413`.
 
 ---
 
@@ -634,7 +646,7 @@ Registra a retirada da bicicleta pelo cliente e passa a reserva para `EM_ANDAMEN
 | | |
 |---|---|
 | **Quem** | OPERADOR, ADMIN |
-| **Regra** | só reserva `CONFIRMADA`, a partir de 30 minutos antes do início |
+| **Regra** | só reserva `CONFIRMADA`, de 30 minutos antes do início até o fim; a bicicleta precisa estar `DISPONIVEL` e já ter voltado da reserva anterior |
 
 **Corpo:**
 
@@ -648,7 +660,14 @@ Registra a retirada da bicicleta pelo cliente e passa a reserva para `EM_ANDAMEN
 **Sucesso `200`:** `{ "data": { ...<objeto reserva>, "bicicleta": { "id": "uuid", "codigo": "BIC-003" } } }` com `status: "EM_ANDAMENTO"`.
 
 **Erros:** `400` (checklist inválido ou fora da janela de horário), `401`, `403`, `404`, `409` (reserva
-não está `CONFIRMADA` ou a retirada já foi feita), `413`.
+não está `CONFIRMADA`, a retirada já foi feita, a bicicleta está em manutenção, bloqueada ou fora da frota,
+ou ela ainda não foi devolvida pela reserva anterior, que pode estar atrasada), `413`. O id é conferido
+antes do corpo: id inválido é `404` mesmo com corpo quebrado.
+
+**Regras do checklist** (valem para a retirada e a devolução): de 1 a 20 itens, cada um com `nome` (texto
+de 1 a 40 caracteres, sem repetir) e `ok` (`true` ou `false`); `observacoes` é opcional (até 1000
+caracteres; texto vazio vira `null`). O checklist fica gravado em `movimentacao`, com o operador que
+registrou; as observações são internas da equipe.
 
 ### 27. `POST /api/operacao/reservas/{id}/devolucao`
 
@@ -659,7 +678,8 @@ Registra a devolução e conclui a reserva.
 | **Quem** | OPERADOR, ADMIN |
 | **Regra** | só reserva `EM_ANDAMENTO` |
 
-**Corpo:** o mesmo da retirada. **Sucesso `200`:** `{ "data": <reserva> }` com `status: "CONCLUIDA"`.
+**Corpo:** o mesmo da retirada. **Sucesso `200`:** `{ "data": <reserva> }` com `status: "CONCLUIDA"` (vem
+também `bicicleta`, como na retirada). A devolução vale mesmo depois do fim do período (atraso).
 **Erros:** `400`, `401`, `403`, `404`, `409` (não está `EM_ANDAMENTO` ou a devolução já foi feita), `413`.
 
 ---
@@ -668,6 +688,19 @@ Registra a devolução e conclui a reserva.
 
 Qualquer mudança de rota, campo ou erro entra aqui, na mesma PR do código, e avisa quem implementa e
 quem consome. Pontos ainda abertos para o Luis fechar com Hélio e Renan:
+
+**Registro de mudanças**
+
+- **27/11/2026, rotas 16 a 18 (#80):** o Pix passa a ser cobrado pela Stripe e o pagamento simulado sai. A rota 18
+  é o webhook da Stripe (cabeçalho `stripe-signature`, `STRIPE_WEBHOOK_SECRET`). Pix pago depois de a reserva
+  cair é estornado e o pagamento fica `ESTORNADO`. O limite de 10 por hora da rota 16 conta só cobrança nova
+  (reaproveitar o Pix pendente não conta).
+- **27/11/2026, rotas 26 e 27 (#81):** a resposta da devolução também traz `bicicleta` (`id` e `codigo`), como
+  a da retirada. O checklist passou a ter limites (de 1 a 20 itens, `nome` de 1 a 40 caracteres sem repetir,
+  `observacoes` até 1000 caracteres), e quem passa deles recebe `400`. A retirada ganhou dois `409`: bicicleta
+  que não está `DISPONIVEL` e bicicleta que ainda não voltou da reserva anterior.
+
+**Pontos em aberto**
 
 - Formato final de `horarios` do ponto (`diaSemana` de 0 a 6, começando no domingo?).
 - Se o cliente sem altura preenchida pode buscar (assumido: pode; só perde o filtro e os pontos de altura).

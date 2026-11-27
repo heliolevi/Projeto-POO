@@ -1,21 +1,10 @@
-// Dados da locadora que a página inicial mostra. A fonte é o seed (db/seeds/dev.sql), descrito em
-// docs/dados-da-locadora.md; se divergirem, vale o seed e este arquivo é ajustado. Todos os dados
-// são fictícios (decisão do tech lead de 10/11/2026) e devem ser trocados quando houver locadora real.
-// Quando a rota GET /api/empresa existir, esta página passa a ler dela.
+// O que a página fala da locadora e que não vem da API: o nome da marca e a regra de documento na
+// retirada (a rota GET /api/empresa não devolve documentos exigidos). Endereço, telefone, e-mail e
+// horários vêm de GET /api/empresa (src/shared/empresa); não repita esses dados aqui, porque a cópia
+// envelhece e passa a divergir do banco. Os dados do seed (db/seeds/dev.sql) são fictícios.
 
 export const LOCADORA = {
   nome: "Bike Ilha Club",
-  telefone: "(98) 90000-0000",
-  email: "contato@bikeilha.test",
-  ponto: {
-    nome: "Ponto Litorânea",
-    endereco: "Avenida Litorânea, 100, Calhau, São Luís (MA)",
-  },
-  horarios: [
-    { dias: "Segunda a sexta", horario: "08:00 às 18:00" },
-    { dias: "Sábado", horario: "08:00 às 16:00" },
-    { dias: "Domingo", horario: "08:00 às 14:00" },
-  ],
   documentosNaRetirada: "Documento de identidade com foto e CPF",
 } as const;
 

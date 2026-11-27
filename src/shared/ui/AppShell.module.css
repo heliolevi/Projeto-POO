@@ -7,6 +7,8 @@
 
 .screen {
   width: 100%;
+  /* Item de flex: sem min-width: 0 a tela cresce até a palavra mais longa (nome de ponto, e-mail). */
+  min-width: 0;
   max-width: 430px;
   min-height: 100dvh;
   background: var(--color-surface);
@@ -44,6 +46,8 @@
 
 .content {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: var(--space-24);
 }
 
