@@ -102,6 +102,19 @@ test("o segredo de exemplo do .env.example é recusado", () => {
   }
 });
 
+test("espaços nas pontas do segredo não mudam o resultado: o valor de exemplo continua recusado e o token assinado é o mesmo", () => {
+  process.env.SESSION_SECRET = " troque-por-um-valor-aleatorio-com-pelo-menos-32-caracteres";
+  try {
+    assert.throws(() => emitirToken({ id: ID, perfil: "CLIENTE" }), /valor de exemplo/);
+    process.env.SESSION_SECRET = `  ${SEGREDO}\n`;
+    const { token } = emitirToken({ id: ID, perfil: "CLIENTE" });
+    process.env.SESSION_SECRET = SEGREDO;
+    assert.equal(verificarToken(token)?.sub, ID);
+  } finally {
+    process.env.SESSION_SECRET = SEGREDO;
+  }
+});
+
 test("sem SESSION_SECRET dá erro claro", () => {
   delete process.env.SESSION_SECRET;
   try {

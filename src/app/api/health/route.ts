@@ -1,5 +1,5 @@
-import { ok } from "@/shared/http/response";
+import { Resposta } from "@/shared/http/resposta";
 
 export function GET() {
-  return ok({ status: "ok" });
+  return Resposta.ok({ status: "ok" });
 }

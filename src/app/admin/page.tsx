@@ -17,15 +17,8 @@ import {
 } from "@/shared/admin/catalogo";
 import type { ResultadoDaEmpresa } from "@/shared/empresa";
 import { useEmpresa } from "@/shared/empresa/use-empresa";
-import { formatarReais } from "@/shared/format/moeda-e-data";
-import {
-  ApiError,
-  getAutenticado,
-  patchAutenticado,
-  postAutenticado,
-  putAutenticado,
-  type ErrosPorCampo,
-} from "@/shared/http/api-cliente";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
+import { ApiError, ClienteApi, type ErrosPorCampo } from "@/shared/http/api-cliente";
 import { Alert } from "@/shared/ui/Alert";
 import { AppShell } from "@/shared/ui/AppShell";
 import { Badge } from "@/shared/ui/Badge";
@@ -78,8 +71,8 @@ function PainelCatalogo() {
   const carregar = useCallback(async () => {
     try {
       const [tipos, bicicletas] = await Promise.all([
-        getAutenticado<TipoAdmin[]>("/api/admin/tipos"),
-        getAutenticado<BicicletaAdmin[]>("/api/admin/bicicletas"),
+        ClienteApi.padrao.get<TipoAdmin[]>("/api/admin/tipos"),
+        ClienteApi.padrao.get<BicicletaAdmin[]>("/api/admin/bicicletas"),
       ]);
       setDados({ tipos, bicicletas });
       setErro(null);
@@ -96,7 +89,7 @@ function PainelCatalogo() {
 
   async function alternarAtivo(tipo: TipoAdmin) {
     try {
-      await putAutenticado(`/api/admin/tipos/${tipo.id}`, {
+      await ClienteApi.padrao.put(`/api/admin/tipos/${tipo.id}`, {
         nome: tipo.nome,
         atividades: tipo.atividades,
         alturaMinCm: tipo.alturaMinCm,
@@ -115,7 +108,7 @@ function PainelCatalogo() {
 
   async function mudarStatus(bicicleta: BicicletaAdmin, status: StatusBicicleta) {
     try {
-      await patchAutenticado(`/api/admin/bicicletas/${bicicleta.id}`, { status });
+      await ClienteApi.padrao.patch(`/api/admin/bicicletas/${bicicleta.id}`, { status });
       setAviso(`Bicicleta ${bicicleta.codigo}: ${ROTULO_STATUS[status]}.`);
       await carregar();
     } catch (e) {
@@ -164,7 +157,7 @@ function PainelCatalogo() {
                   chave: "precoHoraCentavos",
                   cabecalho: "Hora / Dia",
                   alinhamento: "direita",
-                  celula: (t) => `${formatarReais(t.precoHoraCentavos)} / ${formatarReais(t.precoDiaCentavos)}`,
+                  celula: (t) => `${Dinheiro.deCentavos(t.precoHoraCentavos).formatar()} / ${Dinheiro.deCentavos(t.precoDiaCentavos).formatar()}`,
                 },
                 {
                   chave: "ativo",
@@ -256,7 +249,7 @@ function NovoTipo({ aoCriar }: { aoCriar: (nome: string) => Promise<void> }) {
     setErroGeral(null);
     try {
       const nome = texto("nome");
-      await postAutenticado("/api/admin/tipos", {
+      await ClienteApi.padrao.post("/api/admin/tipos", {
         nome,
         descricao: texto("descricao") || null,
         atividades,
@@ -364,7 +357,7 @@ function NovaBicicleta({
     setErros({});
     setErroGeral(null);
     try {
-      const resposta = await postAutenticado<BicicletaAdmin>("/api/admin/bicicletas", {
+      const resposta = await ClienteApi.padrao.post<BicicletaAdmin>("/api/admin/bicicletas", {
         tipoId: texto("tipoId"),
         pontoId: texto("pontoId"),
         codigo: texto("codigo"),

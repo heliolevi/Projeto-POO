@@ -6,7 +6,7 @@ import { criarCatalogo, type RepositorioCatalogo } from "../application/catalogo
 import { criarHandlersCatalogo, type Catalogo } from "./fabrica-handlers.ts";
 
 // Estes testes provam que CADA rota do painel exige sessão (401) e perfil ADMIN (403) antes de
-// tocar o catálogo. O exigirPerfil é o de verdade (shared/http/perfil.ts). O exigirSessao é de
+// tocar o catálogo. O PerfisPermitidos é o de verdade (shared/http/perfis-permitidos.ts). O exigirSessao é de
 // mentira: ele modela só o que o módulo contas garante (sem token ou token inválido é 401; com
 // token, devolve o perfil da conta), e a regra do próprio exigirSessao tem testes em contas.
 

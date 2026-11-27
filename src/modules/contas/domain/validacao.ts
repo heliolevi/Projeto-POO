@@ -1,3 +1,4 @@
+import { Cpf } from "../../../shared/dominio/cpf.ts";
 import {
   ATIVIDADES,
   EXPERIENCIAS,
@@ -25,15 +26,10 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const SENHA_MIN = 8;
 const SENHA_MAX = 128;
 
+// A API recebe o CPF só com os 11 dígitos (o cadastro tira a máscara antes); o algoritmo é o da
+// classe Cpf, a mesma que o navegador usa.
 export function cpfValido(cpf: string): boolean {
-  if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
-  for (const tamanho of [9, 10]) {
-    let soma = 0;
-    for (let i = 0; i < tamanho; i++) soma += Number(cpf[i]) * (tamanho + 1 - i);
-    const digito = ((soma * 10) % 11) % 10;
-    if (digito !== Number(cpf[tamanho])) return false;
-  }
-  return true;
+  return /^\d{11}$/.test(cpf) && Cpf.de(cpf) !== null;
 }
 
 function dataValida(texto: string): boolean {

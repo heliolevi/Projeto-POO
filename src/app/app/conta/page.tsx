@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
-import { limparSessao } from "@/shared/auth/sessao";
+import { ArmazemDeSessao } from "@/shared/auth/sessao";
 import {
   CONFIRMACAO_DESATIVAR,
   confirmacaoValida,
@@ -13,7 +13,7 @@ import {
   type ErrosSenha,
   type FormularioSenha,
 } from "@/shared/conta/conta";
-import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import type { ContaLogada } from "@/shared/perfil/perfil-ciclista";
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
@@ -43,7 +43,7 @@ export default function MinhaContaPage() {
 
   useEffect(() => {
     let ativo = true;
-    getAutenticado<ContaLogada>("/api/conta/me")
+    ClienteApi.padrao.get<ContaLogada>("/api/conta/me")
       .then((conta) => {
         if (ativo) setEstado({ tipo: "pronto", conta });
       })
@@ -61,7 +61,7 @@ export default function MinhaContaPage() {
   const { conta } = estado;
 
   function aoDesativar() {
-    limparSessao();
+    ArmazemDeSessao.navegador.limpar();
     router.replace("/login");
   }
 
@@ -109,7 +109,7 @@ function SecaoSenha() {
 
     setEnviando(true);
     try {
-      await postAutenticado(
+      await ClienteApi.padrao.post(
         "/api/conta/senha",
         { senhaAtual: form.senhaAtual, novaSenha: form.novaSenha },
         { sairSeNaoAutorizado: false },
@@ -121,7 +121,7 @@ function SecaoSenha() {
         // O 401 vale para "senha atual errada" e para "sessão acabou". Perguntar à API quem é
         // o usuário separa os dois: se a sessão caiu, o cliente HTTP já leva ao login.
         try {
-          await getAutenticado("/api/conta/me");
+          await ClienteApi.padrao.get("/api/conta/me");
           setErros({ senhaAtual: mensagemDeErro(erro, "senha") });
         } catch {
           setErroGeral(mensagemDeErro(erro));
@@ -200,7 +200,7 @@ function SecaoAltura({ alturaInicial }: { alturaInicial: number | null }) {
 
     setEnviando(true);
     try {
-      await postAutenticado("/api/conta/altura", { alturaCm: validada.alturaCm });
+      await ClienteApi.padrao.post("/api/conta/altura", { alturaCm: validada.alturaCm });
       setSucesso(true);
     } catch (e) {
       if (e instanceof ApiError && e.details?.alturaCm) setErro(e.details.alturaCm);
@@ -257,7 +257,7 @@ function SecaoDesativar({ onDesativada }: { onDesativada: () => void }) {
     setEnviando(true);
     setErro(null);
     try {
-      await postAutenticado("/api/conta/desativar", {});
+      await ClienteApi.padrao.post("/api/conta/desativar", {});
       onDesativada();
     } catch (e) {
       setErro(textoDoErro(e));

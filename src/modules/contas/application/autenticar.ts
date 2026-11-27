@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
-import { exigirDentroDoLimite, limparTentativas } from "@/shared/db/limite-tentativas";
-import { query } from "@/shared/db/pool";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
 import { UnauthorizedError, ValidationError } from "@/shared/http/errors";
 import { criarUsuario } from "../domain/fabrica-usuario";
 import { validarLogin } from "../domain/validacao";
 import { hashParaTempoConstante, servicoDeSenha, verificarSenha } from "../infrastructure/senha";
 import { buscarPorEmail } from "../infrastructure/repositorio-usuarios";
 import { montarSessao, type ResultadoSessao } from "./cadastrar-cliente";
+
+const limite = new LimiteDeTentativas(BancoDeDados.padrao);
 
 // Contam toda tentativa de login, em três níveis:
 // - por e-mail e IP: barra quem chuta a senha de uma conta a partir do mesmo lugar;
@@ -24,7 +26,7 @@ export async function autenticar(
   contexto: { ip: string },
 ): Promise<ResultadoSessao> {
   const ip = contexto.ip.slice(0, 64);
-  await exigirDentroDoLimite(query, `login:ip:${ip}`, LIMITE_POR_IP);
+  await limite.exigirDentroDoLimite(`login:ip:${ip}`, LIMITE_POR_IP);
 
   const validado = validarLogin(entrada);
   if ("erros" in validado) {
@@ -34,8 +36,8 @@ export async function autenticar(
   // o e-mail vira hash para a tabela de limites não guardar endereços de e-mail
   const hashEmail = createHash("sha256").update(email).digest("hex").slice(0, 32);
   const chaveEmailEIp = `login:email-ip:${hashEmail}:${ip}`;
-  await exigirDentroDoLimite(query, `login:email:${hashEmail}`, LIMITE_POR_EMAIL);
-  await exigirDentroDoLimite(query, chaveEmailEIp, LIMITE_POR_EMAIL_E_IP);
+  await limite.exigirDentroDoLimite(`login:email:${hashEmail}`, LIMITE_POR_EMAIL);
+  await limite.exigirDentroDoLimite(chaveEmailEIp, LIMITE_POR_EMAIL_E_IP);
 
   const linha = await buscarPorEmail(email);
   // mesma mensagem e mesmo custo de tempo para e-mail inexistente, senha errada e conta inativa:
@@ -49,6 +51,6 @@ export async function autenticar(
   if (!(await usuario.autenticar(senha, servicoDeSenha))) {
     throw new UnauthorizedError("E-mail ou senha inválidos.");
   }
-  await limparTentativas(query, chaveEmailEIp);
+  await limite.limpar(chaveEmailEIp);
   return montarSessao(usuario.paraPublico());
 }
