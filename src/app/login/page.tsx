@@ -104,9 +104,6 @@ function LoginForm() {
             />
             <span className={styles.checkboxLabel}>Mostrar senha</span>
           </label>
-          <Link href="/esqueci-senha" className={styles.link}>
-            Esqueceu a senha?
-          </Link>
         </div>
 
         <Button type="submit" loading={enviando}>
