@@ -29,6 +29,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `shared/config` | `Ambiente` |
 | `shared/dominio` (documentos e senha) | `Cpf`, `Cnpj`, `PoliticaDeSenha` |
 | `shared/format` | `FormatadorDeData` |
+| `shared/config` (ambiente) | `ValidadorDoAmbiente`, `RegraDeVariavel` (abstrata), `UrlDoBanco`, `SegredoComTamanhoMinimo`, `UrlDoApp`, `ChaveComPrefixo`, `UmDosValores` |
 
 ## Os quatro pilares
 
@@ -87,6 +88,9 @@ validar o código não mexe no pagamento, e `pix.pagavelEmBanco` na resposta é 
   cheia, `Furto` cobra a caução quando não há estimativa.
 - `CriterioDeRecomendacao.avaliar()`: o `RecomendacaoService` soma os critérios sem saber quais são. Um
   critério novo entra na lista do construtor sem mexer no serviço.
+- `RegraDeVariavel.conferir()`: o `ValidadorDoAmbiente` junta os problemas das variáveis de ambiente sem
+  saber quais são. `SESSION_SECRET` e `HEALTH_DB_SECRET` usam a mesma classe (`SegredoComTamanhoMinimo`),
+  `APP_URL` tem a sua (`UrlDoApp`), as chaves da Stripe usam `ChaveComPrefixo`, e uma variável nova entra na lista de regras sem mexer no validador.
 - `EnviadorDeNotificacao.enviar()`: o `RoteadorDeEnvio` escolhe o enviador pelo canal (web push, WhatsApp
   ou e-mail), e a `Notificacao` só conhece a interface.
 - Fábricas escolhem a subclasse certa: `criarUsuario(linha)`, `criarPagamento(metodo, dados)` e

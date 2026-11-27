@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Ambiente } from "../../../shared/config/ambiente.ts";
+import { REGRA_DO_SEGREDO_DE_SESSAO } from "../../../shared/config/validador-do-ambiente.ts";
 import type { PerfilUsuario } from "../domain/usuario";
 
 // Token de sessão: JWT HS256 assinado com SESSION_SECRET. Sem estado no banco, então o
@@ -9,18 +10,12 @@ export const DURACAO_SESSAO_SEGUNDOS = 60 * 60 * 24;
 
 export type SessaoToken = { sub: string; perfil: PerfilUsuario; iat: number; exp: number };
 
-// Valor de exemplo do .env.example: tem mais de 32 caracteres e passaria na checagem de
-// tamanho, mas qualquer pessoa o conhece e poderia forjar tokens.
-const SEGREDO_DE_EXEMPLO = "troque-por-um-valor-aleatorio";
-
 function segredo(): string {
-  const valor = Ambiente.padrao.exigir("SESSION_SECRET");
-  if (valor.length < 32) {
-    throw new Error("SESSION_SECRET precisa ter ao menos 32 caracteres.");
-  }
-  if (valor.startsWith(SEGREDO_DE_EXEMPLO)) {
-    throw new Error("SESSION_SECRET ainda está com o valor de exemplo. Gere um valor aleatório.");
-  }
+  // O validador do ambiente confere o valor sem os espaços das pontas; aqui vale o mesmo valor, para a
+  // checagem da subida e a assinatura do token nunca discordarem.
+  const valor = Ambiente.padrao.exigir("SESSION_SECRET").trim();
+  const problema = REGRA_DO_SEGREDO_DE_SESSAO.conferir(valor, true);
+  if (problema) throw new Error(problema);
   return valor;
 }
 
