@@ -54,8 +54,9 @@ function patternsDoModulo(atual) {
 // Declarações ambientes (`declare enum`, `declare namespace`, `declare module`, e o que estiver
 // dentro delas) só descrevem tipos e o Node as apaga: ficam liberadas. O nó de dentro de um
 // `declare namespace` não tem `declare=true`, por isso o seletor também olha os ancestrais.
-// A mesma regra é conferida pelo TypeScript (`erasableSyntaxOnly` no tsconfig), que cobre também os
-// .ts fora de src (como o next.config.ts).
+// O TypeScript (`erasableSyntaxOnly` no tsconfig) confere de novo enum, namespace, parameter
+// property, `import =`, `export =` e `<T>x` em todo .ts do projeto, inclusive fora de src (como o
+// next.config.ts). Decorator e `accessor` ele não pega: esses só o lint barra.
 const DENTRO_DE_DECLARE = "TSModuleDeclaration[declare=true] *";
 
 const sintaxeNaoApagavel = [
@@ -86,6 +87,15 @@ const sintaxeNaoApagavel = [
   {
     // decorator é sintaxe de JavaScript que o V8 ainda não roda: com type stripping o Node dá
     // SyntaxError. O tsc com erasableSyntaxOnly não pega este caso, então ele mora só aqui.
+    selector: "AccessorProperty, TSAbstractAccessorProperty",
+    message:
+      "Campo `accessor` não é apagável: o Node não roda essa sintaxe e o `npm test` quebra com SyntaxError. Use um campo `#x` com get/set.",
+  },
+  {
+    selector: "TSTypeAssertion",
+    message: "Asserção `<T>x` não é apagável: o Node não aceita esse formato. Use `x as T`.",
+  },
+  {
     selector: "Decorator",
     message:
       "Decorator não é apagável: o Node não roda essa sintaxe e o `npm test` quebra com SyntaxError. Chame a função direto no lugar.",
@@ -109,7 +119,7 @@ const eslintConfig = defineConfig([
   },
   {
     // Fronteiras entre módulos: outros módulos e rotas só importam pelo index.ts.
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx,mts,cts}"],
     ignores: ["src/modules/**"],
     rules: {
       "no-restricted-imports": [
@@ -119,7 +129,7 @@ const eslintConfig = defineConfig([
     },
   },
   ...modulos.map((modulo) => ({
-    files: [`src/modules/${modulo}/**/*.{ts,tsx}`],
+    files: [`src/modules/${modulo}/**/*.{ts,tsx,mts,cts}`],
     rules: {
       "no-restricted-imports": [
         "error",

@@ -41,6 +41,10 @@ const PROIBIDOS: Record<string, string> = {
   // decorator é sintaxe de JavaScript que o V8 ainda não roda: com type stripping, o Node dá
   // SyntaxError (conferido). Nem o tsc com erasableSyntaxOnly pega este caso; só o lint.
   decorator: "function d(..._a: unknown[]) {}\n@d export class A {}",
+  // accessor: o Node dá SyntaxError e o tsc com erasableSyntaxOnly não pega (conferido)
+  accessor: "export class A { accessor x = 1 }",
+  // <T>x: o Node recusa no type stripping (use x as T); o tsc também recusa
+  "<T>x": "const v: unknown = 1;\nexport const n = <number>v;",
 };
 
 for (const [nome, codigo] of Object.entries(PROIBIDOS)) {
