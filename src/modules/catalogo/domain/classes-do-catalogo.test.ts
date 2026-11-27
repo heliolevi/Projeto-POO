@@ -7,8 +7,9 @@ import { Bicicleta, TransicaoDeBicicletaInvalida } from "./bicicleta.ts";
 import { criarCatalogo, type RepositorioCatalogo } from "../application/catalogo.ts";
 import { paraPublico } from "./catalogo.ts";
 import type { BicicletaAdmin, TipoAdmin } from "./catalogo.ts";
-import { somenteDigitos } from "../../../shared/format/cpf.ts";
-import { Empresa, cnpjValido } from "./empresa.ts";
+import { Cnpj } from "../../../shared/dominio/cnpj.ts";
+import { Cpf } from "../../../shared/dominio/cpf.ts";
+import { Empresa } from "./empresa.ts";
 import { Ponto, horarioDoBanco, type DadosPonto } from "./ponto.ts";
 import { TipoBicicleta } from "./tipo-bicicleta.ts";
 
@@ -460,18 +461,18 @@ describe("Empresa", () => {
     contaRecebimentoId: "mp-123",
   };
 
-  test("cnpjValido confere os dígitos verificadores", () => {
-    assert.ok(cnpjValido("12.345.678/0001-95"));
-    assert.ok(cnpjValido("12345678000195"));
-    assert.ok(cnpjValido("11.222.333/0001-81"));
-    assert.ok(!cnpjValido("12.345.678/0001-96"));
-    assert.ok(!cnpjValido("11111111111111"));
-    assert.ok(!cnpjValido("123"));
-    assert.ok(!cnpjValido(""));
+  test("Cnpj.de confere os dígitos verificadores", () => {
+    assert.ok(Cnpj.de("12.345.678/0001-95"));
+    assert.ok(Cnpj.de("12345678000195"));
+    assert.ok(Cnpj.de("11.222.333/0001-81"));
+    assert.ok(!Cnpj.de("12.345.678/0001-96"));
+    assert.ok(!Cnpj.de("11111111111111"));
+    assert.ok(!Cnpj.de("123"));
+    assert.ok(!Cnpj.de(""));
   });
 
-  test("somenteDigitos", () => {
-    assert.equal(somenteDigitos("12.345.678/0001-95"), "12345678000195");
+  test("Cpf.somenteDigitos", () => {
+    assert.equal(Cpf.somenteDigitos("12.345.678/0001-95"), "12345678000195");
   });
 
   test("guarda o CNPJ só com dígitos e apara os textos", () => {

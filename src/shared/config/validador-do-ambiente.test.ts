@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import {
   garantirAmbiente,
-  PAGAMENTO_MODOS,
+  ChaveComPrefixo,
   RegraDeVariavel,
   REGRAS_DO_APP,
   REGRA_DO_SEGREDO_DE_SESSAO,
@@ -23,10 +23,11 @@ const BASE = {
 const PRODUCAO = {
   ...BASE,
   APP_URL: "https://bike-ilha-club.vercel.app",
-  PAGAMENTO_MODO: "simulado",
+  STRIPE_SECRET_KEY: "sk_test_" + "x".repeat(24),
+  STRIPE_WEBHOOK_SECRET: "whsec_" + "x".repeat(24),
 };
 
-test("desenvolvimento: só DATABASE_URL e SESSION_SECRET bastam (APP_URL e PAGAMENTO_MODO têm padrão)", () => {
+test("desenvolvimento: só DATABASE_URL e SESSION_SECRET bastam (APP_URL e a Stripe só importam em produção)", () => {
   assert.deepEqual(validarAmbiente(BASE, false), []);
 });
 
@@ -34,11 +35,12 @@ test("produção com tudo certo não tem problema", () => {
   assert.deepEqual(validarAmbiente(PRODUCAO, true), []);
 });
 
-test("produção sem APP_URL e sem PAGAMENTO_MODO lista os dois", () => {
+test("produção sem as chaves da Stripe lista as duas; APP_URL não é exigida", () => {
   const problemas = validarAmbiente(BASE, true);
   assert.equal(problemas.length, 2);
-  assert.match(problemas[0], /^APP_URL ausente/);
-  assert.match(problemas[1], /^PAGAMENTO_MODO ausente/);
+  assert.match(problemas[0], /^STRIPE_SECRET_KEY ausente/);
+  assert.match(problemas[1], /^STRIPE_WEBHOOK_SECRET ausente/);
+  assert.deepEqual(validarAmbiente({ ...PRODUCAO, APP_URL: undefined }, true), []);
 });
 
 test("variável vazia ('NOME=' no .env) conta como ausente", () => {
@@ -78,24 +80,46 @@ test("APP_URL: http é aceito em desenvolvimento e no computador local, mesmo em
   }
 });
 
-test("PAGAMENTO_MODO só aceita os modos que existem, sem repetir o valor recebido", () => {
-  const problemas = validarAmbiente({ ...PRODUCAO, PAGAMENTO_MODO: "valor-secreto-xyz" }, true);
-  assert.equal(problemas.length, 1);
-  assert.equal(problemas[0], "PAGAMENTO_MODO tem um valor que não existe. Valores aceitos: simulado.");
-  assert.ok(!problemas[0].includes("valor-secreto-xyz"), "o valor recebido vazou na mensagem");
+test("APP_URL: barra no fim, caminho, parâmetros e âncora são recusados", () => {
+  for (const url of ["https://bike-ilha-club.vercel.app/", "https://bike-ilha-club.vercel.app/app", "https://x.app?a=1", "https://x.app#topo"]) {
+    assert.match(validarAmbiente({ ...PRODUCAO, APP_URL: url }, true)[0], /só o endereço, sem barra no fim/, url);
+  }
+  assert.deepEqual(validarAmbiente({ ...PRODUCAO, APP_URL: "https://x.app:8443" }, true), []);
+});
+
+test("chaves da Stripe: prefixo errado é recusado, sem repetir o valor recebido", () => {
+  const problemas = validarAmbiente(
+    { ...PRODUCAO, STRIPE_SECRET_KEY: "valor-secreto-xyz", STRIPE_WEBHOOK_SECRET: "pk_test_abc" },
+    true,
+  );
+  assert.equal(problemas.length, 2);
+  assert.equal(problemas[0], "STRIPE_SECRET_KEY tem um formato inesperado. Ela começa com sk_test_ ou sk_live_ ou rk_test_ ou rk_live_.");
+  assert.equal(problemas[1], "STRIPE_WEBHOOK_SECRET tem um formato inesperado. Ela começa com whsec_.");
+  assert.ok(!problemas.join("\n").includes("valor-secreto-xyz"), "o valor recebido vazou na mensagem");
+  for (const chave of ["sk_live_abc", "rk_test_abc"]) {
+    assert.deepEqual(validarAmbiente({ ...PRODUCAO, STRIPE_SECRET_KEY: chave }, true), [], chave);
+  }
+});
+
+test("ChaveComPrefixo é só mais uma regra: o validador a usa sem saber qual é", () => {
+  const validador = new ValidadorDoAmbiente([
+    new ChaveComPrefixo({ nome: "CHAVE", exigencia: "sempre", dicaSeAusente: "Defina-a.", prefixos: ["abc_"] }),
+  ]);
+  assert.deepEqual(validador.validar({}, false), ["CHAVE ausente. Defina-a."]);
+  assert.deepEqual(validador.validar({ CHAVE: "abc_1" }, false), []);
 });
 
 test("garantirAmbiente junta todos os problemas numa mensagem e não mostra o valor dos segredos", () => {
-  const env = { DATABASE_URL: "", SESSION_SECRET: "senha-curta-secreta", PAGAMENTO_MODO: "modo-secreto-xyz" };
+  const env = { DATABASE_URL: "", SESSION_SECRET: "senha-curta-secreta", STRIPE_SECRET_KEY: "chave-secreta-xyz" };
   assert.throws(
     () => garantirAmbiente(env, true),
     (erro: Error) => {
       assert.match(erro.message, /^Configuração do ambiente inválida/);
-      for (const nome of ["DATABASE_URL", "SESSION_SECRET", "APP_URL", "PAGAMENTO_MODO"]) {
+      for (const nome of ["DATABASE_URL", "SESSION_SECRET", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]) {
         assert.match(erro.message, new RegExp(` - ${nome}`), nome);
       }
       assert.ok(!erro.message.includes("senha-curta-secreta"), "o valor do segredo vazou na mensagem");
-      assert.ok(!erro.message.includes("modo-secreto-xyz"), "o valor do PAGAMENTO_MODO vazou na mensagem");
+      assert.ok(!erro.message.includes("chave-secreta-xyz"), "o valor da chave da Stripe vazou na mensagem");
       return true;
     },
   );
@@ -157,10 +181,6 @@ test("SESSION_SECRET e HEALTH_DB_SECRET usam a mesma classe de regra, com exigê
   assert.equal(segredos[1].conferir(undefined, true), null);
 });
 
-test("PAGAMENTO_MODOS tem o modo que o .env.example usa", () => {
-  assert.ok((PAGAMENTO_MODOS as readonly string[]).includes("simulado"));
-});
-
 // CT-SEG-10: toda variável que o código lê está no .env.example (modelo para quem monta o ambiente).
 function arquivosDeCodigo(pasta: string): string[] {
   return (readdirSync(pasta, { recursive: true, encoding: "utf8" }) as string[])
@@ -188,7 +208,8 @@ test("CT-SEG-10: toda variável lida pelo código está no .env.example", () => 
     }
   }
   // As que o validador confere também precisam estar listadas, mesmo sem aparecer como process.env.X.
-  for (const nome of ["APP_URL", "PAGAMENTO_MODO"]) usadas.set(nome, "src/shared/config/ambiente.ts");
+  // Os nomes vêm das próprias regras, então regra nova sem linha no .env.example reprova aqui.
+  for (const regra of REGRAS_DO_APP) usadas.set(regra.nome, "src/shared/config/validador-do-ambiente.ts");
 
   const faltando = [...usadas]
     .filter(([nome]) => !new RegExp(`^#?\\s*${nome}=`, "m").test(modelo))

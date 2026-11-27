@@ -1,5 +1,5 @@
 import { ehAtividade, type Atividade } from "../dominio/ciclista.ts";
-import { localParaIso } from "../format/moeda-e-data.ts";
+import { FormatadorDeData } from "../format/formatador-de-data.ts";
 
 // Resultado de GET /api/recomendacao (contrato, rota 11).
 export type Recomendacao = {
@@ -47,7 +47,7 @@ const VALORES_DE_DURACAO: readonly string[] = DURACOES.map((d) => d.valor);
 
 function inicioEmIso(form: FormularioBusca): string | null {
   try {
-    return localParaIso(form.data, form.hora);
+    return FormatadorDeData.saoLuis.paraIso(form.data, form.hora);
   } catch {
     return null;
   }
@@ -74,7 +74,7 @@ export function validarBusca(form: FormularioBusca, agora: Date = new Date()): E
 
 /** Fim do período: início + duração, em ISO (UTC). Só use depois de `validarBusca` sem erros. */
 export function periodoDaBusca(form: FormularioBusca): { inicio: string; fim: string } {
-  const inicio = localParaIso(form.data, form.hora);
+  const inicio = FormatadorDeData.saoLuis.paraIso(form.data, form.hora);
   const fim = new Date(new Date(inicio).getTime() + Number(form.duracao) * 60_000);
   return { inicio, fim: fim.toISOString() };
 }

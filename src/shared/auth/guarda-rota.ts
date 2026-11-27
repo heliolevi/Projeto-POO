@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { limparSessao, lerToken, type Sessao } from "./sessao";
+import { ArmazemDeSessao, type Sessao } from "./sessao";
 import { useSessao } from "./use-sessao";
 
 type EstadoGuarda = { sessao: Sessao | null; carregando: boolean };
@@ -18,7 +18,7 @@ export function useGuardaRota(): EstadoGuarda {
 
   useEffect(() => {
     if (estado.carregando || estado.sessao) return;
-    if (lerToken()) limparSessao();
+    if (ArmazemDeSessao.navegador.token()) ArmazemDeSessao.navegador.limpar();
     const origem = pathname + window.location.search;
     router.replace(`/login?next=${encodeURIComponent(origem)}`);
   }, [estado.carregando, estado.sessao, router, pathname]);

@@ -17,7 +17,7 @@ export {
   putPerfilCiclista,
 } from "./http/handlers";
 export { verificarToken, type SessaoToken } from "./infrastructure/token";
-export { exigirPerfil, type SessaoAtiva } from "./application/exigir-sessao";
+export { PerfisPermitidos, type SessaoAtiva } from "./application/exigir-sessao";
 export { Admin } from "./domain/admin";
 export { Cliente } from "./domain/cliente";
 export { criarUsuario, type LinhaDeUsuario } from "./domain/fabrica-usuario";
@@ -38,5 +38,5 @@ export {
 } from "./domain/usuario";
 
 // Rotas que exigem login: `const sessao = await exigirSessao(request)` (401 se não houver
-// sessão válida). Para restringir o perfil: `exigirPerfil(sessao, "OPERADOR", "ADMIN")` (403).
+// sessão válida). Para restringir o perfil: `new PerfisPermitidos("OPERADOR", "ADMIN").exigir(sessao)` (403).
 export { exigirSessao } from "./http/sessao";

@@ -1,7 +1,8 @@
-import { verificarBanco } from "@/shared/db/verificar";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import { VerificadorDoBanco } from "@/shared/db/verificar";
 import { AppError, NotFoundError, UnauthorizedError } from "@/shared/http/errors";
-import { errorResponse, ok } from "@/shared/http/response";
-import { bearerConfere, TAMANHO_MINIMO_SEGREDO } from "@/shared/http/segredo";
+import { Resposta } from "@/shared/http/resposta";
+import { SegredoBearer } from "@/shared/http/segredo";
 
 // Consulta o banco a cada chamada; não pode ser servida do cache.
 export const dynamic = "force-dynamic";
@@ -10,20 +11,20 @@ export const dynamic = "force-dynamic";
 // consulta o banco. Por isso só responde a quem enviar HEALTH_DB_SECRET no header
 // "Authorization: Bearer <segredo>". Sem a variável configurada, a rota fica desligada (404).
 export async function GET(request: Request) {
-  const segredo = process.env.HEALTH_DB_SECRET;
-  if (!segredo || segredo.length < TAMANHO_MINIMO_SEGREDO) {
-    return errorResponse(new NotFoundError());
+  const segredo = new SegredoBearer(process.env.HEALTH_DB_SECRET);
+  if (!segredo.ativo) {
+    return Resposta.deErro(new NotFoundError());
   }
-  if (!bearerConfere(request.headers.get("authorization"), segredo)) {
-    return errorResponse(new UnauthorizedError());
+  if (!segredo.confere(request.headers.get("authorization"))) {
+    return Resposta.deErro(new UnauthorizedError());
   }
 
   try {
-    return ok(await verificarBanco(), { headers: { "Cache-Control": "no-store" } });
+    return Resposta.ok(await new VerificadorDoBanco(BancoDeDados.padrao).verificar(), { headers: { "Cache-Control": "no-store" } });
   } catch (erro) {
     // O detalhe (host, credenciais, mensagem do driver) fica só no log do servidor.
     console.error("Falha ao verificar o banco:", erro);
-    return errorResponse(
+    return Resposta.deErro(
       new AppError("DATABASE_UNAVAILABLE", "Banco de dados indisponível", 503),
     );
   }

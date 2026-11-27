@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { Ambiente } from "../../../shared/config/ambiente.ts";
 import { REGRA_DO_SEGREDO_DE_SESSAO } from "../../../shared/config/validador-do-ambiente.ts";
-import { requireEnv } from "../../../shared/config/env.ts";
 import type { PerfilUsuario } from "../domain/usuario";
 
 // Token de sessão: JWT HS256 assinado com SESSION_SECRET. Sem estado no banco, então o
@@ -11,7 +11,9 @@ export const DURACAO_SESSAO_SEGUNDOS = 60 * 60 * 24;
 export type SessaoToken = { sub: string; perfil: PerfilUsuario; iat: number; exp: number };
 
 function segredo(): string {
-  const valor = requireEnv("SESSION_SECRET");
+  // O validador do ambiente confere o valor sem os espaços das pontas; aqui vale o mesmo valor, para a
+  // checagem da subida e a assinatura do token nunca discordarem.
+  const valor = Ambiente.padrao.exigir("SESSION_SECRET").trim();
   const problema = REGRA_DO_SEGREDO_DE_SESSAO.conferir(valor, true);
   if (problema) throw new Error(problema);
   return valor;

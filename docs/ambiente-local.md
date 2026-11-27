@@ -49,12 +49,11 @@ Copy-Item .env.example .env.local     # PowerShell
 | `DATABASE_URL` | Conexão do app: usuário **`app_login`**, host com `-pooler`. |
 | `DATABASE_URL_UNPOOLED` | Conexão direta (sem `-pooler`), do dono do banco. Usada por migrations, seed e `criar-equipe`. |
 | `SESSION_SECRET` | Valor aleatório com 32+ caracteres. Gere com o comando abaixo. O valor de exemplo é recusado. |
-| `APP_URL` | Endereço público do app (`http://localhost:3000` em desenvolvimento). Em production é obrigatório e precisa ser `https`. |
-| `PAGAMENTO_MODO` | `simulado` (único modo no MVP). Em production é obrigatório; em desenvolvimento, se faltar, vale `simulado`. |
+| `APP_URL` | Opcional por enquanto (nenhuma rota a lê). Se vier, é só o endereço público, sem barra no fim (`http://localhost:3000` em desenvolvimento) e `https` em production. |
 | `HEALTH_DB_SECRET` | Opcional (16+ caracteres). Sem ele, `/api/health/db` fica desligada. |
 | `SEED_ADMIN_SENHA`, `SEED_OPERADOR_SENHA` | Senhas de teste das contas do seed (8+ caracteres, com letra e número). Invente as suas. |
-| `STRIPE_SECRET_KEY` | Chave secreta da Stripe. Localmente, use a de **teste** (`sk_test_...`). Sem ela, pagar dá `502`. |
-| `STRIPE_WEBHOOK_SECRET` | Segredo do webhook (`whsec_...`). Localmente, o `stripe listen` mostra o valor (veja abaixo). |
+| `STRIPE_SECRET_KEY` | Chave secreta da Stripe. Localmente, use a de **teste** (`sk_test_...`). Em production é obrigatória (o app avisa na subida); em desenvolvimento, sem ela, pagar dá `502`. |
+| `STRIPE_WEBHOOK_SECRET` | Segredo do webhook (`whsec_...`). Obrigatório em production. Localmente, o `stripe listen` mostra o valor (veja abaixo). |
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
@@ -135,7 +134,7 @@ Abra <http://localhost:3000>. Para parar, **Ctrl+C** no terminal. (`npm run buil
 projeto compila; não sobe o app para desenvolvimento.)
 
 Para ver o app como ele roda em produção, use `npm run build` e depois `npm start`. Nesse modo o app exige
-também `APP_URL` e `PAGAMENTO_MODO` no `.env.local` (em desenvolvimento eles têm padrão). Se faltar
+também `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` no `.env.local` (em desenvolvimento elas são opcionais). Se faltar
 alguma variável, **o servidor continua de pé, mas todas as rotas respondem erro 500** (inclusive
 `/api/health`), e o motivo aparece só no terminal onde o servidor roda, nunca na resposta.
 
@@ -178,8 +177,7 @@ para o Neon `dev`, e **nunca** para production.
 | Sintoma | Causa provável | O que fazer |
 |---|---|---|
 | `password authentication failed for user 'USUARIO'` | `.env.local` ainda com o texto do modelo | Preencha as conexões reais (passo 3). |
-| Login dá erro 500 | `SESSION_SECRET` ausente, curto ou igual ao exemplo | Gere um valor novo e reinicie o `npm run dev`. |
-| Aparece "Configuração do ambiente inválida" no terminal e todas as páginas e rotas dão erro 500 | Falta ou está errada uma variável da tabela acima (em production, também `APP_URL` e `PAGAMENTO_MODO`) | O servidor segue de pé, mas responde 500 em tudo. A mensagem do terminal lista cada variável com o problema, sem mostrar o valor. Corrija o `.env.local` e **reinicie** o servidor. |
+| Aparece "Configuração do ambiente inválida" no terminal e todas as páginas e rotas dão erro 500 | Falta ou está errada uma variável da tabela acima (por exemplo, `SESSION_SECRET` ausente, curto ou igual ao exemplo; em production, também as duas chaves da Stripe) | O servidor segue de pé, mas responde 500 em tudo. A mensagem do terminal lista cada variável com o problema, sem mostrar o valor. Corrija o `.env.local` e **reinicie** o servidor. |
 | `criar-equipe` recusa a conexão | `DATABASE_URL_UNPOOLED` com `-pooler` | Use a conexão direta, sem `-pooler`. |
 | Erro com arquivos `.ts` ao rodar scripts ou testes | Node anterior a 22.18 | Instale o Node 22 LTS (`node -v`). |
 | Aviso `MODULE_TYPELESS_PACKAGE_JSON` | Node importando `.ts` do app | Só informativo, pode ignorar. |

@@ -1,5 +1,3 @@
-import type { PoolClient } from "pg";
-
 // Quem está fazendo a consulta, no formato que as políticas de row-level security leem
 // (sessao_perfil() e sessao_usuario_id(), migration 0004; ver docs/modelo-de-dados.md).
 // As políticas só valem se o app conectar com um papel sem BYPASSRLS (app_login, do grupo
@@ -23,51 +21,49 @@ type ClienteTransacao = {
   release(): void;
 };
 
-function validar(sessao: SessaoBanco): void {
-  if (sessao.perfil === null) {
-    if (sessao.usuarioId !== null) throw new Error("Visitante não tem usuarioId.");
-    return;
-  }
-  if (!PERFIS_SESSAO.includes(sessao.perfil)) {
-    throw new Error(`Perfil de sessão desconhecido: ${String(sessao.perfil)}`);
-  }
-  if (typeof sessao.usuarioId !== "string" || !UUID.test(sessao.usuarioId)) {
-    throw new Error("usuarioId da sessão precisa ser um UUID.");
-  }
-}
+// Executa um trecho de código dentro de uma transação com a sessão declarada. O set_config com
+// "true" vale só dentro da transação, então a sessão não vaza para a próxima requisição que
+// reaproveitar a conexão. A forma de obter a conexão entra pelo construtor (o BancoDeDados passa a
+// do pool; os testes passam uma de mentira).
+export class TransacaoComSessao<C extends ClienteTransacao> {
+  readonly #conectar: () => Promise<C>;
 
-// Abre uma transação, declara a sessão e executa fn. O set_config com "true" vale só dentro
-// da transação, então a sessão não vaza para a próxima requisição que reaproveitar a conexão.
-export async function comSessaoEm<T, C extends ClienteTransacao>(
-  conectar: () => Promise<C>,
-  sessao: SessaoBanco,
-  fn: (client: C) => Promise<T>,
-): Promise<T> {
-  validar(sessao);
-  const client = await conectar();
-  try {
-    await client.query("BEGIN");
-    await client.query(
-      "SELECT set_config('app.perfil', $1, true), set_config('app.usuario_id', $2, true)",
-      [sessao.perfil ?? "", sessao.usuarioId ?? ""],
-    );
-    const resultado = await fn(client);
-    await client.query("COMMIT");
-    return resultado;
-  } catch (erro) {
-    await client.query("ROLLBACK").catch(() => {});
-    throw erro;
-  } finally {
-    client.release();
+  constructor(conectar: () => Promise<C>) {
+    this.#conectar = conectar;
   }
-}
 
-// Uso numa rota: const sessao = await exigirSessao(request);
-//                const reservas = await comSessao(sessao, (c) => c.query("SELECT ..."));
-export async function comSessao<T>(
-  sessao: SessaoBanco,
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
-  const { getPool } = await import("./pool");
-  return comSessaoEm(() => getPool().connect(), sessao, fn);
+  static #validar(sessao: SessaoBanco): void {
+    if (sessao.perfil === null) {
+      if (sessao.usuarioId !== null) throw new Error("Visitante não tem usuarioId.");
+      return;
+    }
+    if (!PERFIS_SESSAO.includes(sessao.perfil)) {
+      throw new Error(`Perfil de sessão desconhecido: ${String(sessao.perfil)}`);
+    }
+    if (typeof sessao.usuarioId !== "string" || !UUID.test(sessao.usuarioId)) {
+      throw new Error("usuarioId da sessão precisa ser um UUID.");
+    }
+  }
+
+  // Sessão inválida é recusada antes de pegar uma conexão. Se fn falha: ROLLBACK, a conexão é
+  // devolvida e o erro original sobe.
+  async executar<T>(sessao: SessaoBanco, fn: (client: C) => Promise<T>): Promise<T> {
+    TransacaoComSessao.#validar(sessao);
+    const client = await this.#conectar();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        "SELECT set_config('app.perfil', $1, true), set_config('app.usuario_id', $2, true)",
+        [sessao.perfil ?? "", sessao.usuarioId ?? ""],
+      );
+      const resultado = await fn(client);
+      await client.query("COMMIT");
+      return resultado;
+    } catch (erro) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw erro;
+    } finally {
+      client.release();
+    }
+  }
 }

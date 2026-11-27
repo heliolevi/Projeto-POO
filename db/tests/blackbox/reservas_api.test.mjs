@@ -15,7 +15,7 @@ import { criarCancelarReserva } from '../../../src/modules/reservas/application/
 import { operacoesNoBanco } from '../../../src/modules/reservas/infrastructure/repositorio-reservas.ts';
 import { calcularValorAluguel } from '../../../src/shared/dominio/preco-aluguel.ts';
 import { gerarCodigoReserva } from '../../../src/modules/reservas/domain/reserva.ts';
-import { comSessaoEm } from '../../../src/shared/db/sessao.ts';
+import { TransacaoComSessao } from '../../../src/shared/db/sessao.ts';
 
 const HORA = 60 * 60 * 1000;
 // reservas no futuro (a validação recusa início no passado), em horários fixos de amanhã+
@@ -358,7 +358,7 @@ await rodarSuite('blackbox/reservas_api', async (executor, client) => {
 
 // ---------------------------------------------------------------------------------------------
 // Parte 2: concorrência de verdade. Conexões separadas, dados COMMITADOS (a transação única da
-// suíte não prova nada sobre corrida) e apagados no final, com o comSessaoEm real do app.
+// suíte não prova nada sobre corrida) e apagados no final, com a TransacaoComSessao real do app.
 // ---------------------------------------------------------------------------------------------
 await rodarSuiteConcorrencia();
 
@@ -384,7 +384,7 @@ async function rodarSuiteConcorrencia() {
     }
   }
 
-  // uma conexão por requisição, como o pool do app: papel app_backend, transação do comSessaoEm
+  // uma conexão por requisição, como o pool do app: papel app_backend, transação da TransacaoComSessao
   const conectar = async () => {
     const c = new pg.Client({ connectionString: url });
     await c.connect();
@@ -393,7 +393,7 @@ async function rodarSuiteConcorrencia() {
     conexoes.push(c);
     return c;
   };
-  const transacao = (sessao, fn) => comSessaoEm(conectar, sessao, (c) => fn(operacoesNoBanco(c)));
+  const transacao = (sessao, fn) => new TransacaoComSessao(conectar).executar(sessao, (c) => fn(operacoesNoBanco(c)));
   const criar = criarCriarReserva({ transacao, agora: () => new Date(), gerarCodigo: gerarCodigoReserva, calcularValorAluguel });
   const cancelarReal = criarCancelarReserva({ transacao, agora: () => new Date() });
 

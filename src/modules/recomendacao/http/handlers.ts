@@ -1,9 +1,9 @@
-import { exigirPerfil, exigirSessao, perfilCiclista } from "@/modules/contas";
+import { exigirSessao, PerfisPermitidos, perfilCiclista } from "@/modules/contas";
 import { calcularValorAluguel, horasCobradas } from "@/modules/reservas";
-import { exigirDentroDoLimite } from "@/shared/db/limite-tentativas";
-import { query } from "@/shared/db/pool";
-import { ipDoCliente } from "@/shared/http/corpo";
-import { errorResponse, ok } from "@/shared/http/response";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
+import { ClienteDaRequisicao } from "@/shared/http/cliente-da-requisicao";
+import { Resposta } from "@/shared/http/resposta";
 import { criarBuscarRecomendacoes } from "../application/buscar-recomendacoes";
 import { buscarTiposComUnidadesLivres } from "../infrastructure/repositorio-disponibilidade";
 
@@ -14,7 +14,10 @@ import { buscarTiposComUnidadesLivres } from "../infrastructure/repositorio-disp
 const LIMITE_BUSCAS_POR_USUARIO = { max: 60, janelaSegundos: 60 };
 const LIMITE_BUSCAS_POR_IP = { max: 300, janelaSegundos: 60 };
 
+const limite = new LimiteDeTentativas(BancoDeDados.padrao);
 const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
+
+const soCliente = new PerfisPermitidos("CLIENTE");
 
 // Criado uma vez só: não guarda estado, e a sessão do cliente chega a cada busca.
 const buscar = criarBuscarRecomendacoes({
@@ -28,11 +31,9 @@ const buscar = criarBuscarRecomendacoes({
 // GET /api/recomendacao (rota 11): só CLIENTE (sessão 401, perfil 403, depois os limites 429).
 export async function getRecomendacao(request: Request) {
   try {
-    const sessao = exigirPerfil(await exigirSessao(request), "CLIENTE");
-    await exigirDentroDoLimite(query, `recomendacao:usuario:${sessao.usuarioId}`, LIMITE_BUSCAS_POR_USUARIO);
-    await exigirDentroDoLimite(
-      query,
-      `recomendacao:ip:${ipDoCliente(request.headers).slice(0, 64)}`,
+    const sessao = soCliente.exigir(await exigirSessao(request));
+    await limite.exigirDentroDoLimite(`recomendacao:usuario:${sessao.usuarioId}`, LIMITE_BUSCAS_POR_USUARIO);
+    await limite.exigirDentroDoLimite(`recomendacao:ip:${new ClienteDaRequisicao(request.headers).ip.slice(0, 64)}`,
       LIMITE_BUSCAS_POR_IP,
     );
 
@@ -42,8 +43,8 @@ export async function getRecomendacao(request: Request) {
       fim: searchParams.get("fim"),
       atividade: searchParams.get("atividade"),
     });
-    return ok(resposta, SEM_CACHE);
+    return Resposta.ok(resposta, SEM_CACHE);
   } catch (erro) {
-    return errorResponse(erro);
+    return Resposta.deErro(erro);
   }
 }

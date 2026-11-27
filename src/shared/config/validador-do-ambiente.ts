@@ -19,12 +19,6 @@ export const HEALTH_DB_SECRET_MIN = 16;
 // mas qualquer pessoa o conhece e poderia forjar tokens.
 const SEGREDO_DE_EXEMPLO = "troque-por-um-valor-aleatorio";
 
-// No MVP o Pix é sempre simulado. Quando houver outro modo, ele entra aqui.
-export const PAGAMENTO_MODOS = ["simulado"] as const;
-export type PagamentoModo = (typeof PAGAMENTO_MODOS)[number];
-
-export const APP_URL_PADRAO = "http://localhost:3000";
-
 const HOSTS_LOCAIS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 // Variável vazia ("NOME=" no .env) conta como ausente.
@@ -120,12 +114,16 @@ export class SegredoComTamanhoMinimo extends RegraDeVariavel {
   }
 }
 
-/** Endereço público do app (APP_URL): http(s) válido, e https em produção (exceto o computador local). */
+/**
+ * Endereço público do app (APP_URL). Opcional: nenhuma rota lê essa variável ainda, então exigir faria o
+ * deploy cair por algo sem uso. Se vier, precisa ser só o endereço (http ou https, sem barra no fim,
+ * caminho nem parâmetros) e https em produção (exceto o computador local).
+ */
 export class UrlDoApp extends RegraDeVariavel {
   constructor() {
     super({
       nome: "APP_URL",
-      exigencia: "em-producao",
+      exigencia: "nunca",
       dicaSeAusente: "Informe o endereço público do app, como https://bike-ilha-club.vercel.app.",
     });
   }
@@ -140,6 +138,9 @@ export class UrlDoApp extends RegraDeVariavel {
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       return `${this.nome} precisa começar com http:// ou https://.`;
     }
+    if (valor.endsWith("/") || url.pathname !== "/" || url.search !== "" || url.hash !== "") {
+      return `${this.nome} deve ser só o endereço, sem barra no fim, caminho ou parâmetros. Use algo como https://bike-ilha-club.vercel.app.`;
+    }
     if (producao && url.protocol !== "https:" && !HOSTS_LOCAIS.has(url.hostname)) {
       return `${this.nome} precisa usar https:// em produção.`;
     }
@@ -149,7 +150,7 @@ export class UrlDoApp extends RegraDeVariavel {
 
 type DadosDeUmDosValores = DadosDaRegra & { valores: readonly string[] };
 
-/** Variável que só aceita alguns valores (PAGAMENTO_MODO). A mensagem nunca repete o valor recebido. */
+/** Variável que só aceita alguns valores (nenhuma do app usa ainda). A mensagem nunca repete o valor recebido. */
 export class UmDosValores extends RegraDeVariavel {
   readonly #valores: readonly string[];
 
@@ -161,6 +162,26 @@ export class UmDosValores extends RegraDeVariavel {
   protected conferirValor(valor: string): string | null {
     if (this.#valores.includes(valor)) return null;
     return `${this.nome} tem um valor que não existe. Valores aceitos: ${this.#valores.join(", ")}.`;
+  }
+}
+
+type DadosDaChave = DadosDaRegra & { prefixos: readonly string[] };
+
+/**
+ * Chave de um serviço de fora (as da Stripe): precisa começar por um dos prefixos conhecidos, o que
+ * pega o valor colado errado ou de outra conta. A mensagem nunca repete o valor recebido.
+ */
+export class ChaveComPrefixo extends RegraDeVariavel {
+  readonly #prefixos: readonly string[];
+
+  constructor({ prefixos, ...dados }: DadosDaChave) {
+    super(dados);
+    this.#prefixos = [...prefixos];
+  }
+
+  protected conferirValor(valor: string): string | null {
+    if (this.#prefixos.some((prefixo) => valor.startsWith(prefixo))) return null;
+    return `${this.nome} tem um formato inesperado. Ela começa com ${this.#prefixos.join(" ou ")}.`;
   }
 }
 
@@ -192,7 +213,8 @@ export const REGRA_DO_SEGREDO_DE_SESSAO = new SegredoComTamanhoMinimo({
   valorDeExemplo: SEGREDO_DE_EXEMPLO,
 });
 
-// Em produção, APP_URL e PAGAMENTO_MODO são obrigatórios; em desenvolvimento, se faltarem, valem o padrão.
+// Em produção, DATABASE_URL, SESSION_SECRET e as duas chaves da Stripe são obrigatórias (sem elas o
+// pagamento responderia 502 com o app "saudável"). Em desenvolvimento só as duas primeiras.
 export const REGRAS_DO_APP: readonly RegraDeVariavel[] = [
   new UrlDoBanco(),
   REGRA_DO_SEGREDO_DE_SESSAO,
@@ -203,11 +225,17 @@ export const REGRAS_DO_APP: readonly RegraDeVariavel[] = [
     minimo: HEALTH_DB_SECRET_MIN,
   }),
   new UrlDoApp(),
-  new UmDosValores({
-    nome: "PAGAMENTO_MODO",
+  new ChaveComPrefixo({
+    nome: "STRIPE_SECRET_KEY",
     exigencia: "em-producao",
-    dicaSeAusente: `No MVP o valor é "${PAGAMENTO_MODOS[0]}".`,
-    valores: PAGAMENTO_MODOS,
+    dicaSeAusente: "Cole a chave secreta da Stripe (sk_test_... no teste, sk_live_... em produção).",
+    prefixos: ["sk_test_", "sk_live_", "rk_test_", "rk_live_"],
+  }),
+  new ChaveComPrefixo({
+    nome: "STRIPE_WEBHOOK_SECRET",
+    exigencia: "em-producao",
+    dicaSeAusente: "Cole o segredo do webhook da Stripe (whsec_...).",
+    prefixos: ["whsec_"],
   }),
 ];
 
