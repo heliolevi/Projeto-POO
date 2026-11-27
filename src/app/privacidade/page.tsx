@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { lerDocumento } from "@/shared/markdown/ler-documento";
+import { DocumentosDoRepositorio } from "@/shared/markdown/ler-documento";
 import { Documento } from "@/shared/ui/Documento";
 import { SiteLayout } from "@/shared/ui/SiteLayout";
 
@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Política de privacidade | Bike Ilha
 export default function PrivacidadePage() {
   return (
     <SiteLayout>
-      <Documento markdown={lerDocumento("politica-de-privacidade.md")} />
+      <Documento markdown={DocumentosDoRepositorio.ler("politica-de-privacidade.md")} />
     </SiteLayout>
   );
 }

@@ -7,7 +7,7 @@ export type Atividade = (typeof ATIVIDADES)[number];
 export const STATUS_EDITAVEIS = ["DISPONIVEL", "MANUTENCAO", "BLOQUEADA", "BAIXADA"] as const;
 export type StatusBicicleta = (typeof STATUS_EDITAVEIS)[number] | "ALUGADA";
 
-export const ROTULO_STATUS: Record<StatusBicicleta, string> = {
+const ROTULO_STATUS: Readonly<Record<StatusBicicleta, string>> = {
   DISPONIVEL: "Disponível",
   MANUTENCAO: "Manutenção",
   BLOQUEADA: "Bloqueada",
@@ -15,13 +15,29 @@ export const ROTULO_STATUS: Record<StatusBicicleta, string> = {
   ALUGADA: "Alugada",
 };
 
-export const ROTULO_ATIVIDADE: Record<Atividade, string> = {
+const ROTULO_ATIVIDADE: Readonly<Record<Atividade, string>> = {
   PASSEIO: "Passeio",
   URBANO: "Urbano",
   TRILHA: "Trilha",
   ESPORTE: "Esporte",
   TURISMO: "Turismo",
 };
+
+// Os textos que o painel mostra para o status da bicicleta e para a atividade do tipo.
+// Só tem métodos estáticos (não guarda estado), então não se cria instância.
+export class RotulosDoCatalogo {
+  private constructor() {
+    throw new Error("RotulosDoCatalogo só tem métodos estáticos.");
+  }
+
+  static status(valor: StatusBicicleta): string {
+    return ROTULO_STATUS[valor];
+  }
+
+  static atividade(valor: Atividade): string {
+    return ROTULO_ATIVIDADE[valor];
+  }
+}
 
 export type TipoAdmin = {
   id: string;
@@ -49,15 +65,27 @@ export type BicicletaAdmin = {
 };
 
 // "40", "40,5" ou "40,50" (reais) viram centavos. Texto inválido vira null.
-export function reaisParaCentavos(texto: string): number | null {
-  const limpo = texto.trim().replace(/\s/g, "").replace(/^R\$/i, "").replace(",", ".");
-  if (!/^\d+(\.\d{1,2})?$/.test(limpo)) return null;
-  return Math.round(Number(limpo) * 100);
+export class ConversorDeReais {
+  private constructor() {
+    throw new Error("ConversorDeReais só tem métodos estáticos.");
+  }
+
+  static paraCentavos(texto: string): number | null {
+    const limpo = texto.trim().replace(/\s/g, "").replace(/^R\$/i, "").replace(",", ".");
+    if (!/^\d+(\.\d{1,2})?$/.test(limpo)) return null;
+    return Math.round(Number(limpo) * 100);
+  }
 }
 
 // Pontos de retirada distintos que aparecem nas bicicletas (a locadora é única).
-export function pontosDasBicicletas(bicicletas: BicicletaAdmin[]): { id: string; nome: string }[] {
-  const vistos = new Map<string, string>();
-  for (const b of bicicletas) if (!vistos.has(b.ponto.id)) vistos.set(b.ponto.id, b.ponto.nome);
-  return [...vistos].map(([id, nome]) => ({ id, nome }));
+export class PontosDasBicicletas {
+  private constructor() {
+    throw new Error("PontosDasBicicletas só tem métodos estáticos.");
+  }
+
+  static distintos(bicicletas: readonly BicicletaAdmin[]): { id: string; nome: string }[] {
+    const vistos = new Map<string, string>();
+    for (const b of bicicletas) if (!vistos.has(b.ponto.id)) vistos.set(b.ponto.id, b.ponto.nome);
+    return [...vistos].map(([id, nome]) => ({ id, nome }));
+  }
 }

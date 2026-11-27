@@ -5,10 +5,11 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { FormatadorDeData } from "@/shared/format/formatador-de-data";
-import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
-import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
+import { ClienteApi } from "@/shared/http/api-cliente";
+import { MensagemDaFalha } from "@/shared/telas/mensagem-da-falha";
+import { FotosDosTipos } from "@/shared/landing/fotos-dos-tipos";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
-import { podeCancelar, type Reserva, type ReservaDetalhada } from "@/shared/reservas/reserva";
+import { StatusDaReserva, type Reserva, type ReservaDetalhada } from "@/shared/reservas/reserva";
 import { ContagemRegressiva } from "@/shared/reservas/ContagemRegressiva";
 import { SeloStatus } from "@/shared/reservas/SeloStatus";
 import styles from "@/shared/reservas/reservas.module.css";
@@ -30,10 +31,6 @@ const MENSAGEM_POR_STATUS: Partial<Record<Reserva["status"], string>> = {
   EXPIRADA: "O prazo para pagar terminou e a bicicleta foi liberada. Você pode fazer uma nova reserva.",
 };
 
-function mensagemDeErro(erro: unknown, padrao: string): string {
-  return erro instanceof ApiError ? erro.message : padrao;
-}
-
 export default function ReservaDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const [estado, setEstado] = useState<Estado>({ tipo: "carregando" });
@@ -52,7 +49,7 @@ export default function ReservaDetalhePage() {
         if (!ativo) return;
         setEstado({
           tipo: "erro",
-          mensagem: mensagemDeErro(erro, "Não foi possível carregar a reserva agora."),
+          mensagem: MensagemDaFalha.de(erro, "Não foi possível carregar a reserva agora."),
         });
       });
     return () => {
@@ -74,7 +71,7 @@ export default function ReservaDetalhePage() {
       const atualizada = await ClienteApi.padrao.post<Reserva>(`/api/reservas/${id}/cancelar`);
       setEstado({ tipo: "pronto", reserva: { ...estado.reserva, ...atualizada } });
     } catch (erro) {
-      setErroAcao(mensagemDeErro(erro, "Não foi possível cancelar agora. Tente novamente."));
+      setErroAcao(MensagemDaFalha.de(erro, "Não foi possível cancelar agora. Tente novamente."));
     } finally {
       setCancelando(false);
     }
@@ -101,7 +98,7 @@ export default function ReservaDetalhePage() {
 
           <div style={{ marginBottom: "var(--space-16)" }}>
             <FotoCapa
-              foto={fotoDoTipoPorId(atividadesPorTipo, estado.reserva.tipo.id)}
+              foto={FotosDosTipos.doTipo(atividadesPorTipo, estado.reserva.tipo.id)}
               formato="cartao"
               sizes="(min-width: 768px) 592px, 100vw"
               priority
@@ -165,7 +162,7 @@ export default function ReservaDetalhePage() {
                 Pagar com Pix
               </Link>
             )}
-            {podeCancelar(estado.reserva.status) && (
+            {StatusDaReserva.podeCancelar(estado.reserva.status) && (
               <button
                 type="button"
                 className={styles.botaoSecundario}

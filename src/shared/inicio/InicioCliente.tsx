@@ -6,12 +6,11 @@ import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { useEmpresa } from "@/shared/empresa/use-empresa";
 import { FormatadorDeData } from "@/shared/format/formatador-de-data";
 import { ClienteApi } from "@/shared/http/api-cliente";
-import { FOTO_PASSEIO, fotoDoTipo } from "@/shared/landing/fotos";
-import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
+import { FOTO_PASSEIO, FotosDasBicicletas } from "@/shared/landing/fotos";
+import { FotosDosTipos } from "@/shared/landing/fotos-dos-tipos";
 import {
-  faixaDeAltura,
   LOCADORA,
-  ordenarPorPreco,
+  TiposDaVitrine,
   type TipoPublico,
 } from "@/shared/landing/locadora";
 import { carregarTiposPublicos, useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
@@ -20,7 +19,7 @@ import type { Reserva } from "@/shared/reservas/reserva";
 import { SeloStatus } from "@/shared/reservas/SeloStatus";
 import { BotaoSecundario } from "@/shared/ui/BotaoSecundario";
 import { FotoCapa } from "@/shared/ui/FotoCapa";
-import { primeiroNome, proximaReserva, saudacao } from "./inicio";
+import { ReservaEmDestaque, SaudacaoDoCliente } from "./inicio";
 import styles from "./Inicio.module.css";
 
 type Carga<T> = { tipo: "carregando" } | { tipo: "erro" } | { tipo: "pronto"; dados: T };
@@ -45,21 +44,21 @@ export function InicioCliente() {
       .then((dados) => ativo && setReservas({ tipo: "pronto", dados }))
       .catch(() => ativo && setReservas({ tipo: "erro" }));
     carregarTiposPublicos()
-      .then((dados) => ativo && setTipos({ tipo: "pronto", dados: ordenarPorPreco(dados) }))
+      .then((dados) => ativo && setTipos({ tipo: "pronto", dados: TiposDaVitrine.ordenarPorPreco(dados) }))
       .catch(() => ativo && setTipos({ tipo: "erro" }));
     return () => {
       ativo = false;
     };
   }, []);
 
-  const nome = conta ? primeiroNome(conta.nome) : "";
-  const proxima = reservas.tipo === "pronto" ? proximaReserva(reservas.dados) : null;
+  const nome = conta ? SaudacaoDoCliente.primeiroNome(conta.nome) : "";
+  const proxima = reservas.tipo === "pronto" ? ReservaEmDestaque.proxima(reservas.dados) : null;
 
   return (
     <div className={styles.pagina}>
       <header className={styles.saudacao}>
         <p className={styles.saudacaoLinha}>
-          {saudacao()}
+          {SaudacaoDoCliente.doMomento()}
           {nome ? "," : ""}
         </p>
         <h2 className={styles.saudacaoNome}>{nome || "Bem-vindo"}</h2>
@@ -106,7 +105,7 @@ export function InicioCliente() {
         {proxima && (
           <Link href={`/app/reservas/${proxima.id}`} className={styles.reservaCartao}>
             <FotoCapa
-              foto={fotoDoTipoPorId(atividades, proxima.tipo.id)}
+              foto={FotosDosTipos.doTipo(atividades, proxima.tipo.id)}
               formato="miniatura"
               sizes="104px"
             />
@@ -167,14 +166,14 @@ export function InicioCliente() {
             {tipos.dados.map((tipo) => (
               <li key={tipo.id}>
                 <Link href="/app/buscar" className={styles.tipoCartao}>
-                  <FotoCapa foto={fotoDoTipo(tipo.atividades)} formato="cartao" sizes="240px">
+                  <FotoCapa foto={FotosDasBicicletas.doTipo(tipo.atividades)} formato="cartao" sizes="240px">
                     <span className={styles.preco}>
                       {Dinheiro.deCentavos(tipo.precoDiaCentavos).formatar()}
                       <small>/dia</small>
                     </span>
                   </FotoCapa>
                   <span className={styles.tipoNome}>{tipo.nome}</span>
-                  <span className={styles.tipoInfo}>{faixaDeAltura(tipo)}</span>
+                  <span className={styles.tipoInfo}>{TiposDaVitrine.faixaDeAltura(tipo)}</span>
                   <span className={styles.tipoInfo}>
                     {Dinheiro.deCentavos(tipo.precoHoraCentavos).formatar()} por hora
                   </span>

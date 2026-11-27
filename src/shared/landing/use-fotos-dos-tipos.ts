@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { montarMapa, type AtividadesPorTipo } from "./fotos-dos-tipos";
+import { FotosDosTipos, type AtividadesPorTipo } from "./fotos-dos-tipos";
 import type { TipoPublico } from "./locadora";
 
 // Uma única busca ao catálogo por visita: as telas seguintes reaproveitam a resposta.
@@ -25,7 +25,7 @@ export function useAtividadesPorTipo(): AtividadesPorTipo | null {
   useEffect(() => {
     let ativo = true;
     carregarTiposPublicos()
-      .then((tipos) => ativo && setMapa(montarMapa(tipos)))
+      .then((tipos) => ativo && setMapa(FotosDosTipos.montarMapa(tipos)))
       .catch(() => {
         // Sem o mapa, as fotos usam a escolha estável pelo id.
       });

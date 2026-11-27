@@ -7,24 +7,23 @@ import { RotulosDoCiclista } from "@/shared/dominio/ciclista-rotulos";
 import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { FormatadorDeData } from "@/shared/format/formatador-de-data";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
-import { horariosDoDia, proximosDias, retiradaEDevolucao } from "@/shared/busca/agenda";
+import { AgendaDoDia } from "@/shared/busca/agenda";
 import { BilheteDoPeriodo } from "@/shared/busca/BilheteDoPeriodo";
 import {
-  aderenciaDosPontos,
+  AderenciaDaRecomendacao,
   DURACOES,
-  montarConsulta,
-  validarBusca,
+  FormularioDeBusca,
   type ErrosBusca,
   type FormularioBusca,
   type RespostaRecomendacao,
 } from "@/shared/busca/busca";
 import styles from "@/shared/busca/Busca.module.css";
 import { useRelogio } from "@/shared/busca/use-relogio";
-import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
+import { FotosDosTipos } from "@/shared/landing/fotos-dos-tipos";
 import { useEmpresa } from "@/shared/empresa/use-empresa";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
-import { perfilCompleto, type ContaLogada } from "@/shared/perfil/perfil-ciclista";
-import { linkDaReserva } from "@/shared/reservas/nova-reserva";
+import { CompletudeDoPerfil, type ContaLogada } from "@/shared/perfil/perfil-ciclista";
+import { PedidoNaUrl } from "@/shared/reservas/nova-reserva";
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
 import { EmptyState } from "@/shared/ui/EmptyState";
@@ -90,8 +89,8 @@ export default function BuscarPage() {
 
   // Dia e horário efetivos: o que a pessoa escolheu, se ainda vale; senão o primeiro dia com
   // horário livre e as 9h (ou o primeiro horário do dia). Calculado a cada render, sem efeito.
-  const dias = agora ? proximosDias(agora) : [];
-  const horariosPorDia = new Map(dias.map((d) => [d.valor, agora ? horariosDoDia(d.valor, agora) : []]));
+  const dias = agora ? AgendaDoDia.proximosDias(agora) : [];
+  const horariosPorDia = new Map(dias.map((d) => [d.valor, agora ? AgendaDoDia.horariosDoDia(d.valor, agora) : []]));
   const diaValido = (valor: string) => (horariosPorDia.get(valor)?.length ?? 0) > 0;
   const data = diaValido(form.data) ? form.data : (dias.find((d) => diaValido(d.valor))?.valor ?? "");
   const horarios = horariosPorDia.get(data) ?? [];
@@ -101,11 +100,11 @@ export default function BuscarPage() {
       ? HORA_PREFERIDA
       : (horarios[0] ?? "");
   const efetivo: FormularioBusca = { ...form, data, hora };
-  const periodo = retiradaEDevolucao(data, hora, Number(form.duracao));
+  const periodo = AgendaDoDia.retiradaEDevolucao(data, hora, Number(form.duracao));
   const rotuloDuracao = DURACOES.find((d) => d.valor === form.duracao)?.rotulo ?? "";
 
   const atividadeDoPerfil = conta?.ciclista?.atividade;
-  const perfilIncompleto = conta?.perfil === "CLIENTE" && !perfilCompleto(conta.ciclista);
+  const perfilIncompleto = conta?.perfil === "CLIENTE" && !CompletudeDoPerfil.estaCompleto(conta.ciclista);
 
   const opcoesDeDia: OpcaoDeEscolha[] = dias.map((d) => ({
     valor: d.valor,
@@ -148,7 +147,7 @@ export default function BuscarPage() {
   async function buscar(evento: FormEvent) {
     evento.preventDefault();
     if (emBusca.current) return;
-    const encontrados = validarBusca(efetivo, agora ?? new Date());
+    const encontrados = new FormularioDeBusca(efetivo).validar(agora ?? new Date());
     setErros(encontrados);
     if (Object.keys(encontrados).length > 0) return;
 
@@ -156,7 +155,7 @@ export default function BuscarPage() {
     setResultado({ tipo: "buscando" });
     try {
       const resposta = await ClienteApi.padrao.get<RespostaRecomendacao>(
-        `/api/recomendacao?${montarConsulta(efetivo)}`,
+        `/api/recomendacao?${new FormularioDeBusca(efetivo).consulta()}`,
       );
       setResultado({ tipo: "pronto", resposta });
       // Leva os resultados para a vista: no celular o formulário ocupa a tela toda.
@@ -305,12 +304,12 @@ export default function BuscarPage() {
           {resultado.resposta.resultados.length > 0 && (
             <ul className={styles.lista}>
               {resultado.resposta.resultados.map((item) => {
-                const aderencia = aderenciaDosPontos(item.pontos);
+                const aderencia = AderenciaDaRecomendacao.dosPontos(item.pontos);
                 return (
                   <li key={item.tipoId}>
                     <article className={styles.resultado} aria-labelledby={`tipo-${item.tipoId}`}>
                       <FotoCapa
-                        foto={fotoDoTipoPorId(atividadesPorTipo, item.tipoId)}
+                        foto={FotosDosTipos.doTipo(atividadesPorTipo, item.tipoId)}
                         formato="cartao"
                         sizes="(min-width: 768px) 592px, 100vw"
                       >
@@ -363,7 +362,7 @@ export default function BuscarPage() {
 
                         <Link
                           className={styles.reservar}
-                          href={linkDaReserva({
+                          href={PedidoNaUrl.link({
                             tipoId: item.tipoId,
                             inicio: resultado.resposta.periodo.inicio,
                             fim: resultado.resposta.periodo.fim,

@@ -8,8 +8,8 @@ import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { FormatadorDeData } from "@/shared/format/formatador-de-data";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { EmpresaEmCache, type PontoDeRetirada } from "@/shared/empresa";
-import { lerPedidoDaReserva, motivoDoErro, type PedidoDeReserva } from "@/shared/reservas/nova-reserva";
-import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
+import { MotivoDoErro, PedidoNaUrl, type PedidoDeReserva } from "@/shared/reservas/nova-reserva";
+import { FotosDosTipos } from "@/shared/landing/fotos-dos-tipos";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
 import type { Reserva } from "@/shared/reservas/reserva";
 import styles from "@/shared/reservas/reservas.module.css";
@@ -36,7 +36,7 @@ export default function NovaReservaPage() {
 function ResumoDaReserva() {
   const router = useRouter();
   const parametros = useSearchParams();
-  const pedido = lerPedidoDaReserva(parametros);
+  const pedido = PedidoNaUrl.ler(parametros);
   const [estado, setEstado] = useState<Estado>({ tipo: pedido ? "carregando" : "invalido" });
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
@@ -71,7 +71,7 @@ function ResumoDaReserva() {
           tipo: "erro",
           mensagem:
             erro instanceof ApiError
-              ? motivoDoErro(erro)
+              ? MotivoDoErro.de(erro)
               : "Não foi possível montar o resumo agora. Tente novamente.",
           // Erro de campo (ex.: o início já passou): tentar de novo não resolve, só outro horário.
           trocarHorario: erro instanceof ApiError && Boolean(erro.details),
@@ -96,7 +96,7 @@ function ResumoDaReserva() {
         setEstado({ tipo: "indisponivel", motivo: "conflito" });
       } else if (erro instanceof ApiError && erro.details) {
         // 400 com motivo de campo (ex.: o início já passou): mostra o motivo e oferece outro horário.
-        setEstado({ tipo: "erro", mensagem: motivoDoErro(erro), trocarHorario: true });
+        setEstado({ tipo: "erro", mensagem: MotivoDoErro.de(erro), trocarHorario: true });
       } else {
         setErroEnvio(
           erro instanceof ApiError
@@ -165,7 +165,7 @@ function ResumoDaReserva() {
       {estado.tipo === "pronto" && pedido && (
         <>
           <FotoCapa
-            foto={fotoDoTipoPorId(atividadesPorTipo, estado.item.tipoId)}
+            foto={FotosDosTipos.doTipo(atividadesPorTipo, estado.item.tipoId)}
             formato="cartao"
             sizes="(min-width: 768px) 592px, 100vw"
             priority

@@ -28,6 +28,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `shared/auth` | `Sessao`, `ArmazemDeSessao`, `DestinoSeguro` |
 | `shared/config` | `Ambiente` |
 | `shared/dominio` (documentos, senha, ids e período) | `Cpf`, `Cnpj`, `PoliticaDeSenha`, `Uuid`, `ValidadorDePeriodo` |
+| `shared` (lógica das telas) | `FormularioDeBusca`, `AderenciaDaRecomendacao`, `AgendaDoDia`; `ReservaEmDestaque`, `SaudacaoDoCliente`; `FormularioDePerfil` (imutável), `CompletudeDoPerfil`, `IniciaisDoNome`; `FormularioDeSenha`, `AlturaDaConta`, `DesativacaoDaConta`, `MensagensDeErroDaConta`; `RotulosDoCatalogo`, `ConversorDeReais`, `PontosDasBicicletas`; `StatusDaReserva`, `ContagemDoPrazo`, `PedidoNaUrl`, `MotivoDoErro`; `AcompanhamentoDoPix`; `RotulosDoChecklist`, `MovimentoDoBalcao`, `ChecklistDoBalcao`, `FilaDoBalcao`; `FotosDasBicicletas`, `FotosDosTipos`, `TiposDaVitrine`; `LeitorDeMarkdown`, `LinksDeDocumento`, `DocumentosDoRepositorio`; `MensagemDaFalha` |
 | `shared/format` | `FormatadorDeData` |
 | `shared/config` (ambiente) | `ValidadorDoAmbiente`, `RegraDeVariavel` (abstrata), `UrlDoBanco`, `SegredoComTamanhoMinimo`, `UrlDoApp`, `ChaveComPrefixo`, `UmDosValores` |
 
@@ -234,5 +235,4 @@ construtor (injeção de dependência):
 ### O que ainda não foi convertido
 
 Estes grupos ainda têm funções soltas e entram nas próximas fases: os módulos `reservas`, `pagamentos` e `operacao`
-(casos de uso, repositórios e handlers; `contas`, `catalogo` e `recomendacao` já foram convertidos), a lógica das telas em `src/shared/*` (busca, agenda, início,
-perfil, conta, operação, admin, markdown e landing) e as rotas `route.ts`, que passam a só chamar classes.
+(casos de uso, repositórios e handlers; `contas`, `catalogo` e `recomendacao` já foram convertidos) e as rotas `route.ts`, que passam a só chamar classes.

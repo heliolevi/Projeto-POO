@@ -47,19 +47,27 @@ export const TODAS_AS_FOTOS: readonly FotoBicicleta[] = [
   FOTO_TURISMO,
 ];
 
-// Escolhe a foto pela atividade do tipo. Trilha e esporte pesam mais: quem faz trilha precisa
-// ver a mountain bike. Sem atividade conhecida, cai na bicicleta de passeio.
-export function fotoDoTipo(atividades: readonly string[]): FotoBicicleta {
-  if (atividades.includes("TRILHA") || atividades.includes("ESPORTE")) return FOTO_TRILHA;
-  if (atividades.includes("URBANO")) return FOTO_URBANA;
-  if (atividades.includes("TURISMO")) return FOTO_TURISMO;
-  return FOTO_PASSEIO;
-}
+// Escolhe a foto de uma bicicleta. Só tem métodos estáticos (não guarda estado, e a escolha é
+// sempre a mesma para a mesma entrada), então não se cria instância.
+export class FotosDasBicicletas {
+  private constructor() {
+    throw new Error("FotosDasBicicletas só tem métodos estáticos.");
+  }
 
-// Telas que só conhecem o id do tipo (reservas, resultado da busca) usam sempre a mesma foto para
-// o mesmo id: a escolha vem de uma soma dos caracteres, sem sorteio, então não muda a cada visita.
-export function fotoPorId(id: string): FotoBicicleta {
-  let soma = 0;
-  for (const letra of id) soma += letra.charCodeAt(0);
-  return TODAS_AS_FOTOS[soma % TODAS_AS_FOTOS.length];
+  // Escolhe a foto pela atividade do tipo. Trilha e esporte pesam mais: quem faz trilha precisa
+  // ver a mountain bike. Sem atividade conhecida, cai na bicicleta de passeio.
+  static doTipo(atividades: readonly string[]): FotoBicicleta {
+    if (atividades.includes("TRILHA") || atividades.includes("ESPORTE")) return FOTO_TRILHA;
+    if (atividades.includes("URBANO")) return FOTO_URBANA;
+    if (atividades.includes("TURISMO")) return FOTO_TURISMO;
+    return FOTO_PASSEIO;
+  }
+
+  // Telas que só conhecem o id do tipo (reservas, resultado da busca) usam sempre a mesma foto para
+  // o mesmo id: a escolha vem de uma soma dos caracteres, sem sorteio, então não muda a cada visita.
+  static porId(id: string): FotoBicicleta {
+    let soma = 0;
+    for (const letra of id) soma += letra.charCodeAt(0);
+    return TODAS_AS_FOTOS[soma % TODAS_AS_FOTOS.length];
+  }
 }

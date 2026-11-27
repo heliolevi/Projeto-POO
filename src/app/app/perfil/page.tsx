@@ -5,12 +5,8 @@ import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { ALTURA_MAX_CM, ALTURA_MIN_CM, ATIVIDADES, EXPERIENCIAS } from "@/shared/dominio/ciclista";
 import { RotulosDoCiclista } from "@/shared/dominio/ciclista-rotulos";
 import {
-  ajustarAltura,
-  atualizarCampo,
-  dadosInformados,
-  formularioInicial,
-  montarCorpo,
-  validarPerfil,
+  FormularioDePerfil,
+  IniciaisDoNome,
   type ContaLogada,
   type ErrosPerfil,
   type FormularioPerfil,
@@ -50,27 +46,9 @@ const OPCOES_ATIVIDADE: OpcaoDeEscolha[] = [
   NAO_INFORMAR,
 ];
 
-// A API devolve os erros de campo com os nomes do contrato; o formulário usa "altura".
-function errosDaApi(detalhes: Record<string, string>): ErrosPerfil {
-  return {
-    altura: detalhes.alturaCm,
-    experiencia: detalhes.experiencia,
-    atividade: detalhes.atividade,
-    corpo: detalhes.corpo,
-  };
-}
-
-function iniciais(nome: string): string {
-  const partes = nome.trim().split(/\s+/).filter(Boolean);
-  if (partes.length === 0) return "?";
-  const primeira = partes[0][0];
-  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : "";
-  return `${primeira}${ultima}`.toUpperCase();
-}
-
 export default function PerfilCiclistaPage() {
   const [estado, setEstado] = useState<Estado>({ tipo: "carregando" });
-  const [form, setForm] = useState<FormularioPerfil>(formularioInicial());
+  const [form, setForm] = useState<FormularioPerfil>(FormularioDePerfil.inicial().dados);
   const [erros, setErros] = useState<ErrosPerfil>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
@@ -82,7 +60,7 @@ export default function PerfilCiclistaPage() {
     ClienteApi.padrao.get<ContaLogada>("/api/conta/me")
       .then((conta) => {
         if (!ativo) return;
-        setForm(formularioInicial(conta.ciclista));
+        setForm(FormularioDePerfil.inicial(conta.ciclista).dados);
         setEstado({ tipo: "pronto", conta });
       })
       .catch((erro) => {
@@ -103,7 +81,7 @@ export default function PerfilCiclistaPage() {
   // O valor pode ser uma função do texto atual: os botões − e + usam isso para somar sobre o
   // valor mais recente do campo, e não sobre o que a tela mostrava quando foram desenhados.
   function alterar(campo: keyof FormularioPerfil, valor: string | ((atual: string) => string)) {
-    setForm((atual) => atualizarCampo(atual, campo, valor));
+    setForm((atual) => new FormularioDePerfil(atual).com(campo, valor).dados);
     setSalvo(false);
     if (erros[campo]) setErros((atual) => ({ ...atual, [campo]: undefined }));
   }
@@ -112,7 +90,7 @@ export default function PerfilCiclistaPage() {
     evento.preventDefault();
     if (estado.tipo !== "pronto") return;
 
-    const encontrados = validarPerfil(form);
+    const encontrados = new FormularioDePerfil(form).validar();
     setErros(encontrados);
     setErroGeral(null);
     setSalvo(false);
@@ -122,14 +100,14 @@ export default function PerfilCiclistaPage() {
     try {
       const ciclista = await ClienteApi.padrao.put<PerfilCiclista>(
         "/api/conta/perfil-ciclista",
-        montarCorpo(form),
+        new FormularioDePerfil(form).corpo(),
       );
       setEstado({ tipo: "pronto", conta: { ...estado.conta, ciclista } });
-      setForm(formularioInicial(ciclista));
+      setForm(FormularioDePerfil.inicial(ciclista).dados);
       setSalvo(true);
     } catch (erro) {
       if (erro instanceof ApiError && erro.details) {
-        const doServidor = errosDaApi(erro.details);
+        const doServidor = FormularioDePerfil.errosDaApi(erro.details);
         setErros(doServidor);
         if (doServidor.corpo) setErroGeral(doServidor.corpo);
         // Se a API mandar um detalhe que a tela não conhece, não deixa o usuário sem resposta.
@@ -146,7 +124,7 @@ export default function PerfilCiclistaPage() {
     }
   }
 
-  const informados = dadosInformados(form);
+  const informados = new FormularioDePerfil(form).dadosInformados();
 
   return (
     <div className={styles.pagina}>
@@ -177,7 +155,7 @@ export default function PerfilCiclistaPage() {
         <>
           <div className={styles.conta}>
             <span className={styles.iniciais} aria-hidden="true">
-              {iniciais(estado.conta.nome)}
+              {IniciaisDoNome.de(estado.conta.nome)}
             </span>
             <div className={styles.contaTexto}>
               <span className={styles.contaNome}>{estado.conta.nome}</span>
@@ -218,7 +196,7 @@ export default function PerfilCiclistaPage() {
                 <button
                   type="button"
                   className={styles.passo}
-                  onClick={() => alterar("altura", (atual) => ajustarAltura(atual, -1))}
+                  onClick={() => alterar("altura", (atual) => FormularioDePerfil.ajustarAltura(atual, -1))}
                   aria-label="Diminuir 1 centímetro"
                 >
                   −
@@ -246,7 +224,7 @@ export default function PerfilCiclistaPage() {
                 <button
                   type="button"
                   className={styles.passo}
-                  onClick={() => alterar("altura", (atual) => ajustarAltura(atual, 1))}
+                  onClick={() => alterar("altura", (atual) => FormularioDePerfil.ajustarAltura(atual, 1))}
                   aria-label="Aumentar 1 centímetro"
                 >
                   +
