@@ -308,9 +308,9 @@ todas, o visitante nenhuma. Não mostra a unidade (o código da bicicleta é só
 
 ### `pagamento`
 
-Pix ou cartão pelo Mercado Pago, em centavos. **No MVP o Mercado Pago está em stand by:** o pagamento é
-simulado e `mp_payment_id` fica vazio; a coluna existe para a integração futura. `mp_payment_id` é único, para o mesmo aviso do Mercado
-Pago (webhook) não confirmar um pagamento duas vezes. Não há tabela de plano, assinatura nem repasse.
+Pix pela Stripe, em centavos. `mp_payment_id` guarda o id do PaymentIntent da Stripe (`pi_...`; o nome da coluna
+ficou do tempo do Mercado Pago). É único, para o mesmo aviso (webhook) não confirmar um pagamento duas vezes, e a
+migration 0012 garante no máximo um pagamento `PENDENTE` ou `APROVADO` por reserva. Não há tabela de plano, assinatura nem repasse.
 
 ### `movimentacao`, `ocorrencia`, `arquivo`, `notificacao` e `auditoria_log`
 

@@ -28,8 +28,10 @@ const dados = (parcial = {}) => ({
   ...parcial,
 });
 // um pagamento aprovado sempre tem a data em que foi pago (o banco exige pago_em no APROVADO)
+// o "copia e cola" que o meio de pagamento devolveu ao registrar a cobrança
+const COPIA = "00020101021226870014br.gov.bcb.pix2565teste";
 const pix = (status?: StatusPagamento) =>
-  new PagamentoPix(dados({ status, pagoEm: status === "APROVADO" ? PAGO : undefined }));
+  new PagamentoPix(dados({ status, pagoEm: status === "APROVADO" ? PAGO : undefined, copiaECola: COPIA }));
 const cartao = (debito = false) => new PagamentoCartao({ ...dados(), debito });
 
 describe("Pagamento (classe abstrata): ciclo de vida", () => {
@@ -68,7 +70,7 @@ describe("Pagamento (classe abstrata): ciclo de vida", () => {
     assert.equal(p.mpPaymentId, "mp-123");
   });
 
-  test("no MVP simulado o id do Mercado Pago fica vazio", () => {
+  test("sem cobrança registrada, o id no meio de pagamento fica vazio", () => {
     const p = pix();
     p.confirmar(null, PAGO);
     assert.equal(p.status, "APROVADO");
@@ -202,7 +204,7 @@ describe("PagamentoPix", () => {
   });
 
   test("com o prazo da reserva, vale até ele (e não 15 minutos a partir da criação)", () => {
-    const p = new PagamentoPix(dados({ expiraEm: new Date(CRIADO.getTime() + 5 * MIN) }));
+    const p = new PagamentoPix(dados({ expiraEm: new Date(CRIADO.getTime() + 5 * MIN), copiaECola: COPIA }));
     assert.equal(p.expiraEm().getTime(), CRIADO.getTime() + 5 * MIN);
     assert.equal(p.gerar(CRIADO).pix.expiraEm, "2026-11-14T11:05:00.000Z");
     assert.throws(() => p.gerarPix(new Date(CRIADO.getTime() + 5 * MIN)), TransicaoDePagamentoInvalida);
@@ -228,8 +230,25 @@ describe("PagamentoPix", () => {
     assert.equal(p.expiraEm().getUTCFullYear(), 2026);
   });
 
-  test("gerarPix devolve o copia e cola simulado dentro do prazo", () => {
-    assert.equal(pix().gerarPix(new Date(CRIADO.getTime() + 14 * MIN)), "PIX-SIMULADO|pg-1|4800");
+  test("gerarPix devolve o copia e cola do meio de pagamento dentro do prazo", () => {
+    assert.equal(pix().gerarPix(new Date(CRIADO.getTime() + 14 * MIN)), COPIA);
+  });
+
+  test("sem a cobrança registrada no meio de pagamento não há Pix para mostrar", () => {
+    const p = new PagamentoPix(dados());
+    assert.equal(p.copiaECola, null);
+    assert.throws(() => p.gerarPix(CRIADO), TransicaoDePagamentoInvalida);
+  });
+
+  test("registrarCobranca liga o pagamento à cobrança (id e copia e cola) uma vez só", () => {
+    const p = new PagamentoPix(dados());
+    p.registrarCobranca("pi_123", COPIA);
+    assert.equal(p.mpPaymentId, "pi_123");
+    assert.equal(p.gerarPix(CRIADO), COPIA);
+    p.registrarCobranca("pi_123", COPIA);
+    assert.throws(() => p.registrarCobranca("pi_outro", COPIA), TransicaoDePagamentoInvalida);
+    assert.throws(() => new PagamentoPix(dados()).registrarCobranca("pi_1", ""), RangeError);
+    assert.throws(() => pix("APROVADO").registrarCobranca("pi_1", COPIA), TransicaoDePagamentoInvalida);
   });
 
   test("gerarPix depois do prazo ou fora de PENDENTE é recusado", () => {
@@ -244,7 +263,7 @@ describe("PagamentoPix", () => {
       metodo: "PIX",
       status: "PENDENTE",
       valorCentavos: 4800,
-      pix: { copiaECola: "PIX-SIMULADO|pg-1|4800", expiraEm: "2026-11-14T11:15:00.000Z" },
+      pix: { copiaECola: COPIA, expiraEm: "2026-11-14T11:15:00.000Z" },
     });
   });
 });
@@ -351,7 +370,7 @@ describe("pagamentos: cobrança inicial e prazo", () => {
 
   test("cobrancaInicial funciona do mesmo jeito para qualquer forma (polimorfismo)", () => {
     for (const metodo of METODOS_PAGAMENTO) {
-      const c = criarPagamento(metodo, dados()).cobrancaInicial(CRIADO);
+      const c = criarPagamento(metodo, dados({ copiaECola: COPIA })).cobrancaInicial(CRIADO);
       assert.equal(c.metodo, metodo);
       assert.equal(c.status, "PENDENTE");
     }
