@@ -621,6 +621,11 @@ Registra a retirada da bicicleta pelo cliente e passa a reserva para `EM_ANDAMEN
 **Erros:** `400` (checklist inválido ou fora da janela de horário), `401`, `403`, `404`, `409` (reserva
 não está `CONFIRMADA` ou a retirada já foi feita), `413`.
 
+**Regras do checklist** (valem para a retirada e a devolução): de 1 a 20 itens, cada um com `nome` (texto
+de 1 a 40 caracteres, sem repetir) e `ok` (`true` ou `false`); `observacoes` é opcional (até 1000
+caracteres; texto vazio vira `null`). O checklist fica gravado em `movimentacao`, com o operador que
+registrou; as observações são internas da equipe.
+
 ### 27. `POST /api/operacao/reservas/{id}/devolucao`
 
 Registra a devolução e conclui a reserva.
@@ -630,7 +635,8 @@ Registra a devolução e conclui a reserva.
 | **Quem** | OPERADOR, ADMIN |
 | **Regra** | só reserva `EM_ANDAMENTO` |
 
-**Corpo:** o mesmo da retirada. **Sucesso `200`:** `{ "data": <reserva> }` com `status: "CONCLUIDA"`.
+**Corpo:** o mesmo da retirada. **Sucesso `200`:** `{ "data": <reserva> }` com `status: "CONCLUIDA"` (vem
+também `bicicleta`, como na retirada). A devolução vale mesmo depois do fim do período (atraso).
 **Erros:** `400`, `401`, `403`, `404`, `409` (não está `EM_ANDAMENTO` ou a devolução já foi feita), `413`.
 
 ---
