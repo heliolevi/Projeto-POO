@@ -66,9 +66,12 @@ const sintaxeNaoApagavel = [
       "Propriedade de parâmetro (constructor(private x)) não é apagável. Declare o campo (readonly #x) e atribua no corpo do construtor.",
   },
   {
-    selector: `TSEnumDeclaration:not([declare=true]):not(${DENTRO_DE_DECLARE})`,
+    // vale também para `declare enum` num .ts: o Node apaga a declaração, mas o enum não existe em
+    // tempo de execução, e quem o usa quebra. Num .d.ts (fora da regra) ou dentro de `declare module`,
+    // segue permitido.
+    selector: `TSEnumDeclaration:not(${DENTRO_DE_DECLARE})`,
     message:
-      "enum não é apagável. Use um objeto `as const` com um tipo união: const X = { A: \"A\" } as const.",
+      "enum não é apagável (e `declare enum` num .ts não existe em tempo de execução). Use um objeto `as const` com um tipo união: const X = { A: \"A\" } as const.",
   },
   {
     selector: `TSModuleDeclaration:not([declare=true]):not(${DENTRO_DE_DECLARE})`,
@@ -125,6 +128,8 @@ const eslintConfig = defineConfig([
     // Só as formas reais de declaração. Um *.d.<algo>.ts (como pedido.d.test.ts) o tsc também trata
     // como declaração, mas o npm test executa: aqui o lint é a única barreira, e ele não fica de fora.
     ignores: ["**/*.d.ts", "**/*.d.mts", "**/*.d.cts"],
+    // Um bloco mais abaixo que defina no-restricted-syntax para algumas pastas troca esta lista inteira
+    // nelas: espalhe ...sintaxeNaoApagavel junto (o teste das extensões cobre src/modules e src/app).
     rules: {
       "no-restricted-syntax": ["error", ...sintaxeNaoApagavel],
     },

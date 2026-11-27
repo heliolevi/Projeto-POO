@@ -48,6 +48,11 @@ const PROIBIDOS: Record<string, string> = {
   // quem escreveu e quebra na CI. Por depender da versão, fica fora da conferência no Node abaixo.
   using: "function abrir() { return { [Symbol.dispose]() {} }; }\n{ using c = abrir(); }\nexport {};",
   "await using": "async function abrir() { return { async [Symbol.asyncDispose]() {} }; }\n{ await using c = await abrir(); }\nexport {};",
+  // declare enum num .ts: o Node apaga a declaração, mas o enum não existe em tempo de execução, e
+  // quem usa Cor.Verde quebra (conferido: o tsc do projeto e o lint antigo aceitavam). Num .d.ts ou
+  // dentro de declare module, segue permitido.
+  "declare enum num .ts": "export declare enum Cor { Verde }",
+  "declare const enum num .ts": "export declare const enum Cor { Verde }",
 };
 
 for (const [nome, codigo] of Object.entries(PROIBIDOS)) {
@@ -68,8 +73,7 @@ const PERMITIDOS: Record<string, string> = {
   "declare namespace (só tipos)": "declare namespace Util { const a: number }",
   "declare global": "declare global { interface Window { x: number } }\nexport {};",
   // declarações ambientes só descrevem tipos: o Node apaga (conferido rodando com node arquivo.ts)
-  "declare enum": "declare enum E { A }\nexport {};",
-  "declare const enum": "declare const enum E { A }\nexport {};",
+  "declare enum dentro de declare module": "declare module 'lib' { enum E { A } }\nexport {};",
   "declare namespace aninhado": "declare namespace A { namespace B { const x: number } }\nexport {};",
   "augmentation de módulo com namespace": "declare module 'lib' { namespace N { const a: number } }\nexport {};",
   // tipando um pacote CommonJS sem tipos: dentro de declare module, export = e import = são ambientes
@@ -93,7 +97,13 @@ for (const [nome, codigo] of Object.entries(PERMITIDOS)) {
 // As listas acima afirmam o que o Node apaga ou não. Aqui cada trecho passa de verdade pelo Node que
 // executa o teste (na CI, o Node 22): se uma versão do Node mudar o que consegue apagar, este teste
 // avisa. As duas exceções são decisões do projeto: o Node apagaria, mas o projeto reprova.
-const ESTRITO_DE_PROPOSITO = new Set(["namespace só com tipos", "import type x = require"]);
+const ESTRITO_DE_PROPOSITO = new Set([
+  "namespace só com tipos",
+  "import type x = require",
+  // a sintaxe o Node aceita; o problema é o enum não existir quando alguém o usa
+  "declare enum num .ts",
+  "declare const enum num .ts",
+]);
 // aceito ou não conforme a versão do Node (ver o comentário em PROIBIDOS)
 const DEPENDE_DA_VERSAO = new Set(["using", "await using"]);
 
@@ -151,7 +161,9 @@ test("um erro em tempo de execução não conta como o Node recusando a sintaxe"
 // A regra vale para .ts, .tsx, .mts e .cts (e não para .d.ts, que é todo ambiente). Se o `files` ou
 // o `ignores` do eslint.config.mjs mudarem, estes casos acusam.
 test("a regra vale em .ts, .tsx, .mts e .cts, dentro e fora de src", async () => {
-  for (const arquivo of ["src/x.tsx", "src/x.mts", "src/x.cts", "scripts/x.ts", "x.config.ts"]) {
+  // inclui caminhos em src/modules e src/app: um bloco posterior que trocasse o no-restricted-syntax
+  // dessas pastas apagaria a regra ali, e este teste acusaria
+  for (const arquivo of ["src/x.tsx", "src/x.mts", "src/x.cts", "scripts/x.ts", "x.config.ts", "src/modules/reservas/domain/x.ts", "src/app/app/x/page.tsx"]) {
     assert.equal((await errosDaRegra("export enum E { A }", arquivo)).length, 1, arquivo);
   }
 });
