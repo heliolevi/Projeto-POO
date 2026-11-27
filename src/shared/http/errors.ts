@@ -72,3 +72,11 @@ export class TooManyRequestsError extends AppError {
     this.retryAfterSegundos = retryAfterSegundos;
   }
 }
+
+// 502: o meio de pagamento não respondeu ou recusou criar a cobrança. No MVP (PAGAMENTO_MODO=simulado)
+// só aparece quando o servidor está configurado com um modo de pagamento que ainda não existe.
+export class PagamentoIndisponivelError extends AppError {
+  constructor(message = "O pagamento está indisponível no momento. Tente de novo em instantes.") {
+    super("PAGAMENTO_INDISPONIVEL", message, 502);
+  }
+}
