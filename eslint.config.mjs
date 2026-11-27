@@ -85,9 +85,9 @@ const sintaxeNaoApagavel = [
       "`import x = ...` não é apagável. Para um módulo (`import x = require(\"...\")`), use `import x from \"...\"`; para um apelido (`import T = N.Y`), use `type T = N.Y` ou uma `const`.",
   },
   {
-    // decorator é sintaxe de JavaScript que o V8 ainda não roda: com type stripping o Node dá
-    // SyntaxError. O tsc com erasableSyntaxOnly não pega este caso, então ele mora só aqui.
-    selector: "AccessorProperty, TSAbstractAccessorProperty",
+    // `accessor` é sintaxe de JavaScript que o V8 ainda não roda (o tsc não pega). Sem corpo de
+    // execução ele é apagável: o abstrato (outro nó, que fica de fora) e o de uma classe `declare`.
+    selector: `AccessorProperty:not(ClassDeclaration[declare=true] *):not(${DENTRO_DE_DECLARE})`,
     message:
       "Campo `accessor` não é apagável: o Node não roda essa sintaxe e o `npm test` quebra com SyntaxError. Use um campo `#x` com get/set.",
   },
@@ -96,6 +96,8 @@ const sintaxeNaoApagavel = [
     message: "Asserção `<T>x` não é apagável: o Node não aceita esse formato. Use `x as T`.",
   },
   {
+    // decorator é sintaxe de JavaScript que o V8 ainda não roda: com type stripping o Node dá
+    // SyntaxError. O tsc com erasableSyntaxOnly não pega este caso, então ele mora só aqui.
     selector: "Decorator",
     message:
       "Decorator não é apagável: o Node não roda essa sintaxe e o `npm test` quebra com SyntaxError. Chame a função direto no lugar.",
