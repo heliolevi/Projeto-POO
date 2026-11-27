@@ -10,10 +10,12 @@ import { AuthLayout } from "@/shared/ui/AuthLayout";
 import { IdCardIcon, MailIcon, UserIcon } from "@/shared/ui/icons";
 import styles from "@/shared/ui/form.module.css";
 import authStyles from "@/shared/ui/AuthLayout.module.css";
-import { ApiError, postJson, type ResultadoSessao } from "@/shared/http/api-cliente";
-import { cpfValido, maskCpf, somenteDigitos } from "@/shared/format/cpf";
-import { requisitosDaSenha, senhaAceita } from "@/shared/format/senha";
-import { salvarSessao } from "@/shared/auth/sessao";
+import { ApiError, ClienteApi, type ResultadoSessao } from "@/shared/http/api-cliente";
+import { Cpf } from "@/shared/dominio/cpf";
+import { PoliticaDeSenha } from "@/shared/dominio/politica-de-senha";
+import { ArmazemDeSessao } from "@/shared/auth/sessao";
+
+const politicaDeSenha = new PoliticaDeSenha();
 
 export default function CadastroPage() {
   const router = useRouter();
@@ -33,15 +35,15 @@ export default function CadastroPage() {
   // cadastrado e a tela mostrava "CPF já cadastrado" logo depois de criar a conta.
   const emEnvio = useRef(false);
 
-  const requisitos = requisitosDaSenha(senha);
+  const requisitos = politicaDeSenha.requisitos(senha);
   const senhasConferem = confirmarSenha !== "" && confirmarSenha === senha;
 
   function validarLocalmente(): boolean {
     const proximosErros: Record<string, string> = {};
-    if (!cpfValido(somenteDigitos(cpf))) {
+    if (!Cpf.de(cpf)) {
       proximosErros.cpf = "CPF inválido. Confira os 11 números.";
     }
-    if (!senhaAceita(senha)) {
+    if (!politicaDeSenha.aceita(senha)) {
       proximosErros.senha = "A senha precisa de 8 caracteres ou mais, com uma letra e um número.";
     }
     if (confirmarSenha !== senha) {
@@ -64,14 +66,14 @@ export default function CadastroPage() {
     emEnvio.current = true;
     setEnviando(true);
     try {
-      const sessao = await postJson<ResultadoSessao>("/api/auth/cadastro", {
+      const sessao = await ClienteApi.padrao.postJson<ResultadoSessao>("/api/auth/cadastro", {
         nome,
         email,
-        cpf: somenteDigitos(cpf),
+        cpf: Cpf.somenteDigitos(cpf),
         senha,
         aceiteTermos,
       });
-      salvarSessao(sessao.token);
+      ArmazemDeSessao.navegador.salvar(sessao.token);
       router.push("/app");
     } catch (erro) {
       if (erro instanceof ApiError) {
@@ -144,7 +146,7 @@ export default function CadastroPage() {
             placeholder="000.000.000-00"
             autoComplete="off"
             value={cpf}
-            onChange={(e) => setCpf(maskCpf(e.target.value))}
+            onChange={(e) => setCpf(Cpf.mascarar(e.target.value))}
             error={erros.cpf}
             hint="Conferimos o CPF com o seu documento na retirada."
             maxLength={14}

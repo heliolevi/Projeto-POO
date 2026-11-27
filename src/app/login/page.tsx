@@ -10,9 +10,9 @@ import { AuthLayout } from "@/shared/ui/AuthLayout";
 import { MailIcon } from "@/shared/ui/icons";
 import styles from "@/shared/ui/form.module.css";
 import authStyles from "@/shared/ui/AuthLayout.module.css";
-import { ApiError, postJson, type ResultadoSessao } from "@/shared/http/api-cliente";
-import { destinoSeguro } from "@/shared/auth/destino-seguro";
-import { salvarSessao } from "@/shared/auth/sessao";
+import { ApiError, ClienteApi, type ResultadoSessao } from "@/shared/http/api-cliente";
+import { DestinoSeguro } from "@/shared/auth/destino-seguro";
+import { ArmazemDeSessao } from "@/shared/auth/sessao";
 
 export default function LoginPage() {
   return (
@@ -38,9 +38,9 @@ function LoginForm() {
     setErroGeral(null);
     setEnviando(true);
     try {
-      const sessao = await postJson<ResultadoSessao>("/api/auth/login", { email, senha });
-      salvarSessao(sessao.token);
-      router.push(destinoSeguro(parametros.get("next")));
+      const sessao = await ClienteApi.padrao.postJson<ResultadoSessao>("/api/auth/login", { email, senha });
+      ArmazemDeSessao.navegador.salvar(sessao.token);
+      router.push(new DestinoSeguro().resolver(parametros.get("next")));
     } catch (erro) {
       if (erro instanceof ApiError) {
         if (erro.details) setErros(erro.details);

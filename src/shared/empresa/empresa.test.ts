@@ -372,8 +372,8 @@ test("EmpresaDaLocadora.pontoPrincipal é o primeiro ponto, ou null sem ponto", 
 
 test("EmpresaDaLocadora.telefoneDoPonto usa o do ponto e, se faltar, o da locadora", () => {
   const e = empresaOuFalha({ telefone: "(98) 1111-1111", pontos: [pontoApi({ id: "a", telefone: "(98) 2222-2222" }), pontoApi({ id: "b", telefone: null })] });
-  assert.equal(e.telefoneDoPonto(e.pontos[0]), "(98) 2222-2222");
-  assert.equal(e.telefoneDoPonto(e.pontos[1]), "(98) 1111-1111");
+  assert.equal(e.telefoneDoPonto(e.pontos[0])?.formatado(), "(98) 2222-2222");
+  assert.equal(e.telefoneDoPonto(e.pontos[1])?.formatado(), "(98) 1111-1111");
 });
 
 test("estresse: 5 mil pontos de 7 horários cada são lidos rápido", () => {

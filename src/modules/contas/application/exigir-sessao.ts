@@ -36,7 +36,7 @@ export function criarExigirSessao(buscarSituacao: BuscarSituacao) {
   };
 }
 
-// exigirPerfil (401 antes de 403) mora em shared, porque não depende de nada de contas e os módulos
-// que a usam nas rotas precisam testar que a chamam. Reexportada aqui para o módulo e seus testes
-// continuarem importando daqui.
-export { exigirPerfil } from "../../../shared/http/perfil.ts";
+// PerfisPermitidos (401 antes de 403) mora em shared, porque não depende de nada de contas e os
+// módulos que a usam nas rotas precisam testar que a chamam. Reexportada aqui para o módulo e seus
+// testes continuarem importando daqui.
+export { PerfisPermitidos } from "../../../shared/http/perfis-permitidos.ts";

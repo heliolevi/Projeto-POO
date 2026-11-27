@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSessao } from "@/shared/auth/use-sessao";
-import { formatarPeriodo } from "@/shared/format/moeda-e-data";
-import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
+import { FormatadorDeData } from "@/shared/format/formatador-de-data";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import {
   ITENS_CHECKLIST,
   andamentoDeOutrosDias,
@@ -62,9 +62,9 @@ function PainelDeOperacao() {
     setEstado({ tipo: "carregando" });
     try {
       const [doDia, emAndamento] = await Promise.all([
-        getAutenticado<ReservaDoPainel[]>(`/api/admin/reservas?${new URLSearchParams({ data: dia })}`),
+        ClienteApi.padrao.get<ReservaDoPainel[]>(`/api/admin/reservas?${new URLSearchParams({ data: dia })}`),
         // Devoluções de aluguéis que começaram em outro dia (rota 25 aceita `status`).
-        getAutenticado<ReservaDoPainel[]>("/api/admin/reservas?status=EM_ANDAMENTO"),
+        ClienteApi.padrao.get<ReservaDoPainel[]>("/api/admin/reservas?status=EM_ANDAMENTO"),
       ]);
       if (pedido !== ultimoPedido.current) return;
       setEstado({
@@ -178,7 +178,7 @@ function ListaDoBalcao({
               {reserva.tipo.nome}
               {reserva.bicicleta ? ` · ${reserva.bicicleta.codigo}` : ""} · reserva {reserva.codigo}
             </p>
-            <p className={styles.linha}>{formatarPeriodo(reserva.periodo.inicio, reserva.periodo.fim)}</p>
+            <p className={styles.linha}>{FormatadorDeData.saoLuis.periodo(reserva.periodo.inicio, reserva.periodo.fim)}</p>
             {movimento && (
               <div style={{ marginTop: "var(--space-8)" }}>
                 <Button type="button" showArrow={false} onClick={() => onRegistrar(reserva, movimento)}>
@@ -218,7 +218,7 @@ function RegistroDeMovimento({
     setEnviando(true);
     setErro(null);
     try {
-      await postAutenticado(`/api/operacao/reservas/${reserva.id}/${movimento}`, corpo);
+      await ClienteApi.padrao.post(`/api/operacao/reservas/${reserva.id}/${movimento}`, corpo);
       await onRegistrado(
         movimento === "retirada"
           ? `Retirada de ${reserva.cliente.nome} registrada.`

@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useId, useState } from "react";
-import { ApiError, getAutenticado, putAutenticado } from "@/shared/http/api-cliente";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { ALTURA_MAX_CM, ALTURA_MIN_CM, ATIVIDADES, EXPERIENCIAS } from "@/shared/dominio/ciclista";
 import {
   DESCRICAO_ATIVIDADE,
@@ -84,7 +84,7 @@ export default function PerfilCiclistaPage() {
 
   useEffect(() => {
     let ativo = true;
-    getAutenticado<ContaLogada>("/api/conta/me")
+    ClienteApi.padrao.get<ContaLogada>("/api/conta/me")
       .then((conta) => {
         if (!ativo) return;
         setForm(formularioInicial(conta.ciclista));
@@ -125,7 +125,7 @@ export default function PerfilCiclistaPage() {
 
     setSalvando(true);
     try {
-      const ciclista = await putAutenticado<PerfilCiclista>(
+      const ciclista = await ClienteApi.padrao.put<PerfilCiclista>(
         "/api/conta/perfil-ciclista",
         montarCorpo(form),
       );

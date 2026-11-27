@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { limparSessao, type PerfilUsuario } from "@/shared/auth/sessao";
+import { ArmazemDeSessao, type PerfilUsuario } from "@/shared/auth/sessao";
 import { useSessao } from "@/shared/auth/use-sessao";
 import styles from "./SiteHeader.module.css";
 import { Logo } from "./Logo";
@@ -36,7 +36,7 @@ export function SiteHeader() {
   const links = linksPorEstado(sessao?.perfil ?? null);
 
   function sair() {
-    limparSessao();
+    ArmazemDeSessao.navegador.limpar();
     router.push("/login");
   }
 

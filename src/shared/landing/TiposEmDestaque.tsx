@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { ROTULO_ATIVIDADE } from "@/shared/dominio/ciclista-rotulos";
 import { ehAtividade } from "@/shared/dominio/ciclista";
-import { formatarReais } from "@/shared/format/moeda-e-data";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { Alert } from "@/shared/ui/Alert";
 import { Badge } from "@/shared/ui/Badge";
 import { Card } from "@/shared/ui/Card";
@@ -78,7 +78,7 @@ export function TiposEmDestaque() {
         const foto = fotoDoTipo(tipo.atividades);
         return (
         <li key={tipo.id}>
-          <Card className={styles.cartaoDaLista} title={tipo.nome} action={<Badge variant="sucesso">{formatarReais(tipo.precoDiaCentavos)}/dia</Badge>}>
+          <Card className={styles.cartaoDaLista} title={tipo.nome} action={<Badge variant="sucesso">{Dinheiro.deCentavos(tipo.precoDiaCentavos).formatar()}/dia</Badge>}>
             <Image
               className={styles.fotoCartao}
               src={foto.src}
@@ -89,7 +89,7 @@ export function TiposEmDestaque() {
             />
             {tipo.descricao && <p style={{ margin: 0 }}>{tipo.descricao}</p>}
             <p className={styles.precoCartao}>
-              <strong>{formatarReais(tipo.precoHoraCentavos)}</strong> por hora
+              <strong>{Dinheiro.deCentavos(tipo.precoHoraCentavos).formatar()}</strong> por hora
             </p>
             <p style={{ margin: "var(--space-4) 0 0" }}>{faixaDeAltura(tipo)}</p>
             <div className={styles.etiquetas}>

@@ -1,11 +1,13 @@
-import { exigirDentroDoLimite } from "@/shared/db/limite-tentativas";
-import { query } from "@/shared/db/pool";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
 import { ConflictError, ValidationError } from "@/shared/http/errors";
 import { validarCadastro } from "../domain/validacao";
 import { VERSAO_TERMOS_ATUAL, type UsuarioPublico } from "../domain/usuario";
 import { gerarHashSenha } from "../infrastructure/senha";
 import { criarCliente, EmailOuCpfJaCadastrado } from "../infrastructure/repositorio-usuarios";
 import { emitirToken } from "../infrastructure/token";
+
+const limite = new LimiteDeTentativas(BancoDeDados.padrao);
 
 export type ResultadoSessao = {
   token: string;
@@ -27,7 +29,7 @@ export async function cadastrarCliente(
   entrada: unknown,
   contexto: { ip: string },
 ): Promise<ResultadoSessao> {
-  await exigirDentroDoLimite(query, `cadastro:ip:${contexto.ip.slice(0, 64)}`, LIMITE_POR_IP);
+  await limite.exigirDentroDoLimite(`cadastro:ip:${contexto.ip.slice(0, 64)}`, LIMITE_POR_IP);
   const validado = validarCadastro(entrada);
   if ("erros" in validado) {
     throw new ValidationError("Dados inválidos.", validado.erros);
