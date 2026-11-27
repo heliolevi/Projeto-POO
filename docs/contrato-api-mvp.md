@@ -117,6 +117,7 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 14 | `GET /api/reservas/{id}` | CLIENTE | existe | Luis | Renan |
 | 15 | `POST /api/reservas/{id}/cancelar` | CLIENTE | existe | Luis | Renan |
 | 16 | `POST /api/pagamentos` | CLIENTE | novo | Hélio | Renan |
+| 16a | `POST /api/pagamentos/{reservaId}/simular` | CLIENTE | novo (proposta, aguarda o aceite do Hélio) | Hélio | Renan |
 | 17 | `GET /api/pagamentos/{reservaId}/status` | CLIENTE | novo | Hélio | Renan |
 | 18 | `POST /api/pagamentos/webhook` | Mercado Pago | **stand by (fora do MVP)** | Hélio | Mercado Pago |
 | 19 | `GET /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
@@ -463,6 +464,32 @@ passa a ser o verdadeiro.
 
 **Erros:** `400`, `401`, `403`, `404` (reserva inexistente ou de outro cliente), `409` (reserva que não
 está `PENDENTE_PAGAMENTO`, ou já paga), `429`, `502` (`PAGAMENTO_INDISPONIVEL`).
+
+### 16a. `POST /api/pagamentos/{reservaId}/simular`
+
+Aprova o Pix simulado da reserva, no lugar do aviso do Mercado Pago. **Novo; proposta do front (PR #75),
+aguardando o aceite do Hélio (S4).** A tela do Pix chama no botão "Simular pagamento" e depois confere
+a rota 17.
+
+| | |
+|---|---|
+| **Quem** | CLIENTE (dono da reserva) |
+| **Disponível** | só com `PAGAMENTO_MODO=simulado`; fora dele a rota responde `404 SIMULACAO_INDISPONIVEL` |
+
+**Corpo:** nenhum (`{}`).
+
+Na mesma transação: expira as reservas vencidas (`expirar_reservas_vencidas()`), marca o pagamento
+`PENDENTE` como `APROVADO` e a reserva como `CONFIRMADA`. **Idempotente:** repetir com o pagamento já
+aprovado devolve `200`, sem alterar nada.
+
+**Sucesso `200`:** `{ "data": { "reservaId": "uuid", "statusPagamento": "APROVADO", "statusReserva": "CONFIRMADA" } }`
+
+**Erros:** `401`; `403`; `404 NOT_FOUND` (reserva inexistente ou de outro cliente); `404
+SIMULACAO_INDISPONIVEL` (modo não simulado); `409` (reserva que não está `PENDENTE_PAGAMENTO`, por
+exemplo vencida ou cancelada; reserva já paga não é erro, vale a idempotência acima); `429`.
+
+A tela só confia no `code`: `NOT_FOUND` é a reserva, `SIMULACAO_INDISPONIVEL` (ou um 404 sem o JSON do
+contrato, rota ainda não publicada) é "aprovação simulada indisponível".
 
 ### 17. `GET /api/pagamentos/{reservaId}/status`
 
