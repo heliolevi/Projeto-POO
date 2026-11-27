@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { Periodo } from "./periodo-aluguel.ts";
-import { calcularValorAluguel } from "./preco-aluguel.ts";
+import { CalculadoraDeAluguel } from "./preco-aluguel.ts";
 
 const T = (hora: number, min = 0) => new Date(Date.UTC(2026, 10, 14, hora, min));
 
@@ -89,7 +89,7 @@ describe("Periodo", () => {
   });
 
   test("é aceito pela regra de preço, que recebe { inicio, fim }", () => {
-    const valor = calcularValorAluguel(Periodo.de(T(9), T(13)), {
+    const valor = CalculadoraDeAluguel.padrao.calcularValorAluguel(Periodo.de(T(9), T(13)), {
       precoHoraCentavos: 1200,
       precoDiaCentavos: 6000,
     });

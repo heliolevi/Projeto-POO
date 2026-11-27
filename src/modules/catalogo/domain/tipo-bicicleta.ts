@@ -6,7 +6,7 @@ import {
   type Experiencia,
 } from "../../../shared/dominio/ciclista.ts";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
-import { calcularValorAluguel, type PeriodoCobravel } from "../../../shared/dominio/preco-aluguel.ts";
+import { CalculadoraDeAluguel, type PeriodoCobravel } from "../../../shared/dominio/preco-aluguel.ts";
 import type { TipoAdmin, TipoPublico } from "./catalogo.ts";
 
 // Um modelo de bicicleta que a locadora aluga (Urbana, Mountain bike...): para quem serve, quanto
@@ -105,7 +105,7 @@ export class TipoBicicleta {
   // a mesma que a recomendação e a reserva usam, então o preço mostrado é o cobrado.
   calcularPreco(periodo: PeriodoCobravel): Dinheiro {
     return Dinheiro.deCentavos(
-      calcularValorAluguel(periodo, {
+      CalculadoraDeAluguel.padrao.calcularValorAluguel(periodo, {
         precoHoraCentavos: this.#precoHora.centavos,
         precoDiaCentavos: this.#precoDia.centavos,
       }),

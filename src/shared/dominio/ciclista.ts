@@ -13,19 +13,30 @@ export type Atividade = (typeof ATIVIDADES)[number];
 export const ALTURA_MIN_CM = 100;
 export const ALTURA_MAX_CM = 250;
 
-export function ehExperiencia(valor: unknown): valor is Experiencia {
-  return typeof valor === "string" && (EXPERIENCIAS as readonly string[]).includes(valor);
-}
+// As regras do ciclista num lugar só: o que é uma experiência, uma atividade e uma altura válidas.
+// Só tem métodos estáticos (não guarda estado), então não se cria instância.
+export class RegrasDoCiclista {
+  static readonly ALTURA_MIN_CM = ALTURA_MIN_CM;
+  static readonly ALTURA_MAX_CM = ALTURA_MAX_CM;
 
-export function ehAtividade(valor: unknown): valor is Atividade {
-  return typeof valor === "string" && (ATIVIDADES as readonly string[]).includes(valor);
-}
+  private constructor() {
+    throw new Error("RegrasDoCiclista só tem métodos estáticos.");
+  }
 
-export function alturaValida(valor: unknown): valor is number {
-  return (
-    typeof valor === "number" &&
-    Number.isInteger(valor) &&
-    valor >= ALTURA_MIN_CM &&
-    valor <= ALTURA_MAX_CM
-  );
+  static ehExperiencia(valor: unknown): valor is Experiencia {
+    return typeof valor === "string" && (EXPERIENCIAS as readonly string[]).includes(valor);
+  }
+
+  static ehAtividade(valor: unknown): valor is Atividade {
+    return typeof valor === "string" && (ATIVIDADES as readonly string[]).includes(valor);
+  }
+
+  static alturaValida(valor: unknown): valor is number {
+    return (
+      typeof valor === "number" &&
+      Number.isInteger(valor) &&
+      valor >= ALTURA_MIN_CM &&
+      valor <= ALTURA_MAX_CM
+    );
+  }
 }

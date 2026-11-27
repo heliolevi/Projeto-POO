@@ -1,9 +1,7 @@
 import {
   ALTURA_MAX_CM,
   ALTURA_MIN_CM,
-  alturaValida,
-  ehAtividade,
-  ehExperiencia,
+  RegrasDoCiclista,
   type Atividade,
   type Experiencia,
 } from "../dominio/ciclista.ts";
@@ -40,14 +38,14 @@ export function validarPerfil(form: FormularioPerfil): ErrosPerfil {
   const erros: ErrosPerfil = {};
   const altura = form.altura.trim();
   if (altura !== "") {
-    if (!/^\d+$/.test(altura) || !alturaValida(Number(altura))) {
+    if (!/^\d+$/.test(altura) || !RegrasDoCiclista.alturaValida(Number(altura))) {
       erros.altura = `Informe a altura em centímetros, de ${ALTURA_MIN_CM} a ${ALTURA_MAX_CM}.`;
     }
   }
-  if (form.experiencia !== "" && !ehExperiencia(form.experiencia)) {
+  if (form.experiencia !== "" && !RegrasDoCiclista.ehExperiencia(form.experiencia)) {
     erros.experiencia = "Escolha uma das opções.";
   }
-  if (form.atividade !== "" && !ehAtividade(form.atividade)) {
+  if (form.atividade !== "" && !RegrasDoCiclista.ehAtividade(form.atividade)) {
     erros.atividade = "Escolha uma das opções.";
   }
   return erros;
@@ -59,8 +57,8 @@ export function montarCorpo(form: FormularioPerfil): PerfilCiclista {
   const altura = form.altura.trim();
   return {
     alturaCm: altura === "" ? null : Number(altura),
-    experiencia: ehExperiencia(form.experiencia) ? form.experiencia : null,
-    atividade: ehAtividade(form.atividade) ? form.atividade : null,
+    experiencia: RegrasDoCiclista.ehExperiencia(form.experiencia) ? form.experiencia : null,
+    atividade: RegrasDoCiclista.ehAtividade(form.atividade) ? form.atividade : null,
   };
 }
 
@@ -72,9 +70,9 @@ export function perfilCompleto(ciclista?: PerfilCiclista | null): boolean {
 export function dadosInformados(form: FormularioPerfil): number {
   const altura = form.altura.trim();
   return [
-    /^\d+$/.test(altura) && alturaValida(Number(altura)),
-    ehExperiencia(form.experiencia),
-    ehAtividade(form.atividade),
+    /^\d+$/.test(altura) && RegrasDoCiclista.alturaValida(Number(altura)),
+    RegrasDoCiclista.ehExperiencia(form.experiencia),
+    RegrasDoCiclista.ehAtividade(form.atividade),
   ].filter(Boolean).length;
 }
 

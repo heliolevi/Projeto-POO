@@ -1,4 +1,4 @@
-import { ALTURA_MAX_CM, ALTURA_MIN_CM, alturaValida } from "../dominio/ciclista.ts";
+import { ALTURA_MAX_CM, ALTURA_MIN_CM, RegrasDoCiclista } from "../dominio/ciclista.ts";
 
 // Regras da tela "Minha conta". Espelham o servidor (validacao.ts) para dar a resposta na
 // hora; quem decide de verdade continua sendo a API.
@@ -27,7 +27,7 @@ export function validarTrocaDeSenha(form: FormularioSenha): ErrosSenha {
 
 export function validarAltura(texto: string): { alturaCm: number } | { erro: string } {
   const limpo = texto.trim();
-  if (/^\d+$/.test(limpo) && alturaValida(Number(limpo))) return { alturaCm: Number(limpo) };
+  if (/^\d+$/.test(limpo) && RegrasDoCiclista.alturaValida(Number(limpo))) return { alturaCm: Number(limpo) };
   return { erro: `Informe a altura em centímetros, de ${ALTURA_MIN_CM} a ${ALTURA_MAX_CM}.` };
 }
 

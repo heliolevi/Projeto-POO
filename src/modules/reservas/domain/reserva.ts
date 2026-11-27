@@ -1,4 +1,4 @@
-import { PRAZO_DE_PAGAMENTO_MS } from "../../../shared/dominio/prazos.ts";
+import { PrazoDePagamento } from "../../../shared/dominio/prazos.ts";
 import { randomBytes } from "node:crypto";
 import { ValidadorDePeriodo, type ErrosPorCampo } from "../../../shared/dominio/validador-de-periodo.ts";
 
@@ -22,7 +22,7 @@ export function ehStatusReserva(valor: unknown): valor is StatusReserva {
 // A reserva pendente segura a bicicleta por 15 minutos. É o mesmo prazo de
 // expirar_reservas_vencidas() no banco (migration 0008), que conta a partir de criado_em: o banco
 // não tem coluna expira_em, o prazo é sempre a criação + 15 minutos.
-export const PRAZO_PAGAMENTO_MS = PRAZO_DE_PAGAMENTO_MS;
+export const PRAZO_PAGAMENTO_MS = PrazoDePagamento.MS;
 
 // Só a reserva pendente tem prazo; nos outros estados o contrato manda null.
 export function calcularExpiraEm(status: StatusReserva, criadaEm: Date): Date | null {

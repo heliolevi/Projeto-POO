@@ -1,4 +1,4 @@
-import { alturaValida, ehAtividade, ehExperiencia } from "../../../shared/dominio/ciclista.ts";
+import { RegrasDoCiclista } from "../../../shared/dominio/ciclista.ts";
 import { ValidationError } from "../../../shared/http/errors.ts";
 import { Usuario, type DadosUsuario, type Permissao } from "./usuario-base.ts";
 import type { ContaLogada, PerfilCiclistaConta, PerfilUsuario } from "./usuario.ts";
@@ -82,9 +82,9 @@ export class Cliente extends Usuario {
   // qualquer um: ou entra tudo ou não entra nada.
   atualizarPerfilCiclista(dados: Partial<PerfilCiclistaConta>): void {
     const erros: Record<string, string> = {};
-    if (invalido(dados.alturaCm, alturaValida)) erros.alturaCm = "Altura inválida (inteiro entre 100 e 250 cm).";
-    if (invalido(dados.experiencia, ehExperiencia)) erros.experiencia = "Experiência inválida.";
-    if (invalido(dados.atividade, ehAtividade)) erros.atividade = "Atividade inválida.";
+    if (invalido(dados.alturaCm, (v) => RegrasDoCiclista.alturaValida(v))) erros.alturaCm = "Altura inválida (inteiro entre 100 e 250 cm).";
+    if (invalido(dados.experiencia, (v) => RegrasDoCiclista.ehExperiencia(v))) erros.experiencia = "Experiência inválida.";
+    if (invalido(dados.atividade, (v) => RegrasDoCiclista.ehAtividade(v))) erros.atividade = "Atividade inválida.";
     if (Object.keys(erros).length > 0) throw new ValidationError("Dados inválidos.", erros);
     const novo = { ...this.#ciclista };
     if (dados.alturaCm !== undefined) novo.alturaCm = dados.alturaCm;

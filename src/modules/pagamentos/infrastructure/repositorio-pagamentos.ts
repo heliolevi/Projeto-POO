@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
-import { PRAZO_DE_PAGAMENTO_MS } from "../../../shared/dominio/prazos.ts";
+import { PrazoDePagamento } from "../../../shared/dominio/prazos.ts";
 import { BancoDeDados } from "../../../shared/db/banco-de-dados.ts";
 import { VISITANTE } from "../../../shared/db/sessao.ts";
 import type { OperacoesPagamento, TransacaoPagamento } from "../application/portas.ts";
@@ -74,7 +74,7 @@ export function operacoesNoBanco(client: PoolClient): OperacoesPagamento {
         valorAluguelCentavos: r.valor_aluguel_centavos,
         // o mesmo prazo de expirar_reservas_vencidas(): criação + 15 minutos
         expiraEm:
-          r.status === "PENDENTE_PAGAMENTO" ? new Date(r.criado_em.getTime() + PRAZO_DE_PAGAMENTO_MS) : null,
+          r.status === "PENDENTE_PAGAMENTO" ? PrazoDePagamento.venceEm(r.criado_em) : null,
       };
     },
 
@@ -95,7 +95,7 @@ export function operacoesNoBanco(client: PoolClient): OperacoesPagamento {
         `UPDATE reserva SET status = 'CONFIRMADA'
           WHERE id = $1 AND cliente_id = sessao_usuario_id() AND status = 'PENDENTE_PAGAMENTO'
             AND criado_em > now() - make_interval(secs => $2::double precision / 1000)`,
-        [reservaId, PRAZO_DE_PAGAMENTO_MS],
+        [reservaId, PrazoDePagamento.MS],
       );
       return rowCount === 1;
     },

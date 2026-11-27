@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { ROTULO_ATIVIDADE } from "@/shared/dominio/ciclista-rotulos";
-import { ehAtividade } from "@/shared/dominio/ciclista";
+import { RotulosDoCiclista } from "@/shared/dominio/ciclista-rotulos";
+import { RegrasDoCiclista } from "@/shared/dominio/ciclista";
 import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { Alert } from "@/shared/ui/Alert";
 import { Badge } from "@/shared/ui/Badge";
@@ -93,9 +93,9 @@ export function TiposEmDestaque() {
             </p>
             <p style={{ margin: "var(--space-4) 0 0" }}>{faixaDeAltura(tipo)}</p>
             <div className={styles.etiquetas}>
-              {tipo.atividades.filter(ehAtividade).map((atividade) => (
+              {tipo.atividades.filter((a) => RegrasDoCiclista.ehAtividade(a)).map((atividade) => (
                 <Badge key={atividade} variant="neutro">
-                  {ROTULO_ATIVIDADE[atividade]}
+                  {RotulosDoCiclista.atividade(atividade)}
                 </Badge>
               ))}
             </div>

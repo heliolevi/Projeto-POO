@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { ConflictError, NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
 import { Periodo } from "../../../shared/dominio/periodo-aluguel.ts";
-import { calcularValorAluguel } from "../../../shared/dominio/preco-aluguel.ts";
+import { CalculadoraDeAluguel } from "../../../shared/dominio/preco-aluguel.ts";
 import { criarBancoFalso } from "./banco-falso.ts";
 import type { SessaoCliente } from "./portas.ts";
 import { ReservaService } from "./reserva-service.ts";
@@ -29,7 +29,7 @@ function montar(unidades = 1) {
     transacao: banco.transacao,
     agora: () => AGORA,
     gerarCodigo: () => `BIC-TESTE${++n}`,
-    calcularValorAluguel,
+    calcularValorAluguel: (periodo, precos) => CalculadoraDeAluguel.padrao.calcularValorAluguel(periodo, precos),
   });
   return { banco, servico };
 }

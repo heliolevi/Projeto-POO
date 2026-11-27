@@ -4,7 +4,7 @@ import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
 import { LeitorDeCorpo } from "@/shared/http/leitor-de-corpo";
 import { Resposta } from "@/shared/http/resposta";
 import { ReservaService } from "../application/reserva-service";
-import { calcularValorAluguel } from "../../../shared/dominio/preco-aluguel";
+import { CalculadoraDeAluguel } from "../../../shared/dominio/preco-aluguel";
 import { gerarCodigoReserva } from "../domain/reserva";
 import { emTransacao } from "../infrastructure/repositorio-reservas";
 
@@ -23,7 +23,7 @@ const reservas = new ReservaService({
   transacao: emTransacao,
   agora: () => new Date(),
   gerarCodigo: gerarCodigoReserva,
-  calcularValorAluguel,
+  calcularValorAluguel: (periodo, precos) => CalculadoraDeAluguel.padrao.calcularValorAluguel(periodo, precos),
 });
 
 // Todas as rotas de reserva são do CLIENTE: 401 sem sessão válida, 403 para a equipe.

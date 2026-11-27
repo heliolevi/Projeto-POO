@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ConflictError, NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
 import { CodigoRepetido } from "../domain/erros.ts";
-import { calcularValorAluguel } from "../../../shared/dominio/preco-aluguel.ts";
+import { CalculadoraDeAluguel } from "../../../shared/dominio/preco-aluguel.ts";
 import { criarBancoFalso } from "./banco-falso.ts";
 import { criarCriarReserva } from "./criar-reserva.ts";
 import type { SessaoCliente } from "./portas.ts";
@@ -30,7 +30,7 @@ function montar({ unidades = 2, codigos = ["BIC-AAAAAA", "BIC-BBBBBB", "BIC-CCCC
     transacao: banco.transacao,
     agora: () => AGORA,
     gerarCodigo: () => fila.shift() ?? `BIC-EXTRA${fila.length}`,
-    calcularValorAluguel,
+    calcularValorAluguel: (periodo, precos) => CalculadoraDeAluguel.padrao.calcularValorAluguel(periodo, precos),
   });
   return { banco, criar };
 }
@@ -235,7 +235,7 @@ test("erro inesperado do banco sobe como está (vira 500) e desfaz a transação
       ),
     agora: () => AGORA,
     gerarCodigo: () => "BIC-AAAAAA",
-    calcularValorAluguel,
+    calcularValorAluguel: (periodo, precos) => CalculadoraDeAluguel.padrao.calcularValorAluguel(periodo, precos),
   });
   await assert.rejects(criarComFalha(A, CORPO), boom);
   assert.equal(banco.todasAsReservas().length, 0);

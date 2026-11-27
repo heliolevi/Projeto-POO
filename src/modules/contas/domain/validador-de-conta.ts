@@ -1,15 +1,6 @@
 import { Cpf } from "../../../shared/dominio/cpf.ts";
 import { PoliticaDeSenha } from "../../../shared/dominio/politica-de-senha.ts";
-import {
-  ALTURA_MAX_CM,
-  ALTURA_MIN_CM,
-  ATIVIDADES,
-  EXPERIENCIAS,
-  ehAtividade,
-  ehExperiencia,
-  type Atividade,
-  type Experiencia,
-} from "../../../shared/dominio/ciclista.ts";
+import { ALTURA_MAX_CM, ALTURA_MIN_CM, ATIVIDADES, EXPERIENCIAS, type Atividade, type Experiencia, RegrasDoCiclista } from "../../../shared/dominio/ciclista.ts";
 
 export type ErrosPorCampo = Record<string, string>;
 
@@ -214,13 +205,13 @@ export class ValidadorDeConta {
 
     let experiencia: Experiencia | null = null;
     if (corpo.experiencia !== undefined && corpo.experiencia !== null) {
-      if (ehExperiencia(corpo.experiencia)) experiencia = corpo.experiencia;
+      if (RegrasDoCiclista.ehExperiencia(corpo.experiencia)) experiencia = corpo.experiencia;
       else erros.experiencia = `Experiência inválida. Use um destes valores: ${EXPERIENCIAS.join(", ")}.`;
     }
 
     let atividade: Atividade | null = null;
     if (corpo.atividade !== undefined && corpo.atividade !== null) {
-      if (ehAtividade(corpo.atividade)) atividade = corpo.atividade;
+      if (RegrasDoCiclista.ehAtividade(corpo.atividade)) atividade = corpo.atividade;
       else erros.atividade = `Atividade inválida. Use um destes valores: ${ATIVIDADES.join(", ")}.`;
     }
 

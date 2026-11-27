@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calcularValorAluguel, horasCobradas, horasDaDuracao, valorPorHoras } from "../../../shared/dominio/preco-aluguel.ts";
+import { CalculadoraDeAluguel } from "../../../shared/dominio/preco-aluguel.ts";
 
 // Tipo "Passeio" do seed de desenvolvimento: R$ 12,00 por hora e R$ 60,00 por dia.
 const PASSEIO = { precoHoraCentavos: 1200, precoDiaCentavos: 6000 };
+
+const calc = CalculadoraDeAluguel.padrao;
+const calcularValorAluguel = calc.calcularValorAluguel.bind(calc);
+const horasCobradas = calc.horasCobradas.bind(calc);
+const horasDaDuracao = calc.horasDaDuracao.bind(calc);
+const valorPorHoras = calc.valorPorHoras.bind(calc);
 
 const INICIO = new Date("2026-11-14T12:00:00.000Z");
 const depois = (ms: number) => new Date(INICIO.getTime() + ms);
@@ -213,4 +219,9 @@ test("valorPorHoras dá o mesmo valor que calcularValorAluguel para as mesmas ho
 test("valorPorHoras valida os preços como calcularValorAluguel", () => {
   assert.throws(() => valorPorHoras(2, { precoHoraCentavos: -1, precoDiaCentavos: 6000 }), RangeError);
   assert.throws(() => valorPorHoras(2, { precoHoraCentavos: 1200, precoDiaCentavos: 10.5 }), RangeError);
+});
+
+test("CalculadoraDeAluguel é encapsulada (sem campos visíveis) e a padrão é uma instância dela", () => {
+  assert.ok(CalculadoraDeAluguel.padrao instanceof CalculadoraDeAluguel);
+  assert.deepEqual(Object.keys(new CalculadoraDeAluguel()), []);
 });
