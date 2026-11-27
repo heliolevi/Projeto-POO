@@ -108,4 +108,29 @@ describe("CodigoPix", () => {
       assert.equal(CodigoPix.de(lixo).pagavelEmBanco, false, lixo.slice(0, 30));
     }
   });
+
+  it("cidade com acento: aceita o tamanho contado em caracteres e em bytes UTF-8", () => {
+    const semCidade = (cidade: string) =>
+      campo("00", "01") + campo("26", CONTA) + campo("52", "0000") + campo("53", "986") + campo("58", "BR") +
+      campo("59", "Bike Ilha Club") + cidade + campo("62", campo("05", "***"));
+    // "Florianópolis": 13 caracteres, 14 bytes em UTF-8
+    const emCaracteres = montar(semCidade("6013Florianópolis"));
+    const emBytes = montar(semCidade("6014Florianópolis"));
+    assert.equal(CodigoPix.de(emCaracteres).pagavelEmBanco, true, "tamanho em caracteres");
+    assert.equal(CodigoPix.de(emBytes).pagavelEmBanco, true, "tamanho em bytes");
+    assert.equal(CodigoPix.campos("6014Florianópolis")?.[0].valor, "Florianópolis");
+  });
+
+  it("tamanho em bytes que corta um caractere no meio não é BR Code", () => {
+    // em bytes, 1 byte corta o "ó" (2 bytes) no meio; em caracteres, sobra "!" sem formar campo
+    assert.equal(CodigoPix.campos("6001ó!"), null);
+  });
+
+  it("estresse: 20 mil códigos (válidos, com acento e lixo) são lidos sem lançar e rápido", () => {
+    const valido = montar(corpo());
+    const lixos = [valido, EXEMPLO_DO_BANCO_CENTRAL, CODIGO_DE_TESTE_DA_STRIPE, "ó".repeat(500), "00" + "99".repeat(300)];
+    const inicio = performance.now();
+    for (let i = 0; i < 20_000; i++) CodigoPix.de(lixos[i % lixos.length]);
+    assert.ok(performance.now() - inicio < 3000, "passou de 3 s");
+  });
 });

@@ -140,7 +140,7 @@ export function operacoesNoBanco(client: PoolClient): OperacoesPagamento {
 
     async buscarPorIdExterno(idExterno) {
       const { rows } = await client.query<LinhaPagamento>(
-        `SELECT ${COLUNAS} FROM pagamento WHERE mp_payment_id = $1`,
+        `SELECT ${COLUNAS} FROM pagamento WHERE mp_payment_id = $1 AND ${DO_CLIENTE}`,
         [idExterno],
       );
       return rows[0] ? paraPagamento(rows[0]) : null;

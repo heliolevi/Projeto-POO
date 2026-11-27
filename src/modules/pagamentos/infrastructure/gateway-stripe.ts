@@ -102,10 +102,19 @@ export class GatewayStripe implements GatewayPix {
         { idempotencyKey: `pagamento-${dados.pagamentoId}` },
       );
       const copiaECola = pi.next_action?.pix_display_qr_code?.data;
-      if (!copiaECola) {
-        throw new Error(`PaymentIntent ${pi.id} sem pix_display_qr_code (status ${pi.status}).`);
+      try {
+        if (!copiaECola) {
+          throw new Error(`PaymentIntent ${pi.id} sem pix_display_qr_code (status ${pi.status}).`);
+        }
+        exigirCodigoDeVerdadeEmProducao(pi, copiaECola);
+      } catch (erro) {
+        // o PaymentIntent já nasceu confirmado na Stripe: sem um código que dê para mostrar, ele não
+        // pode ficar aberto lá (cada nova tentativa cria outro)
+        await stripe()
+          .paymentIntents.cancel(pi.id, {}, { idempotencyKey: `cancelamento-${pi.id}` })
+          .catch((falha: unknown) => console.error(`[stripe] falha ao cancelar ${pi.id}:`, falha));
+        throw erro;
       }
-      exigirCodigoDeVerdadeEmProducao(pi, copiaECola);
       return { idExterno: pi.id, copiaECola };
     });
   }

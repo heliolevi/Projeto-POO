@@ -7,12 +7,24 @@
 //   BASE_URL=http://localhost:3001 node scripts/teste-de-estresse.mjs
 //
 // O que ele cria no banco: contas estresse.*@bikeilha.test, reservas (canceladas no fim) e, se a
-// Stripe estiver configurada, Pix de TESTE (sk_test_). Com sk_live_ ele para antes de criar Pix.
+// Stripe estiver configurada, Pix de TESTE (sk_test_). O script não sabe a chave do servidor antes de
+// pedir um Pix: se o primeiro Pix vier pagável em banco (chave sk_live_), ele para ali, sem consultar
+// nem criar mais nada. Com sk_live_, então, fica no máximo UM Pix de verdade, que não deve ser pago e
+// vence em 15 minutos. Por isso ele se recusa a rodar contra um servidor que não seja local, a não
+// ser com ESTRESSE_PERMITIR_REMOTO=sim.
 //
 // Para não travar o login de quem está usando o mesmo computador, cada cenário usa um
 // X-Forwarded-For próprio. (Isso só funciona fora da Vercel: lá o IP vem de x-vercel-forwarded-for.)
 
 const BASE = (process.env.BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const HOST = new URL(BASE).hostname;
+if (!["localhost", "127.0.0.1", "::1", "[::1]"].includes(HOST) && process.env.ESTRESSE_PERMITIR_REMOTO !== "sim") {
+  console.error(
+    `Recusado: ${BASE} não é um servidor local. O teste cria contas, reservas e Pix. ` +
+      "Se for mesmo um ambiente de teste, rode com ESTRESSE_PERMITIR_REMOTO=sim.",
+  );
+  process.exit(2);
+}
 const RODADA = Date.now().toString(36);
 const falhas = [];
 const resultados = [];
@@ -42,9 +54,9 @@ async function chamar(metodo, caminho, { corpo, token, ip, cabecalhos = {}, cru 
     try {
       json = JSON.parse(texto);
     } catch {}
-    return { status: resposta.status, json, ms: performance.now() - inicio, texto };
+    return { status: resposta.status, json, ms: performance.now() - inicio, texto, retryAfter: resposta.headers.get("retry-after") };
   } catch (erro) {
-    return { status: 0, json: null, ms: performance.now() - inicio, texto: String(erro) };
+    return { status: 0, json: null, ms: performance.now() - inicio, texto: String(erro), retryAfter: null };
   }
 }
 
@@ -146,7 +158,8 @@ async function cenarioEntradasRuins(token) {
     ["POST", "/api/pagamentos", { token, corpo: { reservaId: "00000000-0000-0000-0000-000000000000", metodo: "PIX", valorCentavos: 1 } }],
     ["GET", "/api/pagamentos/xyz/status", { token }],
     ["PUT", "/api/conta/perfil-ciclista", { token, corpo: { alturaCm: "175", perfil: "ADMIN" } }],
-    ["PUT", "/api/conta/perfil-ciclista", { token, corpo: { __proto__: { admin: true }, alturaCm: 175 } }],
+    // texto cru: num objeto literal, __proto__ muda o protótipo em vez de virar chave, e some no JSON
+    ["PUT", "/api/conta/perfil-ciclista", { token, cru: '{"__proto__":{"admin":true},"alturaCm":175}', cabecalhos: { "content-type": "application/json" } }],
     ["POST", "/api/pagamentos/webhook", { cru: "{}", cabecalhos: { "stripe-signature": "t=1,v1=falsa" } }],
     ["POST", "/api/pagamentos/webhook", { cru: "x".repeat(200_000), cabecalhos: { "stripe-signature": "t=1,v1=falsa" } }],
   ];
@@ -157,7 +170,8 @@ async function cenarioEntradasRuins(token) {
     .filter(({ r, i }) => r.status >= 500 && !(r.status === 502 && lixo[i][1].includes("webhook")));
   registrar(
     `entradas ruins: ${lixo.length} corpos e ids maliciosos ou quebrados`,
-    quinhentos.length === 0 && saidas.every((r) => r.status !== 0),
+    // status 0 = a conexão caiu; só vale para o corpo de 2 MB (o servidor pode fechar sem ler tudo)
+    quinhentos.length === 0 && saidas.every((r, i) => r.status !== 0 || (lixo[i][2].cru?.length ?? 0) >= 1_000_000),
     quinhentos.length
       ? `deram 5xx: ${quinhentos.map(({ r, i }) => `${lixo[i][0]} ${lixo[i][1].slice(0, 40)} -> ${r.status}`).join("; ")}`
       : `nenhum 500; status ${JSON.stringify(contar(saidas))}`,
@@ -205,7 +219,7 @@ async function cenarioForcaBruta() {
   registrar(
     "força bruta: 14 senhas erradas do mesmo IP na mesma conta",
     primeiro429 > 0 && primeiro429 <= 11 && status.slice(0, primeiro429).every((s) => s === 401),
-    `status ${status.join(",")}; bloqueia a partir da tentativa ${primeiro429 + 1}; Retry-After presente: ${saidas[primeiro429]?.json ? "sim" : "?"}`,
+    `status ${status.join(",")}; bloqueia a partir da tentativa ${primeiro429 + 1}; Retry-After presente: ${saidas[primeiro429]?.retryAfter ? `sim (${saidas[primeiro429].retryAfter} s)` : "não"}`,
   );
   // mesma conta, outro IP: a senha certa ainda entra (um estranho não tranca a conta de outra pessoa)
   const certo = await chamar("POST", "/api/auth/login", { ip: ipNovo(), corpo: { email: conta.email, senha: "Estresse2026" } });
@@ -242,7 +256,8 @@ async function cenarioCorridaReserva(clientes) {
   }
   // o tipo com menos unidades livres: é onde a corrida é mais apertada
   const alvo = [...tipos].sort((a, b) => a.unidadesLivres - b.unidadesLivres)[0];
-  const tentativas = alvo.unidadesLivres + 8;
+  // o limite é de 20 reservas por hora por cliente: não passa disso, para o 429 não confundir a conta
+  const tentativas = Math.min(alvo.unidadesLivres + 8, clientes.length * 15);
   const saidas = await emParalelo(
     tentativas,
     (i) => chamar("POST", "/api/reservas", { token: clientes[i % clientes.length].token, corpo: { tipoId: alvo.tipoId, inicio, fim } }),
@@ -253,6 +268,7 @@ async function cenarioCorridaReserva(clientes) {
   }
   const criadas = saidas.filter((r) => r.status === 201).length;
   const semVaga = saidas.filter((r) => r.status === 409).length;
+  const limitadas = saidas.filter((r) => r.status === 429).length;
   const depois = await chamar(
     "GET",
     `/api/recomendacao?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}`,
@@ -261,8 +277,10 @@ async function cenarioCorridaReserva(clientes) {
   const sobra = depois.json?.data?.resultados?.find((t) => t.tipoId === alvo.tipoId)?.unidadesLivres ?? 0;
   registrar(
     `corrida: ${tentativas} reservas ao mesmo tempo para "${alvo.nome}" com ${alvo.unidadesLivres} livre(s)`,
-    criadas === alvo.unidadesLivres && semVaga === tentativas - criadas && sobra === 0,
-    `criadas ${criadas}, recusadas com 409 ${semVaga}, outros ${JSON.stringify(contar(saidas.filter((r) => r.status !== 201 && r.status !== 409)))}; livres depois: ${sobra}`,
+    criadas + semVaga + limitadas === tentativas &&
+      criadas <= alvo.unidadesLivres &&
+      (limitadas > 0 || (criadas === Math.min(alvo.unidadesLivres, tentativas) && sobra === Math.max(0, alvo.unidadesLivres - tentativas))),
+    `criadas ${criadas}, recusadas com 409 ${semVaga}, limite (429) ${limitadas}, outros ${JSON.stringify(contar(saidas.filter((r) => ![201, 409, 429].includes(r.status))))}; livres depois: ${sobra}`,
   );
   return reservasCriadas[0] ?? null;
 }
@@ -283,6 +301,13 @@ async function cenarioCorridaPix(reserva) {
     `status ${JSON.stringify(contar(saidas))}; pagamentos distintos ${ids.size}; copia e cola distintos ${codigos.size} (o 429 é o limite de 10 cobranças por hora por cliente)`,
   );
   const pix = sucesso[0]?.json?.data?.pix;
+  if (pix?.pagavelEmBanco === true) {
+    return registrar(
+      "parada: o servidor está com a chave de PRODUÇÃO",
+      false,
+      "o Pix criado é pagável em banco (sk_live_). NÃO pague esse Pix: ele vence em 15 minutos. Nada mais foi pedido.",
+    );
+  }
   if (pix) {
     registrar(
       "o Pix diz se é pagável em banco",

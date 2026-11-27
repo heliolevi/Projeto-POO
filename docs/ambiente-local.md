@@ -154,7 +154,9 @@ npm run build
 Teste de estresse (com o `npm run dev` rodando, só local ou `dev`, nunca production): tenta quebrar a
 API com concorrência, força bruta, tokens forjados e entradas maliciosas, e confere que nunca sai 500,
 que duas pessoas não reservam a mesma bicicleta e que a mesma reserva não ganha dois Pix. Cria contas
-`estresse.*@bikeilha.test` e cancela as reservas que criou.
+`estresse.*@bikeilha.test` e cancela as reservas que criou. Só roda contra servidor local (para outro, exige
+`ESTRESSE_PERMITIR_REMOTO=sim`). Se o servidor estiver com `sk_live_`, o primeiro Pix sai pagável em banco e o
+script para ali: fica no máximo um Pix de verdade, que não deve ser pago e vence em 15 minutos.
 
 ```bash
 node scripts/teste-de-estresse.mjs          # BASE_URL=http://localhost:3001 para outra porta

@@ -69,16 +69,52 @@ export class CodigoPix {
 
   // Lê os campos ID+TAMANHO+VALOR. Devolve null se o texto não fecha nesse formato (um tamanho que
   // passa do fim, um ID que não é número...).
+  //
+  // O tamanho de um campo com acento (o nome ou a cidade do recebedor, como "Florianópolis") pode vir
+  // contado em caracteres ou em bytes UTF-8, conforme quem gerou o código; o CRC é sempre sobre os
+  // bytes. Para um texto só com ASCII as duas contagens são iguais. Com acento, vale a que fechar:
+  // recusar um código de verdade por causa disso faria todo Pix de produção virar 502.
   static campos(texto: string): CampoPix[] | null {
+    return CodigoPix.#lerCampos(Array.from(texto)) ?? CodigoPix.#lerCamposEmBytes(texto);
+  }
+
+  // Tamanho contado em caracteres (code points).
+  static #lerCampos(caracteres: string[]): CampoPix[] | null {
     const campos: CampoPix[] = [];
     let i = 0;
-    while (i < texto.length) {
-      const id = texto.slice(i, i + 2);
-      const tamanhoTexto = texto.slice(i + 2, i + 4);
+    while (i < caracteres.length) {
+      const id = caracteres.slice(i, i + 2).join("");
+      const tamanhoTexto = caracteres.slice(i + 2, i + 4).join("");
       if (!/^\d{2}$/.test(id) || !/^\d{2}$/.test(tamanhoTexto)) return null;
       const tamanho = Number(tamanhoTexto);
-      const valor = texto.slice(i + 4, i + 4 + tamanho);
+      const valor = caracteres.slice(i + 4, i + 4 + tamanho);
       if (valor.length !== tamanho) return null;
+      campos.push({ id, valor: valor.join("") });
+      i += 4 + tamanho;
+    }
+    return campos;
+  }
+
+  // Tamanho contado em bytes UTF-8.
+  static #lerCamposEmBytes(texto: string): CampoPix[] | null {
+    const bytes = new TextEncoder().encode(texto);
+    if (bytes.length === texto.length) return null; // só ASCII: a leitura por caractere já decidiu
+    const decodificar = new TextDecoder("utf-8", { fatal: true });
+    const ascii = (de: number, ate: number) => String.fromCharCode(...bytes.subarray(de, ate));
+    const campos: CampoPix[] = [];
+    let i = 0;
+    while (i < bytes.length) {
+      const id = ascii(i, i + 2);
+      const tamanhoTexto = ascii(i + 2, i + 4);
+      if (!/^\d{2}$/.test(id) || !/^\d{2}$/.test(tamanhoTexto)) return null;
+      const tamanho = Number(tamanhoTexto);
+      if (i + 4 + tamanho > bytes.length) return null;
+      let valor: string;
+      try {
+        valor = decodificar.decode(bytes.subarray(i + 4, i + 4 + tamanho));
+      } catch {
+        return null; // o tamanho cortou um caractere no meio
+      }
       campos.push({ id, valor });
       i += 4 + tamanho;
     }

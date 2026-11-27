@@ -162,14 +162,14 @@ await rodarSuite('blackbox/pagamentos_api', async (executor, client) => {
   }
 
   await teste('mesmo sem a RLS (papel dono do banco), o cliente B não cobra nem vê o Pix do cliente A', async () => {
-    const depsSemRls = { ...deps, transacao: transacaoSemRls };
+    const semRls = new PagarReservaService({ ...deps, transacao: transacaoSemRls });
     const reservaId = await reservaPendente();
-    const pixDeA = await criarIniciarPagamento(depsSemRls)(sessaoA, { reservaId, metodo: 'PIX' });
+    const pixDeA = await semRls.iniciar(sessaoA, { reservaId, metodo: 'PIX' });
     assert(pixDeA.criada, 'o dono da reserva cobra normalmente sem a RLS');
 
     for (const [nome, chamada] of [
-      ['cobrar', () => criarIniciarPagamento(depsSemRls)(sessaoB, { reservaId, metodo: 'PIX' })],
-      ['ver o status', () => criarConsultarStatus(depsSemRls)(sessaoB, reservaId)],
+      ['cobrar', () => semRls.iniciar(sessaoB, { reservaId, metodo: 'PIX' })],
+      ['ver o status', () => semRls.consultarStatus(sessaoB, reservaId)],
     ]) {
       try {
         await chamada();
@@ -184,10 +184,14 @@ await rodarSuite('blackbox/pagamentos_api', async (executor, client) => {
       pendente: await op.buscarPendenteDaReserva(reservaId),
       porId: await op.buscarPorId(pixDeA.cobranca.pagamentoId),
       porIdExterno: await op.travarPorIdExterno(idExterno),
+      porIdExternoSemTrava: await op.buscarPorIdExterno(idExterno),
       reserva: await op.travarReserva(reservaId),
       confirmou: await op.confirmarReserva(reservaId),
     }));
-    assert(deB.pendente === null && deB.porId === null && deB.porIdExterno === null, 'B não lê o pagamento de A');
+    assert(
+      deB.pendente === null && deB.porId === null && deB.porIdExterno === null && deB.porIdExternoSemTrava === null,
+      'B não lê o pagamento de A',
+    );
     assert(deB.reserva === null, 'B não trava a reserva de A');
     assert(deB.confirmou === false, 'B não confirma a reserva de A');
     assert((await statusReserva(reservaId)) === 'PENDENTE_PAGAMENTO', 'a reserva de A continua como estava');

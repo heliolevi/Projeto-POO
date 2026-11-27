@@ -34,7 +34,8 @@ export class PagamentoPix extends Pagamento {
     if (this.#expiraEm.getTime() <= this.criadoEm.getTime()) {
       throw new RangeError("O prazo do Pix precisa ser depois da criação do pagamento.");
     }
-    this.#codigo = dados.copiaECola ? CodigoPix.de(dados.copiaECola) : null;
+    // texto vazio ou só com espaços (linha antiga do banco) é "sem cobrança", não um erro ao ler
+    this.#codigo = dados.copiaECola?.trim() ? CodigoPix.de(dados.copiaECola) : null;
   }
 
   // Liga o pagamento à cobrança criada no meio de pagamento (id e "copia e cola").

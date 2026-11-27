@@ -277,6 +277,12 @@ describe("PagamentoPix", () => {
     assert.equal(p.gerar(CRIADO).pix.pagavelEmBanco, true);
   });
 
+  test("linha do banco com copia e cola só de espaços é lida como sem cobrança (não quebra a leitura)", () => {
+    const p = new PagamentoPix(dados({ copiaECola: "   " }));
+    assert.equal(p.copiaECola, null);
+    assert.equal(p.pagavelEmBanco, false);
+  });
+
   test("sem cobrança registrada, ainda não é pagável", () => {
     assert.equal(new PagamentoPix(dados()).pagavelEmBanco, false);
   });
