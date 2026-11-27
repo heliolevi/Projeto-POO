@@ -1,4 +1,5 @@
 import { PRAZO_DE_PAGAMENTO_MS } from "../../../shared/dominio/prazos.ts";
+import { CodigoPix } from "./codigo-pix.ts";
 import {
   Pagamento,
   TransicaoDePagamentoInvalida,
@@ -12,14 +13,17 @@ export const PRAZO_DO_PIX_MS = PRAZO_DE_PAGAMENTO_MS;
 
 export type CobrancaPix = CobrancaGerada & {
   metodo: "PIX";
-  pix: { copiaECola: string; expiraEm: string };
+  // pagavelEmBanco: o copia e cola segue o BR Code do Banco Central (false no modo de teste da
+  // Stripe, que devolve um código fictício de propósito)
+  pix: { copiaECola: string; expiraEm: string; pagavelEmBanco: boolean };
 };
 
 // Pix. A cobrança é registrada no meio de pagamento (Stripe), que devolve o id dela e o "copia e
-// cola" verdadeiro; só depois disso o Pix tem o que mostrar ao cliente. Não existe Pix simulado.
+// cola"; só depois disso o Pix tem o que mostrar ao cliente. O copia e cola é um CodigoPix
+// (composição): é ele que sabe se o texto é um BR Code de verdade.
 export class PagamentoPix extends Pagamento {
   readonly #expiraEm: Date;
-  #copiaECola: string | null;
+  #codigo: CodigoPix | null;
 
   constructor(dados: DadosPagamento) {
     super(dados);
@@ -30,18 +34,24 @@ export class PagamentoPix extends Pagamento {
     if (this.#expiraEm.getTime() <= this.criadoEm.getTime()) {
       throw new RangeError("O prazo do Pix precisa ser depois da criação do pagamento.");
     }
-    this.#copiaECola = dados.copiaECola ?? null;
+    this.#codigo = dados.copiaECola ? CodigoPix.de(dados.copiaECola) : null;
   }
 
   // Liga o pagamento à cobrança criada no meio de pagamento (id e "copia e cola").
   registrarCobranca(idExterno: string, copiaECola: string): void {
     if (!copiaECola) throw new RangeError("O meio de pagamento não devolveu o copia e cola do Pix.");
+    const codigo = CodigoPix.de(copiaECola);
     this.vincularIdExterno(idExterno);
-    this.#copiaECola = copiaECola;
+    this.#codigo = codigo;
   }
 
   get copiaECola(): string | null {
-    return this.#copiaECola;
+    return this.#codigo?.texto ?? null;
+  }
+
+  // O código pode ser pago em qualquer banco (false enquanto não há cobrança registrada).
+  get pagavelEmBanco(): boolean {
+    return this.#codigo?.pagavelEmBanco ?? false;
   }
 
   get metodo(): MetodoPagamento {
@@ -62,10 +72,10 @@ export class PagamentoPix extends Pagamento {
     if (agora.getTime() >= this.expiraEm().getTime()) {
       throw new TransicaoDePagamentoInvalida("O prazo deste Pix já venceu: gere uma nova cobrança.");
     }
-    if (this.#copiaECola === null) {
+    if (this.#codigo === null) {
       throw new TransicaoDePagamentoInvalida("A cobrança Pix ainda não foi registrada no meio de pagamento.");
     }
-    return this.#copiaECola;
+    return this.#codigo.texto;
   }
 
   gerar(agora: Date): CobrancaPix {
@@ -73,7 +83,7 @@ export class PagamentoPix extends Pagamento {
     return {
       ...this.resumo(),
       metodo: "PIX",
-      pix: { copiaECola, expiraEm: this.expiraEm().toISOString() },
+      pix: { copiaECola, expiraEm: this.expiraEm().toISOString(), pagavelEmBanco: this.pagavelEmBanco },
     };
   }
 

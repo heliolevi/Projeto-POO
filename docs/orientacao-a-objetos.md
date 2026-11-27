@@ -18,7 +18,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `catalogo` | `Empresa`, `Ponto`, `TipoBicicleta`, `Bicicleta` |
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia` |
 | `reservas` | `Reserva`, `ReservaService` |
-| `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService` |
+| `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService`, `CodigoPix` (objeto de valor) |
 | `operacao` | `Movimentacao`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo`, `OperacaoService` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
 | `administracao` | `AuditoriaLog` |
@@ -39,7 +39,9 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
   gravar), `Arquivo` só dá a chave por `paraPersistir()` e `AuditoriaLog` troca senha e token por
   `[REDIGIDO]`.
 - `Dinheiro` guarda centavos inteiros e `Periodo` exige início antes do fim: nenhuma regra de negócio recebe
-  um valor quebrado ou um intervalo invertido. Nenhuma parte do código lê o relógio dentro do domínio:
+  um valor quebrado ou um intervalo invertido. `CodigoPix` guarda o copia e cola e decide uma vez, no
+  construtor privado, se ele é um BR Code de verdade (`pagavelEmBanco`); só nasce pela fábrica
+  `CodigoPix.de(texto)` e não muda depois. Nenhuma parte do código lê o relógio dentro do domínio:
   quem chama passa `agora`.
 
 ### Herança
@@ -53,14 +55,27 @@ Usuario (abstrata)             Pagamento (abstrata)          Ocorrencia (abstrat
 
 A classe abstrata guarda o que é comum e as filhas acrescentam o que é próprio. `Usuario` tem identidade,
 senha e situação da conta; `Cliente` acrescenta o perfil de ciclista e o aceite dos termos; `Operador`, o
-ponto em que atua. `Pagamento` tem valor, ciclo de vida e estorno; `PagamentoPix` acrescenta o prazo do Pix.
+ponto em que atua. `Pagamento` tem valor, ciclo de vida e estorno; `PagamentoPix` acrescenta o prazo do Pix
+e o código.
+
+### Composição
+
+Nem tudo é herança. `PagamentoPix` **tem um** `CodigoPix` (e não **é um**): o pagamento cuida do prazo e
+do ciclo de vida, e o código cuida do formato do Banco Central (campos EMV, moeda 986, país BR, conta
+`br.gov.bcb.pix` e o CRC16 do campo 63). Cada classe tem uma responsabilidade só: trocar a forma de
+validar o código não mexe no pagamento, e `pix.pagavelEmBanco` na resposta é só
+`pagamento.pagavelEmBanco`, que pergunta ao código. Do mesmo jeito, `Reserva` tem um `Periodo` e um
+`Dinheiro`.
 
 ### Polimorfismo
 
 - `Usuario.permissoes()`: cada perfil devolve a sua lista. O mesmo código (`usuario.temPermissao(...)`)
   decide o acesso sem olhar o perfil. O administrador reaproveita a lista do operador.
-- `Pagamento.gerar()`: Pix devolve o copia e cola; cartão devolve o final do cartão. Quem chama usa
-  `Pagamento` e não sabe qual é.
+- `Pagamento.gerar()`: Pix devolve o copia e cola (e se ele é pagável em banco); cartão devolve o final
+  do cartão. Quem chama usa `Pagamento` e não sabe qual é.
+- `GatewayPix` (interface): os casos de uso de pagamento falam com ela; a Stripe de verdade fica em
+  `infrastructure/gateway-stripe.ts` e os testes passam uma de mentira. O sistema não depende da Stripe,
+  depende do contrato (inversão de dependência).
 - `Ocorrencia.valorSugerido()`: `Dano` usa o custo estimado, `Atraso` aplica a tolerância e a regra de hora
   cheia, `Furto` cobra a caução quando não há estimativa.
 - `CriterioDeRecomendacao.avaliar()`: o `RecomendacaoService` soma os critérios sem saber quais são. Um
@@ -114,8 +129,9 @@ Dados e regras que a documentação marca como assumidos (não há locadora real
   como hora cheia e, a cada 24 horas de atraso, o valor não passa de uma diária. É a mesma conta do aluguel.
 - **Dano e furto:** o custo sai da caução e, se passar dela, o resto é cobrado do cliente.
 - **Retirada:** a partir de 30 minutos antes do início da reserva e até o fim do período.
-- **Pagamento:** simulado no MVP (a integração com o Mercado Pago está em stand by); `mp_payment_id` fica vazio.
-  O Pix vale 15 minutos, como a reserva pendente.
+- **Pagamento:** Pix pela Stripe. Com a chave de teste o copia e cola é fictício (`pagavelEmBanco:
+  false`); com a de produção, é o BR Code de verdade. O id do PaymentIntent fica em `mp_payment_id`
+  (nome antigo da coluna). O Pix vale 15 minutos, como a reserva pendente.
 - **Tipos de ocorrência:** `ACIDENTE` e `OUTRO` existem no banco, mas ainda não têm classe nem regra de cobrança.
 
 ## O que já roda nas rotas e o que é modelo ainda não ligado
@@ -131,10 +147,10 @@ classe é a que está rodando quando ela ainda não está:
 | `TipoBicicleta` | O catálogo público monta cada tipo por `TipoBicicleta` e devolve `paraPublico()`. |
 | `RecomendacaoService` e os critérios | `GET /api/recomendacao`. |
 | `Dinheiro`, `Periodo` | Dentro de `Reserva` e `TipoBicicleta`. |
+| `Pagamento`, `PagamentoPix`, `PagamentoService`, `CodigoPix` | Rotas 16 a 18 (Pix pela Stripe). `PagamentoCartao` tem testes, mas ainda não tem rota. |
 
 | Modelo de domínio com testes, ainda sem rota | O que falta para ligar |
 |---|---|
-| `Pagamento`, `PagamentoPix`, `PagamentoCartao`, `PagamentoService` | As rotas 16 a 18 (pagamento) ainda não existem; o MVP usa pagamento simulado. |
 | `OperacaoService`, `Movimentacao`, `Ocorrencia` (`Dano`, `Atraso`, `Furto`), `Arquivo` | As rotas de retirada e devolução e o armazenamento de arquivos (fase 5 do plano). |
 | `Notificacao`, `RoteadorDeEnvio` | Os canais de envio reais (fase de avisos). |
 | `AuditoriaLog` | A gravação da trilha pelo servidor. |
@@ -150,6 +166,10 @@ de uso só grava o que ela aprovou. A ordem trava, depois lê, é o que impede d
 passarem juntos pela regra; um teste com conexões reais confere isso (um responde 200, o outro 409).
 
 ## Como os testes provam que nada quebrou
+
+- `scripts/teste-de-estresse.mjs` ataca a API rodando (concorrência, força bruta, tokens forjados,
+  entradas maliciosas) e confere as regras das classes sob carga: duas reservas na mesma bicicleta,
+  dois Pix na mesma reserva e um cliente mexendo na reserva de outro nunca passam.
 
 - Testes unitários ao lado do código (`*.test.ts`), um grupo para cada classe e cada serviço. Rodam na CI.
 - Os testes de comportamento que já existiam (rotas, casos de uso, banco) continuam passando: a refatoração

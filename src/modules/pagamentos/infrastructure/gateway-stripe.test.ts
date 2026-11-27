@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import Stripe from "stripe";
 import { PagamentoIndisponivelError } from "../../../shared/http/errors.ts";
-import { AssinaturaInvalida, lerAvisoDaStripe, situacaoDoPaymentIntent } from "./gateway-stripe.ts";
+import {
+  AssinaturaInvalida,
+  exigirCodigoDeVerdadeEmProducao,
+  lerAvisoDaStripe,
+  situacaoDoPaymentIntent,
+} from "./gateway-stripe.ts";
 
 // Nenhum teste aqui fala com a Stripe: a chave é de mentira e a assinatura é gerada localmente com
 // o mesmo algoritmo da Stripe (HMAC-SHA256), pela própria biblioteca.
@@ -74,5 +79,24 @@ describe("lerAvisoDaStripe (assinatura do webhook)", () => {
     } finally {
       process.env.STRIPE_WEBHOOK_SECRET = antes;
     }
+  });
+});
+
+describe("exigirCodigoDeVerdadeEmProducao", () => {
+  const BR_CODE =
+    "00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-426655440000" +
+    "5204000053039865802BR5913Fulano de Tal6008BRASILIA62070503***63041D3D";
+  const DE_TESTE = "123456789br.gov.bcb.pixapi.developer.stripe.com/v1/p/v2/1234567890abcdef/789";
+
+  test("em produção, um BR Code de verdade passa", () => {
+    assert.doesNotThrow(() => exigirCodigoDeVerdadeEmProducao({ id: "pi_1", livemode: true }, BR_CODE));
+  });
+
+  test("em produção, um código fora do padrão é barrado (não vai para o cliente)", () => {
+    assert.throws(() => exigirCodigoDeVerdadeEmProducao({ id: "pi_1", livemode: true }, DE_TESTE), /BR Code/);
+  });
+
+  test("no modo de teste, o código fictício da Stripe passa (é o único que existe ali)", () => {
+    assert.doesNotThrow(() => exigirCodigoDeVerdadeEmProducao({ id: "pi_1", livemode: false }, DE_TESTE));
   });
 });
