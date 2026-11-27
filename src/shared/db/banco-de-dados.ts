@@ -5,7 +5,10 @@ import { TransacaoComSessao, type SessaoBanco } from "./sessao.ts";
 
 // Em desenvolvimento o hot reload recarrega os módulos e criaria um pool novo a cada alteração;
 // guardar no globalThis evita esgotar conexões.
-const global_ = globalThis as typeof globalThis & { __bikeIlhaPool?: Pool };
+// O global guarda a PROMESSA do pool: a checagem e a atribuição acontecem no mesmo passo, antes de
+// qualquer await. Guardar o pool já pronto deixava uma janela (durante o import de "pg") em que duas
+// cópias do módulo criavam um pool cada, e o primeiro ficava órfão segurando conexões.
+const global_ = globalThis as typeof globalThis & { __bikeIlhaPool?: Promise<Pool> };
 
 // A conexão com o PostgreSQL. O pool só é criado no primeiro uso (a fábrica entra pelo construtor), e
 // o pacote `pg` só é carregado nesse momento: quem apenas importa a classe (o build, os testes e os
@@ -13,13 +16,25 @@ const global_ = globalThis as typeof globalThis & { __bikeIlhaPool?: Pool };
 // nem do pacote instalado.
 export class BancoDeDados implements ExecutorDeConsultas {
   // O do app: um único por processo, com a DATABASE_URL.
-  static readonly padrao = new BancoDeDados(async () => (global_.__bikeIlhaPool ??= await BancoDeDados.#criarPool(Ambiente.padrao)));
+  static readonly padrao = new BancoDeDados(() => BancoDeDados.#poolCompartilhado());
 
   readonly #fabricaDePool: () => Pool | Promise<Pool>;
   #pool: Promise<Pool> | undefined;
 
   constructor(fabricaDePool: () => Pool | Promise<Pool>) {
     this.#fabricaDePool = fabricaDePool;
+  }
+
+  static #poolCompartilhado(): Promise<Pool> {
+    if (!global_.__bikeIlhaPool) {
+      const criacao = BancoDeDados.#criarPool(Ambiente.padrao);
+      global_.__bikeIlhaPool = criacao;
+      // Se a criação falhar (variável ausente), a falha não fica guardada: a próxima consulta tenta de novo.
+      criacao.catch(() => {
+        if (global_.__bikeIlhaPool === criacao) delete global_.__bikeIlhaPool;
+      });
+    }
+    return global_.__bikeIlhaPool;
   }
 
   static async #criarPool(ambiente: Ambiente): Promise<Pool> {
