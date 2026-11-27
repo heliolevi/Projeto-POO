@@ -6,12 +6,12 @@ import { useEffect, useRef, useState } from "react";
 import { formatarReais } from "@/shared/format/moeda-e-data";
 import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
 import {
-  caminhoDaSimulacao,
   imagemDoQrCode,
   situacaoDoPix,
   type CobrancaPix,
   type StatusDoPagamento,
 } from "@/shared/pagamentos/pagamento";
+import { SimuladorDePagamento } from "@/shared/pagamentos/simulador-de-pagamento";
 import pagamentoStyles from "@/shared/pagamentos/pagamento.module.css";
 import {
   formatarContagem,
@@ -22,6 +22,7 @@ import styles from "@/shared/reservas/reservas.module.css";
 import { Alert } from "@/shared/ui/Alert";
 
 const INTERVALO_DA_CONSULTA_MS = 3000;
+const simulador = new SimuladorDePagamento();
 
 type Estado =
   | { tipo: "carregando" }
@@ -44,6 +45,7 @@ export default function PagamentoPixPage() {
   const [copiado, setCopiado] = useState(false);
   const [simulando, setSimulando] = useState(false);
   const [erroDaSimulacao, setErroDaSimulacao] = useState<string | null>(null);
+  const travaDaSimulacao = useRef(false);
   const temporizadorDaCopia = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cria (ou reaproveita, a rota é idempotente) a cobrança Pix da reserva.
@@ -163,28 +165,22 @@ export default function PagamentoPixPage() {
     }
   }
 
-  // MVP: o pagamento é simulado, então o cliente aprova o Pix por aqui. A tela confirma pelo
-  // status da rota 17, igual a um pagamento de verdade (a consulta de 3 s segue rodando).
+  // MVP: o pagamento é simulado, então o cliente aprova o Pix por aqui. A regra de cada resposta
+  // mora no SimuladorDePagamento; a tela só aplica o resultado.
   async function simularPagamento() {
-    if (simulando) return;
+    if (travaDaSimulacao.current) return;
+    travaDaSimulacao.current = true;
     setSimulando(true);
     setErroDaSimulacao(null);
     try {
-      await postAutenticado<unknown>(caminhoDaSimulacao(id), {});
-      const status = await getAutenticado<StatusDoPagamento>(`/api/pagamentos/${id}/status`);
-      const situacao = situacaoDoPix(status);
+      const resultado = await simulador.aprovar(id);
+      const situacao = resultado.situacaoFinal();
       if (situacao === "confirmado") setEstado({ tipo: "confirmado" });
       else if (situacao === "encerrado") setEstado({ tipo: "encerrado" });
-      else if (situacao === "pago_sem_reserva") setEstado({ tipo: "pagoSemReserva" });
-    } catch (erro) {
-      if (erro instanceof ApiError && erro.code === "NOT_FOUND") {
-        setErroDaSimulacao("A aprovação simulada ainda não está disponível no servidor.");
-      } else if (erro instanceof ApiError && erro.code === "CONFLICT") {
-        setErroDaSimulacao("Esta reserva não aceita mais pagamento. Volte para a reserva.");
-      } else {
-        setErroDaSimulacao(mensagemDe(erro, "Não foi possível simular o pagamento agora."));
-      }
+      else if (situacao === "pagoSemReserva") setEstado({ tipo: "pagoSemReserva" });
+      else setErroDaSimulacao(resultado.aviso());
     } finally {
+      travaDaSimulacao.current = false;
       setSimulando(false);
     }
   }
