@@ -55,6 +55,7 @@ test("200 mas a conferência ainda mostra pendente: continua e avisa", async () 
   const r = await simulador({}).sim.aprovar("r1");
   assert.ok(r instanceof SimulacaoAindaPendente);
   assert.equal(r.situacaoFinal(), null);
+  assert.equal(r.tomDoAviso(), "info");
 });
 
 test("200 mas a leitura do status falha: continua, a consulta da tela confere depois", async () => {
@@ -117,6 +118,7 @@ test("500 e rede caída mostram a mensagem do cliente da API", async () => {
     assert.ok(r instanceof SimulacaoFalhou);
     assert.equal(r.aviso(), "mensagem");
     assert.equal(r.situacaoFinal(), null);
+    assert.equal(r.tomDoAviso(), "erro");
   }
 });
 

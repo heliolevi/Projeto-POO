@@ -20,7 +20,7 @@ export type ClienteDoPagamento = {
 
 const clientePadrao: ClienteDoPagamento = {
   post: (url) => postAutenticado<unknown>(url, {}),
-  status: (reservaId) => getAutenticado<StatusDoPagamento>(`/api/pagamentos/${reservaId}/status`),
+  status: (reservaId) => getAutenticado<StatusDoPagamento>(`/api/pagamentos/${encodeURIComponent(reservaId)}/status`),
 };
 
 /** Código do contrato para "simulação desligada" (PAGAMENTO_MODO diferente de simulado). */

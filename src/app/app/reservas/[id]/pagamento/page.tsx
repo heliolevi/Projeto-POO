@@ -44,7 +44,7 @@ export default function PagamentoPixPage() {
   const [agora, setAgora] = useState(() => new Date());
   const [copiado, setCopiado] = useState(false);
   const [simulando, setSimulando] = useState(false);
-  const [erroDaSimulacao, setErroDaSimulacao] = useState<string | null>(null);
+  const [avisoDaSimulacao, setAvisoDaSimulacao] = useState<{ texto: string; tom: "info" | "erro" } | null>(null);
   const travaDaSimulacao = useRef(false);
   const temporizadorDaCopia = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -171,14 +171,17 @@ export default function PagamentoPixPage() {
     if (travaDaSimulacao.current) return;
     travaDaSimulacao.current = true;
     setSimulando(true);
-    setErroDaSimulacao(null);
+    setAvisoDaSimulacao(null);
     try {
       const resultado = await simulador.aprovar(id);
       const situacao = resultado.situacaoFinal();
       if (situacao === "confirmado") setEstado({ tipo: "confirmado" });
       else if (situacao === "encerrado") setEstado({ tipo: "encerrado" });
       else if (situacao === "pagoSemReserva") setEstado({ tipo: "pagoSemReserva" });
-      else setErroDaSimulacao(resultado.aviso());
+      else {
+        const texto = resultado.aviso();
+        setAvisoDaSimulacao(texto ? { texto, tom: resultado.tomDoAviso() } : null);
+      }
     } finally {
       travaDaSimulacao.current = false;
       setSimulando(false);
@@ -303,7 +306,7 @@ export default function PagamentoPixPage() {
               <p className={styles.subtitulo}>
                 Modo de teste: nenhuma cobrança real é feita.
               </p>
-              {erroDaSimulacao && <Alert variant="erro">{erroDaSimulacao}</Alert>}
+              {avisoDaSimulacao && <Alert variant={avisoDaSimulacao.tom}>{avisoDaSimulacao.texto}</Alert>}
 
               <ol className={pagamentoStyles.passos} style={{ marginTop: "var(--space-20)" }}>
                 <li>Abra o aplicativo do seu banco e escolha pagar com Pix.</li>

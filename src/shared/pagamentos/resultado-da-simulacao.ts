@@ -9,6 +9,11 @@ export abstract class ResultadoDaSimulacao {
 
   /** Aviso para mostrar abaixo do botão, ou null. */
   abstract aviso(): string | null;
+
+  /** Tom do aviso: "info" para o que é só andamento, "erro" (padrão) para o que deu errado. */
+  tomDoAviso(): "info" | "erro" {
+    return "erro";
+  }
 }
 
 abstract class SimulacaoQueMudaATela extends ResultadoDaSimulacao {
@@ -46,6 +51,10 @@ export class SimulacaoAindaPendente extends ResultadoDaSimulacao {
 
   aviso(): string {
     return "Pagamento enviado. Estamos conferindo, esta tela atualiza sozinha.";
+  }
+
+  tomDoAviso(): "info" {
+    return "info";
   }
 }
 
