@@ -22,9 +22,15 @@ export class Telefone {
   }
 
   // Os 10 ou 11 dígitos do número com DDD, ou null se o texto não for um telefone com DDD.
+  // Só reconhece texto feito de dígitos e dos separadores ( ) - . + e espaço: qualquer outra coisa
+  // em volta ("ramal", "somente WhatsApp") faz o texto sair como veio, sem perder informação.
   static #numeroComDdd(texto: string): string | null {
+    if (!/^[\d\s()\-.+]+$/.test(texto)) return null;
     let digitos = texto.replace(/\D/g, "");
-    if ((digitos.length === 12 || digitos.length === 13) && digitos.startsWith("55")) {
+    // O 55 é o código do país só quando o texto diz isso: "+55" na frente ou o número todo em dígitos
+    // (12 ou 13). "(55) 3222-1100" tem 10 dígitos e o DDD 55 (Rio Grande do Sul) é dele.
+    const dizPais = texto.startsWith("+55") || /^\d+$/.test(texto);
+    if (dizPais && (digitos.length === 12 || digitos.length === 13) && digitos.startsWith("55")) {
       digitos = digitos.slice(2);
     }
     if (digitos.length !== 10 && digitos.length !== 11) return null;

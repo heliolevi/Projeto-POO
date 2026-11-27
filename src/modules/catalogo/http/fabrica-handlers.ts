@@ -1,11 +1,11 @@
 import { VISITANTE, type PerfilSessao } from "../../../shared/db/sessao.ts";
-import { lerJson } from "../../../shared/http/json.ts";
-import { exigirPerfil } from "../../../shared/http/perfil.ts";
-import { created, errorResponse, ok } from "../../../shared/http/response.ts";
+import { LeitorDeCorpo } from "../../../shared/http/leitor-de-corpo.ts";
+import { PerfisPermitidos } from "../../../shared/http/perfis-permitidos.ts";
+import { Resposta } from "../../../shared/http/resposta.ts";
 import type { criarCatalogo } from "../application/catalogo.ts";
 
 // Os handlers do catálogo, com as dependências injetadas. Ficam separados de handlers.ts (que liga
-// o módulo contas e o banco) para os testes provarem, com o exigirPerfil de verdade, que cada rota
+// o módulo contas e o banco) para os testes provarem, com o PerfisPermitidos de verdade, que cada rota
 // do painel exige sessão (401) e perfil ADMIN (403) antes de tocar o catálogo.
 export type Catalogo = ReturnType<typeof criarCatalogo>;
 
@@ -19,38 +19,41 @@ export type DependenciasHandlers = {
 // pode ficar em cache.
 const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
 
+const leitor = new LeitorDeCorpo();
+const soAdmin = new PerfisPermitidos("ADMIN");
+
 export function criarHandlersCatalogo({ exigirSessao, catalogo }: DependenciasHandlers) {
   // Rotas do painel: primeiro a sessão (401), depois o perfil (403), e só então o corpo e o banco.
   // Só ADMIN mexe no catálogo.
   async function sessaoAdmin(request: Request) {
-    return exigirPerfil(await exigirSessao(request), "ADMIN");
+    return soAdmin.exigir(await exigirSessao(request));
   }
 
   // GET /api/empresa (rota 9): público, só os dados públicos da locadora e os pontos ativos.
   // Ignora qualquer token.
   async function getEmpresaPublica() {
     try {
-      return ok(await catalogo.obterEmpresaPublica(VISITANTE), SEM_CACHE);
+      return Resposta.ok(await catalogo.obterEmpresaPublica(VISITANTE), SEM_CACHE);
     } catch (erro) {
-      return errorResponse(erro);
+      return Resposta.deErro(erro);
     }
   }
 
   // GET /api/catalogo/tipos (rota 10): público, só os tipos ativos. Ignora qualquer token.
   async function getTiposPublicos() {
     try {
-      return ok(await catalogo.listarTiposPublicos(VISITANTE), SEM_CACHE);
+      return Resposta.ok(await catalogo.listarTiposPublicos(VISITANTE), SEM_CACHE);
     } catch (erro) {
-      return errorResponse(erro);
+      return Resposta.deErro(erro);
     }
   }
 
   // GET /api/admin/tipos (rota 19)
   async function getAdminTipos(request: Request) {
     try {
-      return ok(await catalogo.listarTiposAdmin(await sessaoAdmin(request)), SEM_CACHE);
+      return Resposta.ok(await catalogo.listarTiposAdmin(await sessaoAdmin(request)), SEM_CACHE);
     } catch (erro) {
-      return errorResponse(erro);
+      return Resposta.deErro(erro);
     }
   }
 
@@ -58,9 +61,9 @@ export function criarHandlersCatalogo({ exigirSessao, catalogo }: DependenciasHa
   async function postAdminTipos(request: Request) {
     try {
       const sessao = await sessaoAdmin(request);
-      return created(await catalogo.criarTipo(sessao, await lerJson(request)), SEM_CACHE);
+      return Resposta.criada(await catalogo.criarTipo(sessao, await leitor.lerJson(request)), SEM_CACHE);
     } catch (erro) {
-      return errorResponse(erro);
+      return Resposta.deErro(erro);
     }
   }
 
@@ -68,9 +71,9 @@ export function criarHandlersCatalogo({ exigirSessao, catalogo }: DependenciasHa
   async function putAdminTipo(request: Request, id: string) {
     try {
       const sessao = await sessaoAdmin(request);
-      return ok(await catalogo.atualizarTipo(sessao, id, await lerJson(request)), SEM_CACHE);
+      return Resposta.ok(await catalogo.atualizarTipo(sessao, id, await leitor.lerJson(request)), SEM_CACHE);
     } catch (erro) {
-      return errorResponse(erro);
+      return Resposta.deErro(erro);
     }
   }
 
@@ -83,9 +86,9 @@ export function criarHandlersCatalogo({ exigirSessao, catalogo }: DependenciasHa
         tipoId: searchParams.get("tipoId"),
         status: searchParams.get("status"),
       });
-      return ok(lista, SEM_CACHE);
+      return Resposta.ok(lista, SEM_CACHE);
     } catch (erro) {
-      return errorResponse(erro);
+      return Resposta.deErro(erro);
     }
   }
 
@@ -93,9 +96,9 @@ export function criarHandlersCatalogo({ exigirSessao, catalogo }: DependenciasHa
   async function postAdminBicicletas(request: Request) {
     try {
       const sessao = await sessaoAdmin(request);
-      return created(await catalogo.criarBicicleta(sessao, await lerJson(request)), SEM_CACHE);
+      return Resposta.criada(await catalogo.criarBicicleta(sessao, await leitor.lerJson(request)), SEM_CACHE);
     } catch (erro) {
-      return errorResponse(erro);
+      return Resposta.deErro(erro);
     }
   }
 
@@ -103,9 +106,9 @@ export function criarHandlersCatalogo({ exigirSessao, catalogo }: DependenciasHa
   async function patchAdminBicicleta(request: Request, id: string) {
     try {
       const sessao = await sessaoAdmin(request);
-      return ok(await catalogo.atualizarBicicleta(sessao, id, await lerJson(request)), SEM_CACHE);
+      return Resposta.ok(await catalogo.atualizarBicicleta(sessao, id, await leitor.lerJson(request)), SEM_CACHE);
     } catch (erro) {
-      return errorResponse(erro);
+      return Resposta.deErro(erro);
     }
   }
 

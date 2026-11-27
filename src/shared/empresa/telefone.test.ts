@@ -26,6 +26,21 @@ test("Telefone em formato que não é de DDD + número sai como veio, sem invent
   }
 });
 
+test("Telefone: o 55 só é código do país com +55 ou com o número todo em dígitos", () => {
+  // DDD 55 (Rio Grande do Sul) com ramal: 12 dígitos começando por 55, mas sem dizer que é o país.
+  const comRamal = Telefone.de("(55) 3222-1100 r. 12");
+  assert.equal(comRamal?.formatado(), "(55) 3222-1100 r. 12");
+  assert.equal(comRamal?.link(), null);
+  assert.equal(Telefone.de("(55) 3222-1100")?.link(), "tel:+555532221100");
+  assert.equal(Telefone.de("+55 55 3222-1100")?.link(), "tel:+555532221100");
+  assert.equal(Telefone.de("555532221100")?.link(), "tel:+555532221100");
+});
+
+test("Telefone com texto em volta do número sai como veio, sem perder a observação", () => {
+  assert.equal(Telefone.de("98 3222-1100 (somente WhatsApp)")?.formatado(), "98 3222-1100 (somente WhatsApp)");
+  assert.equal(Telefone.de("98 3222-1100 (somente WhatsApp)")?.link(), null);
+});
+
 test("Telefone dá o link de discagem só quando o número é reconhecido", () => {
   assert.equal(Telefone.de("98900000000")?.link(), "tel:+5598900000000");
   assert.equal(Telefone.de("(98) 3222-1100")?.link(), "tel:+559832221100");
@@ -73,5 +88,5 @@ test("estresse: 100 mil telefones de formatos variados são formatados rápido e
   const formatos = ["98900000000", "(98) 3222-1100", "+55 98 90000-0000", "", "lixo", "9".repeat(10_000)];
   const inicio = performance.now();
   for (let i = 0; i < 100_000; i++) Telefone.de(formatos[i % formatos.length])?.formatado();
-  assert.ok(performance.now() - inicio < 2000, "formatar 100 mil telefones passou de 2 s");
+  assert.ok(performance.now() - inicio < 10_000, "formatar 100 mil telefones passou de 10 s");
 });

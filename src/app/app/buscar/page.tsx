@@ -4,8 +4,9 @@ import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { ATIVIDADES, ehAtividade } from "@/shared/dominio/ciclista";
 import { DESCRICAO_ATIVIDADE, ROTULO_ATIVIDADE } from "@/shared/dominio/ciclista-rotulos";
-import { formatarPeriodo, formatarReais } from "@/shared/format/moeda-e-data";
-import { ApiError, getAutenticado } from "@/shared/http/api-cliente";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
+import { FormatadorDeData } from "@/shared/format/formatador-de-data";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { horariosDoDia, proximosDias, retiradaEDevolucao } from "@/shared/busca/agenda";
 import { BilheteDoPeriodo } from "@/shared/busca/BilheteDoPeriodo";
 import {
@@ -77,7 +78,7 @@ export default function BuscarPage() {
   // A conta serve para lembrar a atividade do perfil e avisar quem ainda não o preencheu.
   useEffect(() => {
     let ativo = true;
-    getAutenticado<ContaLogada>("/api/conta/me")
+    ClienteApi.padrao.get<ContaLogada>("/api/conta/me")
       .then((dados) => ativo && setConta(dados))
       .catch(() => {
         // Só uma ajuda: sem a conta, a busca segue normalmente.
@@ -154,7 +155,7 @@ export default function BuscarPage() {
     emBusca.current = true;
     setResultado({ tipo: "buscando" });
     try {
-      const resposta = await getAutenticado<RespostaRecomendacao>(
+      const resposta = await ClienteApi.padrao.get<RespostaRecomendacao>(
         `/api/recomendacao?${montarConsulta(efetivo)}`,
       );
       setResultado({ tipo: "pronto", resposta });
@@ -290,7 +291,7 @@ export default function BuscarPage() {
                   : `${resultado.resposta.resultados.length} bicicletas livres`}
             </h3>
             <p className={styles.resultadosTexto}>
-              {formatarPeriodo(resultado.resposta.periodo.inicio, resultado.resposta.periodo.fim)}
+              {FormatadorDeData.saoLuis.periodo(resultado.resposta.periodo.inicio, resultado.resposta.periodo.fim)}
               {resultado.resposta.resultados.length > 1 && ", da mais indicada para a menos"}
             </p>
           </div>
@@ -334,7 +335,7 @@ export default function BuscarPage() {
                           </div>
                           <p className={styles.preco}>
                             <span className={styles.precoValor}>
-                              {formatarReais(item.valorAluguelCentavos)}
+                              {Dinheiro.deCentavos(item.valorAluguelCentavos).formatar()}
                             </span>
                             <span className={styles.precoNota}>pelo período</span>
                           </p>
@@ -352,7 +353,7 @@ export default function BuscarPage() {
                         )}
 
                         <p className={styles.meta}>
-                          <span>Caução de {formatarReais(item.valorCaucaoCentavos)} no balcão</span>
+                          <span>Caução de {Dinheiro.deCentavos(item.valorCaucaoCentavos).formatar()} no balcão</span>
                           <span>
                             {item.unidadesLivres === 1
                               ? "1 unidade livre"

@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { after, before, test } from "node:test";
 
 // Teste de fumaça das rotas do catálogo: carrega os arquivos route.ts de verdade, que chamam o
-// handlers.ts, que liga o exigirSessao REAL do módulo contas e o exigirPerfil. Só o banco é de
+// handlers.ts, que liga o exigirSessao REAL do módulo contas e o PerfisPermitidos. Só o banco é de
 // mentira (um pool que responde "qual é o perfil deste usuário?"). Assim, se uma rota passar a
 // chamar outro handler, se o handlers.ts deixar de ligar o exigirSessao do contas, ou se alguém
 // esquecer a guarda numa rota, a CI pega: antes, isso só era conferido à mão no Neon.
@@ -64,12 +64,12 @@ let segredoAnterior: string | undefined;
 before(async () => {
   segredoAnterior = process.env.SESSION_SECRET;
   process.env.SESSION_SECRET = SEGREDO;
-  // o pool do app é criado no primeiro uso e guardado aqui (src/shared/db/pool.ts)
-  (globalThis as { __bikeIlhaPool?: unknown }).__bikeIlhaPool = {
+  // a promessa do pool do app é criada no primeiro uso e guardada aqui (src/shared/db/banco-de-dados.ts)
+  (globalThis as { __bikeIlhaPool?: unknown }).__bikeIlhaPool = Promise.resolve({
     connect: async () => clienteFalso(),
     query: (sql: string, valores?: unknown[]) => clienteFalso().query(sql, valores),
     on() {},
-  };
+  });
   tipos = await import("./admin/tipos/route.ts");
   tipoPorId = await import("./admin/tipos/[id]/route.ts");
   bicicletas = await import("./admin/bicicletas/route.ts");

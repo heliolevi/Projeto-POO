@@ -29,6 +29,10 @@ function montar() {
     agora: () => relogio,
     gerarId: () => `pg-${++n}`,
     aoAprovar: async (reservaId) => void confirmadas.push(reservaId),
+    // o meio de pagamento de mentira dos testes: devolve um id e um copia e cola para cada Pix
+    registrarCobranca: async (p) => {
+      if (p instanceof PagamentoPix) p.registrarCobranca(`pi_${p.id}`, `copia-${p.id}`);
+    },
   });
   return {
     guardados,
@@ -344,6 +348,9 @@ describe("PagamentoService.processarWebhook", () => {
       },
       agora: () => AGORA,
       gerarId: () => "pg-1",
+      registrarCobranca: async (p) => {
+        if (p instanceof PagamentoPix) p.registrarCobranca("pi_pg-1", "copia-pg-1");
+      },
       aoAprovar: async (reservaId) => {
         if (fora) throw new Error("reserva fora do ar");
         confirmadas.push(reservaId);

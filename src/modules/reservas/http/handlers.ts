@@ -1,8 +1,8 @@
-import { exigirPerfil, exigirSessao } from "@/modules/contas";
-import { exigirDentroDoLimite } from "@/shared/db/limite-tentativas";
-import { query } from "@/shared/db/pool";
-import { lerJson } from "@/shared/http/json";
-import { created, errorResponse, ok } from "@/shared/http/response";
+import { exigirSessao, PerfisPermitidos } from "@/modules/contas";
+import { BancoDeDados } from "@/shared/db/banco-de-dados";
+import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
+import { LeitorDeCorpo } from "@/shared/http/leitor-de-corpo";
+import { Resposta } from "@/shared/http/resposta";
 import { ReservaService } from "../application/reserva-service";
 import { calcularValorAluguel } from "../../../shared/dominio/preco-aluguel";
 import { gerarCodigoReserva } from "../domain/reserva";
@@ -12,7 +12,11 @@ import { emTransacao } from "../infrastructure/repositorio-reservas";
 // pessoas atrás do mesmo NAT dividem o IP.
 const LIMITE_RESERVAS_POR_USUARIO = { max: 20, janelaSegundos: 60 * 60 };
 
+const limite = new LimiteDeTentativas(BancoDeDados.padrao);
 const SEM_CACHE = { headers: { "Cache-Control": "no-store" } };
+
+const leitor = new LeitorDeCorpo();
+const soCliente = new PerfisPermitidos("CLIENTE");
 
 // O serviço não guarda estado (a sessão chega a cada chamada), então é criado uma vez.
 const reservas = new ReservaService({
@@ -24,21 +28,19 @@ const reservas = new ReservaService({
 
 // Todas as rotas de reserva são do CLIENTE: 401 sem sessão válida, 403 para a equipe.
 async function sessaoDoCliente(request: Request) {
-  return exigirPerfil(await exigirSessao(request), "CLIENTE");
+  return soCliente.exigir(await exigirSessao(request));
 }
 
 // POST /api/reservas (rota 12)
 export async function postReservas(request: Request) {
   try {
     const sessao = await sessaoDoCliente(request);
-    await exigirDentroDoLimite(
-      query,
-      `reservas:usuario:${sessao.usuarioId}`,
+    await limite.exigirDentroDoLimite(`reservas:usuario:${sessao.usuarioId}`,
       LIMITE_RESERVAS_POR_USUARIO,
     );
-    return created(await reservas.criarReserva(sessao, await lerJson(request)), SEM_CACHE);
+    return Resposta.criada(await reservas.criarReserva(sessao, await leitor.lerJson(request)), SEM_CACHE);
   } catch (erro) {
-    return errorResponse(erro);
+    return Resposta.deErro(erro);
   }
 }
 
@@ -47,9 +49,9 @@ export async function getReservas(request: Request) {
   try {
     const sessao = await sessaoDoCliente(request);
     const status = new URL(request.url).searchParams.get("status");
-    return ok(await reservas.listarReservas(sessao, { status }), SEM_CACHE);
+    return Resposta.ok(await reservas.listarReservas(sessao, { status }), SEM_CACHE);
   } catch (erro) {
-    return errorResponse(erro);
+    return Resposta.deErro(erro);
   }
 }
 
@@ -57,9 +59,9 @@ export async function getReservas(request: Request) {
 export async function getReserva(request: Request, id: string) {
   try {
     const sessao = await sessaoDoCliente(request);
-    return ok(await reservas.buscarReserva(sessao, id), SEM_CACHE);
+    return Resposta.ok(await reservas.buscarReserva(sessao, id), SEM_CACHE);
   } catch (erro) {
-    return errorResponse(erro);
+    return Resposta.deErro(erro);
   }
 }
 
@@ -67,8 +69,8 @@ export async function getReserva(request: Request, id: string) {
 export async function postCancelarReserva(request: Request, id: string) {
   try {
     const sessao = await sessaoDoCliente(request);
-    return ok(await reservas.cancelarReserva(sessao, id), SEM_CACHE);
+    return Resposta.ok(await reservas.cancelarReserva(sessao, id), SEM_CACHE);
   } catch (erro) {
-    return errorResponse(erro);
+    return Resposta.deErro(erro);
   }
 }

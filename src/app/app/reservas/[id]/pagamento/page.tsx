@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { formatarReais } from "@/shared/format/moeda-e-data";
-import { ApiError, getAutenticado, postAutenticado } from "@/shared/http/api-cliente";
+import { Dinheiro } from "@/shared/dominio/dinheiro";
+import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import {
   imagemDoQrCode,
   situacaoDoPix,
   type CobrancaPix,
   type StatusDoPagamento,
 } from "@/shared/pagamentos/pagamento";
+import { SimuladorDePagamento } from "@/shared/pagamentos/simulador-de-pagamento";
 import pagamentoStyles from "@/shared/pagamentos/pagamento.module.css";
 import {
   formatarContagem,
@@ -21,6 +22,7 @@ import styles from "@/shared/reservas/reservas.module.css";
 import { Alert } from "@/shared/ui/Alert";
 
 const INTERVALO_DA_CONSULTA_MS = 3000;
+const simulador = new SimuladorDePagamento();
 
 type Estado =
   | { tipo: "carregando" }
@@ -41,6 +43,9 @@ export default function PagamentoPixPage() {
   const [tentativa, setTentativa] = useState(0);
   const [agora, setAgora] = useState(() => new Date());
   const [copiado, setCopiado] = useState(false);
+  const [simulando, setSimulando] = useState(false);
+  const [avisoDaSimulacao, setAvisoDaSimulacao] = useState<{ texto: string; tom: "info" | "erro" } | null>(null);
+  const travaDaSimulacao = useRef(false);
   const temporizadorDaCopia = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cria (ou reaproveita, a rota é idempotente) a cobrança Pix da reserva.
@@ -49,7 +54,7 @@ export default function PagamentoPixPage() {
 
     async function criarCobranca() {
       try {
-        const cobranca = await postAutenticado<CobrancaPix>("/api/pagamentos", {
+        const cobranca = await ClienteApi.padrao.post<CobrancaPix>("/api/pagamentos", {
           reservaId: id,
           metodo: "PIX",
         });
@@ -71,7 +76,7 @@ export default function PagamentoPixPage() {
 
     async function decidirPelaReserva(conflito: ApiError) {
       try {
-        const reserva = await getAutenticado<ReservaDetalhada>(`/api/reservas/${id}`);
+        const reserva = await ClienteApi.padrao.get<ReservaDetalhada>(`/api/reservas/${id}`);
         if (!ativo) return;
         if (reserva.status === "CONFIRMADA" || reserva.status === "EM_ANDAMENTO") {
           router.replace(`/app/reservas/${id}`);
@@ -107,7 +112,7 @@ export default function PagamentoPixPage() {
 
     async function consultar() {
       try {
-        const status = await getAutenticado<StatusDoPagamento>(`/api/pagamentos/${id}/status`);
+        const status = await ClienteApi.padrao.get<StatusDoPagamento>(`/api/pagamentos/${id}/status`);
         if (!ativo) return;
         const situacao = situacaoDoPix(status);
         if (situacao === "confirmado") return setEstado({ tipo: "confirmado" });
@@ -157,6 +162,29 @@ export default function PagamentoPixPage() {
       temporizadorDaCopia.current = setTimeout(() => setCopiado(false), 2500);
     } catch {
       setCopiado(false);
+    }
+  }
+
+  // MVP: o pagamento é simulado, então o cliente aprova o Pix por aqui. A regra de cada resposta
+  // mora no SimuladorDePagamento; a tela só aplica o resultado.
+  async function simularPagamento() {
+    if (travaDaSimulacao.current) return;
+    travaDaSimulacao.current = true;
+    setSimulando(true);
+    setAvisoDaSimulacao(null);
+    try {
+      const resultado = await simulador.aprovar(id);
+      const situacao = resultado.situacaoFinal();
+      if (situacao === "confirmado") setEstado({ tipo: "confirmado" });
+      else if (situacao === "encerrado") setEstado({ tipo: "encerrado" });
+      else if (situacao === "pagoSemReserva") setEstado({ tipo: "pagoSemReserva" });
+      else {
+        const texto = resultado.aviso();
+        setAvisoDaSimulacao(texto ? { texto, tom: resultado.tomDoAviso() } : null);
+      }
+    } finally {
+      travaDaSimulacao.current = false;
+      setSimulando(false);
     }
   }
 
@@ -228,6 +256,14 @@ export default function PagamentoPixPage() {
                 Escaneie o QR code ou use o Pix copia e cola no aplicativo do seu banco.
               </p>
 
+              {!estado.cobranca.pix.pagavelEmBanco && (
+                <p className={styles.aviso} role="alert">
+                  Pix de teste: este código é fictício e nenhum banco aceita. Para simular o
+                  pagamento, aponte a câmera do celular para o QR code: ele abre a página de teste
+                  da Stripe. Nenhum valor será cobrado.
+                </p>
+              )}
+
               <div className={pagamentoStyles.qrBloco}>
                 {/* QR vem da API em base64; next/image não ajuda com data URI. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -237,7 +273,7 @@ export default function PagamentoPixPage() {
                   alt="QR code do Pix"
                 />
                 <span className={pagamentoStyles.valor}>
-                  {formatarReais(estado.cobranca.valorCentavos)}
+                  {Dinheiro.deCentavos(estado.cobranca.valorCentavos).formatar()}
                 </span>
                 <span className={pagamentoStyles.contagem}>
                   Este Pix vale por mais {formatarContagem(restante)}
@@ -264,6 +300,21 @@ export default function PagamentoPixPage() {
                   {copiado ? "Código copiado!" : "Copiar código Pix"}
                 </button>
               </div>
+
+              <div className={styles.acoes} style={{ marginTop: "var(--space-12)" }}>
+                <button
+                  type="button"
+                  className={styles.botaoPrimario}
+                  onClick={simularPagamento}
+                  disabled={simulando}
+                >
+                  {simulando ? "Simulando..." : "Simular pagamento"}
+                </button>
+              </div>
+              <p className={styles.subtitulo}>
+                Modo de teste: nenhuma cobrança real é feita.
+              </p>
+              {avisoDaSimulacao && <Alert variant={avisoDaSimulacao.tom}>{avisoDaSimulacao.texto}</Alert>}
 
               <ol className={pagamentoStyles.passos} style={{ marginTop: "var(--space-20)" }}>
                 <li>Abra o aplicativo do seu banco e escolha pagar com Pix.</li>

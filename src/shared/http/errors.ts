@@ -72,3 +72,11 @@ export class TooManyRequestsError extends AppError {
     this.retryAfterSegundos = retryAfterSegundos;
   }
 }
+
+// 502: o meio de pagamento (Stripe) não respondeu, recusou a operação ou não está configurado no
+// ambiente (STRIPE_SECRET_KEY ou STRIPE_WEBHOOK_SECRET ausente). O detalhe vai só para o log.
+export class PagamentoIndisponivelError extends AppError {
+  constructor(message = "O pagamento está indisponível no momento. Tente de novo em instantes.") {
+    super("PAGAMENTO_INDISPONIVEL", message, 502);
+  }
+}

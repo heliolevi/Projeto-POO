@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { imagemDoQrCode, situacaoDoPix, type StatusDoPagamento } from "./pagamento.ts";
+import { caminhoDaSimulacao, imagemDoQrCode, situacaoDoPix, type StatusDoPagamento } from "./pagamento.ts";
 
 const base: StatusDoPagamento = {
   reservaId: "r1",
@@ -39,4 +39,9 @@ test("encerra quando a reserva expira ou é cancelada, ou o Pix é recusado ou e
 
 test("monta a imagem do QR a partir do base64", () => {
   assert.equal(imagemDoQrCode("abc"), "data:image/png;base64,abc");
+});
+
+test("monta o caminho da aprovação simulada escapando o id", () => {
+  assert.equal(caminhoDaSimulacao("r1"), "/api/pagamentos/r1/simular");
+  assert.equal(caminhoDaSimulacao("a/b"), "/api/pagamentos/a%2Fb/simular");
 });
