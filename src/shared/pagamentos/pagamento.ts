@@ -9,7 +9,8 @@ export type CobrancaPix = {
   metodo: "PIX";
   status: StatusPagamento;
   valorCentavos: number;
-  pix: { qrCodeBase64: string; copiaECola: string; expiraEm: string };
+  // pagavelEmBanco: false quando a Stripe está em modo de teste (código fictício, nenhum banco paga)
+  pix: { qrCodeBase64: string; copiaECola: string; expiraEm: string; pagavelEmBanco: boolean };
 };
 
 // GET /api/pagamentos/{reservaId}/status (contrato, rota 17)
@@ -45,4 +46,11 @@ export function situacaoDoPix(status: StatusDoPagamento): SituacaoDoPix {
 
 export function imagemDoQrCode(qrCodeBase64: string): string {
   return `data:image/png;base64,${qrCodeBase64}`;
+}
+
+// Aprovação simulada do Pix (MVP, PAGAMENTO_MODO=simulado). O contrato (rota 16) diz só que
+// "existe uma forma de aprovar sem o Mercado Pago", sem dar o caminho: este é o combinado
+// provisório com o back-end (S4). Se o Hélio escolher outro, é só trocar aqui.
+export function caminhoDaSimulacao(reservaId: string): string {
+  return `/api/pagamentos/${encodeURIComponent(reservaId)}/simular`;
 }
