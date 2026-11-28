@@ -1,4 +1,4 @@
-import { ehAtividade, type Atividade } from "../dominio/ciclista.ts";
+import { RegrasDoCiclista, type Atividade } from "../dominio/ciclista.ts";
 import { FormatadorDeData } from "../format/formatador-de-data.ts";
 
 // Resultado de GET /api/recomendacao (contrato, rota 11).
@@ -45,53 +45,78 @@ export const DURACOES = [
 
 const VALORES_DE_DURACAO: readonly string[] = DURACOES.map((d) => d.valor);
 
-function inicioEmIso(form: FormularioBusca): string | null {
-  try {
-    return FormatadorDeData.saoLuis.paraIso(form.data, form.hora);
-  } catch {
-    return null;
-  }
-}
+// O formulário da busca com as regras em cima dos dados: valida, calcula o período e monta a query.
+// É imutável (guarda uma cópia dos dados e não oferece como mudá-los); a tela troca de formulário
+// criando outro com os dados novos.
+export class FormularioDeBusca {
+  #dados: Readonly<FormularioBusca>;
 
-export function validarBusca(form: FormularioBusca, agora: Date = new Date()): ErrosBusca {
-  const erros: ErrosBusca = {};
-  if (!form.data) erros.data = "Escolha o dia da retirada.";
-  if (!form.hora) erros.hora = "Escolha o horário de início.";
-  if (!VALORES_DE_DURACAO.includes(form.duracao)) erros.duracao = "Escolha por quanto tempo.";
-  if (form.atividade !== "" && !ehAtividade(form.atividade)) {
-    erros.atividade = "Escolha uma das opções.";
+  constructor(dados: FormularioBusca) {
+    this.#dados = Object.freeze({ ...dados });
   }
 
-  if (!erros.data && !erros.hora) {
-    const iso = inicioEmIso(form);
-    if (!iso) erros.data = "Essa data ou hora não existe.";
-    else if (new Date(iso).getTime() <= agora.getTime()) {
-      erros.data = "A retirada precisa ser no futuro.";
+  get dados(): FormularioBusca {
+    return { ...this.#dados };
+  }
+
+  validar(agora: Date = new Date()): ErrosBusca {
+    const form = this.#dados;
+    const erros: ErrosBusca = {};
+    if (!form.data) erros.data = "Escolha o dia da retirada.";
+    if (!form.hora) erros.hora = "Escolha o horário de início.";
+    if (!VALORES_DE_DURACAO.includes(form.duracao)) erros.duracao = "Escolha por quanto tempo.";
+    if (form.atividade !== "" && !RegrasDoCiclista.ehAtividade(form.atividade)) {
+      erros.atividade = "Escolha uma das opções.";
+    }
+
+    if (!erros.data && !erros.hora) {
+      const iso = this.#inicioEmIso();
+      if (!iso) erros.data = "Essa data ou hora não existe.";
+      else if (new Date(iso).getTime() <= agora.getTime()) {
+        erros.data = "A retirada precisa ser no futuro.";
+      }
+    }
+    return erros;
+  }
+
+  /** Fim do período: início + duração, em ISO (UTC). Só use depois de `validar` sem erros. */
+  periodo(): { inicio: string; fim: string } {
+    const inicio = FormatadorDeData.saoLuis.paraIso(this.#dados.data, this.#dados.hora);
+    const fim = new Date(new Date(inicio).getTime() + Number(this.#dados.duracao) * 60_000);
+    return { inicio, fim: fim.toISOString() };
+  }
+
+  /** Query da rota 11. A atividade só vai se o cliente escolheu uma; senão vale a do perfil. */
+  consulta(): string {
+    const { inicio, fim } = this.periodo();
+    const parametros = new URLSearchParams({ inicio, fim });
+    if (RegrasDoCiclista.ehAtividade(this.#dados.atividade)) {
+      parametros.set("atividade", this.#dados.atividade as Atividade);
+    }
+    return parametros.toString();
+  }
+
+  #inicioEmIso(): string | null {
+    try {
+      return FormatadorDeData.saoLuis.paraIso(this.#dados.data, this.#dados.hora);
+    } catch {
+      return null;
     }
   }
-  return erros;
-}
-
-/** Fim do período: início + duração, em ISO (UTC). Só use depois de `validarBusca` sem erros. */
-export function periodoDaBusca(form: FormularioBusca): { inicio: string; fim: string } {
-  const inicio = FormatadorDeData.saoLuis.paraIso(form.data, form.hora);
-  const fim = new Date(new Date(inicio).getTime() + Number(form.duracao) * 60_000);
-  return { inicio, fim: fim.toISOString() };
-}
-
-/** Query da rota 11. A atividade só vai se o cliente escolheu uma; senão vale a do perfil. */
-export function montarConsulta(form: FormularioBusca): string {
-  const { inicio, fim } = periodoDaBusca(form);
-  const parametros = new URLSearchParams({ inicio, fim });
-  if (ehAtividade(form.atividade)) parametros.set("atividade", form.atividade as Atividade);
-  return parametros.toString();
 }
 
 export type Aderencia = { rotulo: string; variant: "sucesso" | "info" | "neutro" };
 
-/** Texto do selo de adequação a partir dos pontos (0 a 100) da recomendação. */
-export function aderenciaDosPontos(pontos: number): Aderencia {
-  if (pontos >= 80) return { rotulo: "Muito indicada", variant: "sucesso" };
-  if (pontos >= 50) return { rotulo: "Indicada", variant: "info" };
-  return { rotulo: "Possível", variant: "neutro" };
+// Texto do selo de adequação a partir dos pontos (0 a 100) da recomendação. Só tem método
+// estático (não guarda estado), então não se cria instância.
+export class AderenciaDaRecomendacao {
+  private constructor() {
+    throw new Error("AderenciaDaRecomendacao só tem métodos estáticos.");
+  }
+
+  static dosPontos(pontos: number): Aderencia {
+    if (pontos >= 80) return { rotulo: "Muito indicada", variant: "sucesso" };
+    if (pontos >= 50) return { rotulo: "Indicada", variant: "info" };
+    return { rotulo: "Possível", variant: "neutro" };
+  }
 }

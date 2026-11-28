@@ -16,8 +16,8 @@ export {
   putAdminTipo,
 } from "./http/handlers";
 export type { BicicletaAdmin, EmpresaPublica, TipoAdmin, TipoPublico } from "./domain/catalogo";
-export { STATUS_BICICLETA, type StatusBicicleta } from "./domain/validacao";
+export { STATUS_BICICLETA, type StatusBicicleta } from "./domain/validador-do-catalogo";
 export { Bicicleta, TransicaoDeBicicletaInvalida } from "./domain/bicicleta";
 export { Empresa } from "./domain/empresa";
-export { Ponto, horarioDoBanco, type Horario, type HorarioDoBanco } from "./domain/ponto";
+export { Ponto, type Horario, type HorarioDoBanco } from "./domain/ponto";
 export { TipoBicicleta } from "./domain/tipo-bicicleta";

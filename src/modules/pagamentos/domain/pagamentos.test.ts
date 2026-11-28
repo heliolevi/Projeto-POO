@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
-import { PRAZO_DE_PAGAMENTO_MS } from "../../../shared/dominio/prazos.ts";
+import { PrazoDePagamento } from "../../../shared/dominio/prazos.ts";
 import { ConflictError } from "../../../shared/http/errors.ts";
 import {
-  criarPagamento,
+  FabricaDePagamento,
   PagamentoCartao,
   PagamentoPix,
-  PRAZO_DO_PIX_MS,
 } from "./formas-de-pagamento.ts";
 import {
   METODOS_PAGAMENTO,
@@ -199,7 +198,7 @@ describe("Pagamento: estorno", () => {
 describe("PagamentoPix", () => {
   test("o método é PIX e, sem prazo informado, vale 15 minutos", () => {
     assert.equal(pix().metodo, "PIX");
-    assert.equal(PRAZO_DO_PIX_MS, 15 * MIN);
+    assert.equal(PagamentoPix.PRAZO_MS, 15 * MIN);
     assert.equal(pix().expiraEm().getTime(), CRIADO.getTime() + 15 * MIN);
   });
 
@@ -338,32 +337,32 @@ describe("PagamentoCartao", () => {
   });
 });
 
-describe("criarPagamento (fábrica) e polimorfismo", () => {
+describe("FabricaDePagamento (fábrica) e polimorfismo", () => {
   test("devolve a subclasse certa para cada forma de pagamento", () => {
-    assert.ok(criarPagamento("PIX", dados()) instanceof PagamentoPix);
-    const credito = criarPagamento("CARTAO_CREDITO", dados());
-    const debito = criarPagamento("CARTAO_DEBITO", dados());
+    assert.ok(FabricaDePagamento.criar("PIX", dados()) instanceof PagamentoPix);
+    const credito = FabricaDePagamento.criar("CARTAO_CREDITO", dados());
+    const debito = FabricaDePagamento.criar("CARTAO_DEBITO", dados());
     assert.ok(credito instanceof PagamentoCartao && debito instanceof PagamentoCartao);
     assert.equal(credito.metodo, "CARTAO_CREDITO");
     assert.equal(debito.metodo, "CARTAO_DEBITO");
     for (const metodo of METODOS_PAGAMENTO) {
-      assert.ok(criarPagamento(metodo, dados()) instanceof Pagamento, metodo);
+      assert.ok(FabricaDePagamento.criar(metodo, dados()) instanceof Pagamento, metodo);
     }
   });
 
   test("forma desconhecida não vira objeto", () => {
-    assert.throws(() => criarPagamento("BOLETO" as never, dados()), RangeError);
+    assert.throws(() => FabricaDePagamento.criar("BOLETO" as never, dados()), RangeError);
   });
 
   test("o prazo informado vale para o Pix e é ignorado pelo cartão", () => {
     const prazo = new Date(CRIADO.getTime() + 3 * MIN);
-    const p = criarPagamento("PIX", dados({ expiraEm: prazo }));
+    const p = FabricaDePagamento.criar("PIX", dados({ expiraEm: prazo }));
     assert.equal((p as PagamentoPix).expiraEm().getTime(), prazo.getTime());
-    assert.doesNotThrow(() => criarPagamento("CARTAO_CREDITO", dados({ expiraEm: prazo })));
+    assert.doesNotThrow(() => FabricaDePagamento.criar("CARTAO_CREDITO", dados({ expiraEm: prazo })));
   });
 
   test("o mesmo código usa qualquer pagamento sem saber qual é: confirmar, vencimento e resumo", () => {
-    const todos: Pagamento[] = METODOS_PAGAMENTO.map((m) => criarPagamento(m, dados()));
+    const todos: Pagamento[] = METODOS_PAGAMENTO.map((m) => FabricaDePagamento.criar(m, dados()));
     for (const p of todos) {
       assert.equal(p.estaVencido(CRIADO), false);
       p.confirmar("mp-1", PAGO);
@@ -396,14 +395,29 @@ describe("pagamentos: cobrança inicial e prazo", () => {
 
   test("cobrancaInicial funciona do mesmo jeito para qualquer forma (polimorfismo)", () => {
     for (const metodo of METODOS_PAGAMENTO) {
-      const c = criarPagamento(metodo, dados({ copiaECola: COPIA })).cobrancaInicial(CRIADO);
+      const c = FabricaDePagamento.criar(metodo, dados({ copiaECola: COPIA })).cobrancaInicial(CRIADO);
       assert.equal(c.metodo, metodo);
       assert.equal(c.status, "PENDENTE");
     }
   });
 
   test("o prazo padrão do Pix é o da reserva pendente (uma constante só)", () => {
-    assert.equal(PRAZO_DO_PIX_MS, PRAZO_DE_PAGAMENTO_MS);
-    assert.equal(PRAZO_DE_PAGAMENTO_MS, 15 * MIN);
+    assert.equal(PagamentoPix.PRAZO_MS, PrazoDePagamento.MS);
+    assert.equal(PrazoDePagamento.MS, 15 * MIN);
+  });
+});
+
+describe("FabricaDePagamento e constantes como membros de classe", () => {
+  test("a fábrica só tem método estático: não se cria instância", () => {
+    assert.throws(() => new (FabricaDePagamento as unknown as new () => object)(), TypeError);
+  });
+
+  test("o prazo do Pix é um membro de PagamentoPix e vale o da reserva pendente", () => {
+    assert.equal(PagamentoPix.PRAZO_MS, 15 * MIN);
+    assert.equal(PagamentoPix.PRAZO_MS, PrazoDePagamento.MS);
+  });
+
+  test("nenhum pagamento expõe campo (Object.keys vazio)", () => {
+    for (const metodo of METODOS_PAGAMENTO) assert.deepEqual(Object.keys(FabricaDePagamento.criar(metodo, dados())), [], metodo);
   });
 });

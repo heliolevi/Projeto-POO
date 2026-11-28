@@ -7,13 +7,10 @@ import { FormatadorDeData } from "@/shared/format/formatador-de-data";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import {
   ITENS_CHECKLIST,
-  andamentoDeOutrosDias,
-  ROTULO_ITEM,
-  dataEmSaoLuis,
-  faltaObservacao,
-  montarChecklist,
-  movimentoPossivel,
-  ordenarParaOBalcao,
+  ChecklistDoBalcao,
+  FilaDoBalcao,
+  MovimentoDoBalcao,
+  RotulosDoChecklist,
   type ItemChecklist,
   type Movimento,
   type ReservaDoPainel,
@@ -48,7 +45,7 @@ type Estado =
 const TITULO: Record<Movimento, string> = { retirada: "Registrar retirada", devolucao: "Registrar devolução" };
 
 function PainelDeOperacao() {
-  const [data, setData] = useState(() => dataEmSaoLuis());
+  const [data, setData] = useState(() => FilaDoBalcao.dataEmSaoLuis());
   const [estado, setEstado] = useState<Estado>({ tipo: "carregando" });
   const [aviso, setAviso] = useState<string | null>(null);
   const [emRegistro, setEmRegistro] = useState<{ reserva: ReservaDoPainel; movimento: Movimento } | null>(null);
@@ -69,8 +66,8 @@ function PainelDeOperacao() {
       if (pedido !== ultimoPedido.current) return;
       setEstado({
         tipo: "pronto",
-        reservas: ordenarParaOBalcao(doDia),
-        outrosDias: andamentoDeOutrosDias(doDia, emAndamento),
+        reservas: FilaDoBalcao.ordenar(doDia),
+        outrosDias: FilaDoBalcao.andamentoDeOutrosDias(doDia, emAndamento),
       });
     } catch (e) {
       if (pedido !== ultimoPedido.current) return;
@@ -167,7 +164,7 @@ function ListaDoBalcao({
   return (
     <ul className={styles.lista}>
       {reservas.map((reserva) => {
-        const movimento = movimentoPossivel(reserva.status);
+        const movimento = MovimentoDoBalcao.possivel(reserva.status);
         return (
           <li key={reserva.id} className={styles.cartao}>
             <div className={styles.cartaoTopo}>
@@ -210,8 +207,8 @@ function RegistroDeMovimento({
   const [enviando, setEnviando] = useState(false);
 
   async function registrar() {
-    const corpo = montarChecklist(marcados, observacoes);
-    if (faltaObservacao(corpo)) {
+    const corpo = ChecklistDoBalcao.montar(marcados, observacoes);
+    if (ChecklistDoBalcao.faltaObservacao(corpo)) {
       setErro("Algum item está com problema: descreva nas observações.");
       return;
     }
@@ -264,7 +261,7 @@ function RegistroDeMovimento({
                 checked={marcados[item] === true}
                 onChange={(e) => setMarcados((m) => ({ ...m, [item]: e.target.checked }))}
               />
-              {ROTULO_ITEM[item]}
+              {RotulosDoChecklist.item(item)}
             </label>
           ))}
         </fieldset>

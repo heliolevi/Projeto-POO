@@ -10,7 +10,7 @@ import {
   Reserva,
   type DadosDeReservaPersistida,
 } from "./reserva-entidade.ts";
-import { PRAZO_PAGAMENTO_MS, STATUS_RESERVA, TRANSICOES, podeCancelar, podeTransitar, type StatusReserva } from "./reserva.ts";
+import { RegrasDeReserva, type StatusReserva } from "./reserva.ts";
 
 const MIN = 60_000;
 const HORA = 60 * MIN;
@@ -52,28 +52,28 @@ const captar = (f: () => void): string | null => {
 
 describe("TRANSICOES (máquina de estados)", () => {
   test("todo status tem uma entrada e só aponta para status que existem", () => {
-    assert.deepEqual(Object.keys(TRANSICOES).sort(), [...STATUS_RESERVA].sort());
-    for (const destinos of Object.values(TRANSICOES)) {
-      for (const d of destinos) assert.ok(STATUS_RESERVA.includes(d), d);
+    assert.deepEqual(Object.keys(RegrasDeReserva.TRANSICOES).sort(), [...RegrasDeReserva.STATUS].sort());
+    for (const destinos of Object.values(RegrasDeReserva.TRANSICOES)) {
+      for (const d of destinos) assert.ok(RegrasDeReserva.STATUS.includes(d), d);
     }
   });
 
   test("os estados finais não saem para lugar nenhum", () => {
     for (const final of ["CONCLUIDA", "CANCELADA", "EXPIRADA", "NAO_RETIRADA"] as const) {
-      assert.deepEqual(TRANSICOES[final], []);
+      assert.deepEqual(RegrasDeReserva.TRANSICOES[final], []);
     }
   });
 
   test("o ciclo feliz: pendente -> confirmada -> em andamento -> concluída", () => {
-    assert.ok(podeTransitar("PENDENTE_PAGAMENTO", "CONFIRMADA"));
-    assert.ok(podeTransitar("CONFIRMADA", "EM_ANDAMENTO"));
-    assert.ok(podeTransitar("EM_ANDAMENTO", "CONCLUIDA"));
-    assert.ok(!podeTransitar("PENDENTE_PAGAMENTO", "EM_ANDAMENTO"));
-    assert.ok(!podeTransitar("EM_ANDAMENTO", "CANCELADA"));
+    assert.ok(RegrasDeReserva.podeTransitar("PENDENTE_PAGAMENTO", "CONFIRMADA"));
+    assert.ok(RegrasDeReserva.podeTransitar("CONFIRMADA", "EM_ANDAMENTO"));
+    assert.ok(RegrasDeReserva.podeTransitar("EM_ANDAMENTO", "CONCLUIDA"));
+    assert.ok(!RegrasDeReserva.podeTransitar("PENDENTE_PAGAMENTO", "EM_ANDAMENTO"));
+    assert.ok(!RegrasDeReserva.podeTransitar("EM_ANDAMENTO", "CANCELADA"));
   });
 
   test("a tabela é exatamente a do modelo de dados, sem nenhuma transição a mais", () => {
-    assert.deepEqual(TRANSICOES, {
+    assert.deepEqual(RegrasDeReserva.TRANSICOES, {
       PENDENTE_PAGAMENTO: ["CONFIRMADA", "CANCELADA", "EXPIRADA"],
       CONFIRMADA: ["EM_ANDAMENTO", "CANCELADA", "NAO_RETIRADA"],
       EM_ANDAMENTO: ["CONCLUIDA"],
@@ -85,24 +85,24 @@ describe("TRANSICOES (máquina de estados)", () => {
   });
 
   test("a reserva só anda para a frente: nenhum estado volta a um anterior (sem ciclos)", () => {
-    for (const inicio of STATUS_RESERVA) {
+    for (const inicio of RegrasDeReserva.STATUS) {
       const visitados = new Set<string>();
-      const fila: string[] = [...TRANSICOES[inicio]];
+      const fila: string[] = [...RegrasDeReserva.TRANSICOES[inicio]];
       while (fila.length > 0) {
         const atual = fila.shift()!;
         assert.notEqual(atual, inicio, `${inicio} consegue voltar a si mesmo`);
         if (visitados.has(atual)) continue;
         visitados.add(atual);
-        fila.push(...TRANSICOES[atual as StatusReserva]);
+        fila.push(...RegrasDeReserva.TRANSICOES[atual as StatusReserva]);
       }
     }
     // ninguém volta a PENDENTE_PAGAMENTO
-    for (const destinos of Object.values(TRANSICOES)) assert.ok(!destinos.includes("PENDENTE_PAGAMENTO"));
+    for (const destinos of Object.values(RegrasDeReserva.TRANSICOES)) assert.ok(!destinos.includes("PENDENTE_PAGAMENTO"));
   });
 
   test("podeCancelar lê a mesma tabela: só pendente e confirmada", () => {
-    for (const status of STATUS_RESERVA) {
-      assert.equal(podeCancelar(status), status === "PENDENTE_PAGAMENTO" || status === "CONFIRMADA", status);
+    for (const status of RegrasDeReserva.STATUS) {
+      assert.equal(RegrasDeReserva.podeCancelar(status), status === "PENDENTE_PAGAMENTO" || status === "CONFIRMADA", status);
     }
   });
 });
@@ -128,15 +128,15 @@ describe("Reserva: criação e leitura", () => {
   });
 
   test("expiraEm: só a pendente tem, e é a criação mais 15 minutos", () => {
-    assert.equal(reserva().expiraEm()?.getTime(), CRIADA.getTime() + PRAZO_PAGAMENTO_MS);
-    assert.equal(PRAZO_PAGAMENTO_MS, 15 * MIN);
-    for (const status of STATUS_RESERVA.filter((s) => s !== "PENDENTE_PAGAMENTO")) {
+    assert.equal(reserva().expiraEm()?.getTime(), CRIADA.getTime() + RegrasDeReserva.PRAZO_PAGAMENTO_MS);
+    assert.equal(RegrasDeReserva.PRAZO_PAGAMENTO_MS, 15 * MIN);
+    for (const status of RegrasDeReserva.STATUS.filter((s) => s !== "PENDENTE_PAGAMENTO")) {
       assert.equal(reserva(status).expiraEm(), null, status);
     }
   });
 
   test("estaAtiva: pendente, confirmada e em andamento seguram a bicicleta", () => {
-    for (const status of STATUS_RESERVA) {
+    for (const status of RegrasDeReserva.STATUS) {
       const ativa = status === "PENDENTE_PAGAMENTO" || status === "CONFIRMADA" || status === "EM_ANDAMENTO";
       assert.equal(reserva(status).estaAtiva(), ativa, status);
     }
@@ -171,7 +171,7 @@ describe("Reserva.confirmar", () => {
   });
 
   test("só a pendente confirma", () => {
-    for (const status of STATUS_RESERVA.filter((s) => s !== "PENDENTE_PAGAMENTO")) {
+    for (const status of RegrasDeReserva.STATUS.filter((s) => s !== "PENDENTE_PAGAMENTO")) {
       assert.throws(() => reserva(status).confirmar(CRIADA), TransicaoDeReservaInvalida, status);
     }
   });
@@ -268,7 +268,7 @@ describe("Reserva.iniciar (retirada)", () => {
   });
 
   test("só a confirmada inicia (pendente não paga não retira)", () => {
-    for (const status of STATUS_RESERVA.filter((s) => s !== "CONFIRMADA")) {
+    for (const status of RegrasDeReserva.STATUS.filter((s) => s !== "CONFIRMADA")) {
       assert.throws(() => reserva(status).iniciar(INICIO), TransicaoDeReservaInvalida, status);
     }
   });
@@ -282,7 +282,7 @@ describe("Reserva.concluir (devolução)", () => {
   });
 
   test("só a que está em andamento conclui", () => {
-    for (const status of STATUS_RESERVA.filter((s) => s !== "EM_ANDAMENTO")) {
+    for (const status of RegrasDeReserva.STATUS.filter((s) => s !== "EM_ANDAMENTO")) {
       assert.throws(() => reserva(status).concluir(), TransicaoDeReservaInvalida, status);
     }
   });
@@ -303,7 +303,7 @@ describe("Reserva.expirar", () => {
   });
 
   test("reserva que não é pendente nunca expira, e a varredura não lança", () => {
-    for (const status of STATUS_RESERVA.filter((s) => s !== "PENDENTE_PAGAMENTO")) {
+    for (const status of RegrasDeReserva.STATUS.filter((s) => s !== "PENDENTE_PAGAMENTO")) {
       const r = reserva(status);
       assert.equal(r.expirar(depois(CRIADA, 100 * HORA)), false, status);
       assert.equal(r.status, status);
@@ -332,7 +332,7 @@ describe("Reserva.marcarNaoRetirada", () => {
   });
 
   test("só a confirmada", () => {
-    for (const status of STATUS_RESERVA.filter((s) => s !== "CONFIRMADA")) {
+    for (const status of RegrasDeReserva.STATUS.filter((s) => s !== "CONFIRMADA")) {
       assert.throws(() => reserva(status).marcarNaoRetirada(FIM), TransicaoDeReservaInvalida, status);
     }
   });

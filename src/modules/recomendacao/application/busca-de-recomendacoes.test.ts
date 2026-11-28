@@ -2,12 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ValidationError } from "../../../shared/http/errors.ts";
 import type { TipoCandidato } from "../domain/recomendacao.ts";
-import {
-  criarBuscarRecomendacoes,
-  type PerfilDoCliente,
-  type Periodo,
-  type Precos,
-} from "./buscar-recomendacoes.ts";
+import { BuscaDeRecomendacoes } from "./busca-de-recomendacoes.ts";
+import type { PerfilDoCliente, Periodo, Precos } from "./portas.ts";
 
 const ID_CLIENTE = "3f2b8c1e-5d4a-4b6f-9c7e-1a2b3c4d5e6f";
 // a sessão do cliente logado, como o PerfisPermitidos a entrega
@@ -41,25 +37,32 @@ type Opcoes = { perfil?: PerfilDoCliente; tipos?: TipoCandidato[]; agora?: Date 
 // Dependências de mentira que anotam o que foi pedido, para provar o que a busca consultou.
 function montar({ perfil, tipos = [PASSEIO, MTB, INFANTIL], agora = AGORA }: Opcoes = {}) {
   const chamadas = { perfil: [] as string[], sessoes: [] as unknown[], tipos: [] as { inicio: Date; fim: Date }[], precos: [] as { periodo: Periodo; precos: Precos }[] };
-  const buscar = criarBuscarRecomendacoes({
-    buscarPerfil: async (usuarioId) => {
-      chamadas.perfil.push(usuarioId);
-      return perfil ?? { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" };
+  const busca = new BuscaDeRecomendacoes({
+    perfis: {
+      consultar: async (usuarioId: string) => {
+        chamadas.perfil.push(usuarioId);
+        return perfil ?? { alturaCm: 172, experiencia: "INICIANTE", atividade: "PASSEIO" };
+      },
     },
-    buscarTipos: async (sessao, inicio, fim) => {
-      chamadas.sessoes.push(sessao);
-      chamadas.tipos.push({ inicio, fim });
-      return tipos;
+    disponibilidade: {
+      tiposComUnidadesLivres: async (sessao, inicio, fim) => {
+        chamadas.sessoes.push(sessao);
+        chamadas.tipos.push({ inicio, fim });
+        return tipos;
+      },
     },
-    calcularValorAluguel: (periodo, precos) => {
-      chamadas.precos.push({ periodo, precos });
-      // a regra real mora em reservas; aqui basta uma conta previsível: horas x preço por hora
-      const horas = Math.ceil((periodo.fim.getTime() - periodo.inicio.getTime()) / 3_600_000);
-      return Math.min(horas * precos.precoHoraCentavos, precos.precoDiaCentavos);
+    preco: {
+      calcularValorAluguel: (periodo: Periodo, precos: Precos) => {
+        chamadas.precos.push({ periodo, precos });
+        // a regra real mora em shared/dominio; aqui basta uma conta previsível: horas x preço por hora
+        const horas = Math.ceil((periodo.fim.getTime() - periodo.inicio.getTime()) / 3_600_000);
+        return Math.min(horas * precos.precoHoraCentavos, precos.precoDiaCentavos);
+      },
+      horasCobradas: ({ inicio, fim }: Periodo) => Math.ceil((fim.getTime() - inicio.getTime()) / 3_600_000),
     },
-    horasCobradas: ({ inicio, fim }) => Math.ceil((fim.getTime() - inicio.getTime()) / 3_600_000),
     agora: () => agora,
   });
+  const buscar = (sessao: Parameters<typeof busca.buscar>[0], parametros: Parameters<typeof busca.buscar>[1]) => busca.buscar(sessao, parametros);
   return { buscar, chamadas };
 }
 
@@ -204,14 +207,16 @@ test("início 'agora' é aceito pela folga de 5 minutos", async () => {
 });
 
 test("erro do banco não é engolido", async () => {
-  const buscar = criarBuscarRecomendacoes({
-    buscarPerfil: async () => ({ alturaCm: 172, experiencia: null, atividade: null }),
-    buscarTipos: async () => {
-      throw new Error("banco fora do ar");
+  const busca = new BuscaDeRecomendacoes({
+    perfis: { consultar: async () => ({ alturaCm: 172, experiencia: null, atividade: null }) },
+    disponibilidade: {
+      tiposComUnidadesLivres: async () => {
+        throw new Error("banco fora do ar");
+      },
     },
-    calcularValorAluguel: () => 0,
-    horasCobradas: () => 4,
+    preco: { calcularValorAluguel: () => 0, horasCobradas: () => 4 },
     agora: () => AGORA,
   });
+  const buscar = (sessao: typeof CLIENTE, parametros: typeof BUSCA) => busca.buscar(sessao, parametros);
   await assert.rejects(buscar(CLIENTE, BUSCA), /banco fora do ar/);
 });

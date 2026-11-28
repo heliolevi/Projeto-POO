@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
 import { PagamentoPix } from "../domain/formas-de-pagamento.ts";
 import { TransicaoDePagamentoInvalida, type StatusPagamento } from "../domain/pagamento.ts";
-import { lerAvisoDaStripe } from "../infrastructure/gateway-stripe.ts";
+import { LeitorDeAvisoDaStripe } from "../infrastructure/aviso-da-stripe.ts";
 import { IntervaloDeConsulta } from "./intervalo-de-consulta.ts";
 
 // Ajustes da revisão do #80 que não cabem nos testes dos casos de uso: a regra nova do domínio
@@ -56,7 +56,7 @@ describe("Pagamento.estornarPagamentoTardio (Pix pago depois de vencer aqui)", (
   });
 });
 
-describe("lerAvisoDaStripe sem a chave secreta", () => {
+describe("LeitorDeAvisoDaStripe sem a chave secreta", () => {
   test("a assinatura do webhook só precisa do STRIPE_WEBHOOK_SECRET", () => {
     const antes = { chave: process.env.STRIPE_SECRET_KEY, segredo: process.env.STRIPE_WEBHOOK_SECRET };
     delete process.env.STRIPE_SECRET_KEY;
@@ -69,7 +69,7 @@ describe("lerAvisoDaStripe sem a chave secreta", () => {
         data: { object: { id: "pi_7", object: "payment_intent", status: "succeeded" } },
       });
       const assinatura = Stripe.webhooks.generateTestHeaderString({ payload: corpo, secret: "whsec_teste_local_nao_e_segredo" });
-      assert.deepEqual(lerAvisoDaStripe(corpo, assinatura), { idExterno: "pi_7", situacao: "aprovado" });
+      assert.deepEqual(new LeitorDeAvisoDaStripe(() => process.env.STRIPE_WEBHOOK_SECRET).ler(corpo, assinatura), { idExterno: "pi_7", situacao: "aprovado" });
     } finally {
       if (antes.chave === undefined) delete process.env.STRIPE_SECRET_KEY;
       else process.env.STRIPE_SECRET_KEY = antes.chave;

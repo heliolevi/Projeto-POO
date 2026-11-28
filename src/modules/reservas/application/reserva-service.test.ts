@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { ConflictError, NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
 import { Periodo } from "../../../shared/dominio/periodo-aluguel.ts";
-import { calcularValorAluguel } from "../../../shared/dominio/preco-aluguel.ts";
+import { CalculadoraDeAluguel } from "../../../shared/dominio/preco-aluguel.ts";
 import { criarBancoFalso } from "./banco-falso.ts";
 import type { SessaoCliente } from "./portas.ts";
 import { ReservaService } from "./reserva-service.ts";
@@ -26,10 +26,10 @@ function montar(unidades = 1) {
   for (let i = 1; i <= unidades; i++) banco.adicionarUnidade({ id: `bike-${i}`, tipoId: TIPO });
   let n = 0;
   const servico = new ReservaService({
-    transacao: banco.transacao,
+    executor: banco.executor,
     agora: () => AGORA,
-    gerarCodigo: () => `BIC-TESTE${++n}`,
-    calcularValorAluguel,
+    geradorDeCodigo: { gerar: () => `BIC-TESTE${++n}` },
+    calculadora: CalculadoraDeAluguel.padrao,
   });
   return { banco, servico };
 }

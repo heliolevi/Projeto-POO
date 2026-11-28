@@ -24,7 +24,7 @@ export type ReservaDetalhada = Reserva & {
   pagamento: { status: "PENDENTE" | "APROVADO" | "RECUSADO" | "EXPIRADO"; metodo: "PIX" } | null;
 };
 
-export const ROTULO_STATUS: Record<StatusReserva, string> = {
+const ROTULO_STATUS: Readonly<Record<StatusReserva, string>> = {
   PENDENTE_PAGAMENTO: "Aguardando pagamento",
   CONFIRMADA: "Confirmada",
   EM_ANDAMENTO: "Em andamento",
@@ -33,19 +33,46 @@ export const ROTULO_STATUS: Record<StatusReserva, string> = {
   EXPIRADA: "Expirada",
 };
 
-export function podeCancelar(status: StatusReserva): boolean {
-  return status === "PENDENTE_PAGAMENTO" || status === "CONFIRMADA";
+// O texto que o cliente lê para o status da reserva e a regra de cancelamento da tela. Só tem
+// métodos estáticos (não guarda estado), então não se cria instância.
+export class StatusDaReserva {
+  private constructor() {
+    throw new Error("StatusDaReserva só tem métodos estáticos.");
+  }
+
+  static rotulo(status: StatusReserva): string {
+    return ROTULO_STATUS[status];
+  }
+
+  // O grupo de cor do selo: confirmada (ativa), pendente (esperando pagamento) ou encerrada.
+  static variante(status: StatusReserva): "confirmada" | "pendente" | "encerrada" {
+    if (status === "CONFIRMADA" || status === "EM_ANDAMENTO") return "confirmada";
+    if (status === "PENDENTE_PAGAMENTO") return "pendente";
+    return "encerrada";
+  }
+
+  static podeCancelar(status: StatusReserva): boolean {
+    return status === "PENDENTE_PAGAMENTO" || status === "CONFIRMADA";
+  }
 }
 
-// Segundos que faltam até `expiraEm` (nunca negativo). Sem prazo, devolve 0.
-export function segundosRestantes(expiraEm: string | null, agora: Date = new Date()): number {
-  if (!expiraEm) return 0;
-  const restante = Math.ceil((new Date(expiraEm).getTime() - agora.getTime()) / 1000);
-  return Number.isFinite(restante) && restante > 0 ? restante : 0;
-}
+// A contagem regressiva do prazo de pagamento. Só tem métodos estáticos (o instante vem de quem
+// chama), então não se cria instância.
+export class ContagemDoPrazo {
+  private constructor() {
+    throw new Error("ContagemDoPrazo só tem métodos estáticos.");
+  }
 
-export function formatarContagem(segundos: number): string {
-  const minutos = Math.floor(segundos / 60);
-  const resto = segundos % 60;
-  return `${String(minutos).padStart(2, "0")}:${String(resto).padStart(2, "0")}`;
+  // Segundos que faltam até `expiraEm` (nunca negativo). Sem prazo, devolve 0.
+  static segundosRestantes(expiraEm: string | null, agora: Date = new Date()): number {
+    if (!expiraEm) return 0;
+    const restante = Math.ceil((new Date(expiraEm).getTime() - agora.getTime()) / 1000);
+    return Number.isFinite(restante) && restante > 0 ? restante : 0;
+  }
+
+  static formatar(segundos: number): string {
+    const minutos = Math.floor(segundos / 60);
+    const resto = segundos % 60;
+    return `${String(minutos).padStart(2, "0")}:${String(resto).padStart(2, "0")}`;
+  }
 }

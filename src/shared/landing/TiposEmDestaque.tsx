@@ -2,15 +2,15 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { ROTULO_ATIVIDADE } from "@/shared/dominio/ciclista-rotulos";
-import { ehAtividade } from "@/shared/dominio/ciclista";
+import { RotulosDoCiclista } from "@/shared/dominio/ciclista-rotulos";
+import { RegrasDoCiclista } from "@/shared/dominio/ciclista";
 import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { Alert } from "@/shared/ui/Alert";
 import { Badge } from "@/shared/ui/Badge";
 import { Card } from "@/shared/ui/Card";
 import { EmptyState } from "@/shared/ui/EmptyState";
-import { fotoDoTipo } from "./fotos";
-import { faixaDeAltura, ordenarPorPreco, type TipoPublico } from "./locadora";
+import { FotosDasBicicletas } from "./fotos";
+import { TiposDaVitrine, type TipoPublico } from "./locadora";
 import styles from "./landing.module.css";
 
 type Estado =
@@ -28,7 +28,7 @@ export function TiposEmDestaque() {
     fetch("/api/catalogo/tipos")
       .then((resposta) => (resposta.ok ? resposta.json() : Promise.reject(new Error("falhou"))))
       .then((json: { data: TipoPublico[] }) => {
-        if (ativo) setEstado({ tipo: "pronto", tipos: ordenarPorPreco(json.data) });
+        if (ativo) setEstado({ tipo: "pronto", tipos: TiposDaVitrine.ordenarPorPreco(json.data) });
       })
       .catch(() => {
         if (ativo) setEstado({ tipo: "erro" });
@@ -75,7 +75,7 @@ export function TiposEmDestaque() {
   return (
     <ul className={`${styles.grade} ${styles.grade3}`}>
       {estado.tipos.map((tipo) => {
-        const foto = fotoDoTipo(tipo.atividades);
+        const foto = FotosDasBicicletas.doTipo(tipo.atividades);
         return (
         <li key={tipo.id}>
           <Card className={styles.cartaoDaLista} title={tipo.nome} action={<Badge variant="sucesso">{Dinheiro.deCentavos(tipo.precoDiaCentavos).formatar()}/dia</Badge>}>
@@ -91,11 +91,11 @@ export function TiposEmDestaque() {
             <p className={styles.precoCartao}>
               <strong>{Dinheiro.deCentavos(tipo.precoHoraCentavos).formatar()}</strong> por hora
             </p>
-            <p style={{ margin: "var(--space-4) 0 0" }}>{faixaDeAltura(tipo)}</p>
+            <p style={{ margin: "var(--space-4) 0 0" }}>{TiposDaVitrine.faixaDeAltura(tipo)}</p>
             <div className={styles.etiquetas}>
-              {tipo.atividades.filter(ehAtividade).map((atividade) => (
+              {tipo.atividades.filter((a) => RegrasDoCiclista.ehAtividade(a)).map((atividade) => (
                 <Badge key={atividade} variant="neutro">
-                  {ROTULO_ATIVIDADE[atividade]}
+                  {RotulosDoCiclista.atividade(atividade)}
                 </Badge>
               ))}
             </div>

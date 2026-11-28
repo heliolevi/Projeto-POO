@@ -37,19 +37,27 @@ export type TipoPublico = {
   valorCaucaoCentavos: number;
 };
 
-/** Do mais barato ao mais caro pela diária; empate em ordem alfabética. */
-export function ordenarPorPreco(tipos: TipoPublico[]): TipoPublico[] {
-  return [...tipos].sort(
-    (a, b) => a.precoDiaCentavos - b.precoDiaCentavos || a.nome.localeCompare(b.nome, "pt-BR"),
-  );
-}
+// Ordem, preço de entrada e faixa de altura dos tipos mostrados na página pública. Só tem
+// métodos estáticos, então não se cria instância.
+export class TiposDaVitrine {
+  private constructor() {
+    throw new Error("TiposDaVitrine só tem métodos estáticos.");
+  }
 
-/** Menor preço por hora entre os tipos (para "a partir de"), ou `null` se não houver tipos. */
-export function menorPrecoPorHora(tipos: TipoPublico[]): number | null {
-  if (tipos.length === 0) return null;
-  return Math.min(...tipos.map((t) => t.precoHoraCentavos));
-}
+  /** Do mais barato ao mais caro pela diária; empate em ordem alfabética. */
+  static ordenarPorPreco(tipos: readonly TipoPublico[]): TipoPublico[] {
+    return [...tipos].sort(
+      (a, b) => a.precoDiaCentavos - b.precoDiaCentavos || a.nome.localeCompare(b.nome, "pt-BR"),
+    );
+  }
 
-export function faixaDeAltura(tipo: Pick<TipoPublico, "alturaMinCm" | "alturaMaxCm">): string {
-  return `Para quem tem de ${tipo.alturaMinCm} a ${tipo.alturaMaxCm} cm`;
+  /** Menor preço por hora entre os tipos (para "a partir de"), ou `null` se não houver tipos. */
+  static menorPrecoPorHora(tipos: readonly TipoPublico[]): number | null {
+    if (tipos.length === 0) return null;
+    return Math.min(...tipos.map((t) => t.precoHoraCentavos));
+  }
+
+  static faixaDeAltura(tipo: Pick<TipoPublico, "alturaMinCm" | "alturaMaxCm">): string {
+    return `Para quem tem de ${tipo.alturaMinCm} a ${tipo.alturaMaxCm} cm`;
+  }
 }

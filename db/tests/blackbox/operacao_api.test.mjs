@@ -8,7 +8,7 @@ import { rodarSuite } from '../suporte.mjs';
 import { criarFixtures, criarOperador, criarReserva } from '../fixtures.mjs';
 import { OperacaoService } from '../../../src/modules/operacao/application/operacao-service.ts';
 import { Bicicleta } from '../../../src/modules/catalogo/domain/bicicleta.ts';
-import { operacoesNoBanco } from '../../../src/modules/operacao/infrastructure/repositorio-operacao.ts';
+import { OperacoesNoBanco } from '../../../src/modules/operacao/infrastructure/repositorio-operacao.ts';
 import { Reserva } from '../../../src/modules/reservas/domain/reserva-entidade.ts';
 
 const MIN = 60 * 1000;
@@ -40,7 +40,7 @@ await rodarSuite('blackbox/operacao_api', async (executor, client) => {
         "SELECT set_config('app.perfil', $1, true), set_config('app.usuario_id', $2, true)",
         [sessao.perfil, sessao.usuarioId],
       );
-      const resultado = await fn(operacoesNoBanco(client));
+      const resultado = await fn(new OperacoesNoBanco(client));
       await client.query('RELEASE SAVEPOINT caso_de_uso');
       return resultado;
     } catch (erro) {

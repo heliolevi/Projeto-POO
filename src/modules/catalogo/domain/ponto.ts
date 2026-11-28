@@ -10,11 +10,6 @@ export type Horario = { diaSemana: number; abre: string; fecha: string };
 // Como o horário vem do banco: a coluna ponto.horarios é um jsonb com a chave dia_semana.
 export type HorarioDoBanco = { dia_semana: number; abre: string; fecha: string };
 
-// Converte o jsonb do banco para o Horario do domínio. O repositório do ponto usa isto ao montar o Ponto.
-export function horarioDoBanco(linha: HorarioDoBanco): Horario {
-  return { diaSemana: linha.dia_semana, abre: linha.abre, fecha: linha.fecha };
-}
-
 export type Endereco = {
   logradouro: string;
   numero: string;
@@ -43,6 +38,11 @@ function minutos(hora: string): number {
 }
 
 export class Ponto {
+  /** Converte o jsonb do banco (dia_semana) para o Horario do domínio (diaSemana). */
+  static horarioDoBanco(linha: HorarioDoBanco): Horario {
+    return { diaSemana: linha.dia_semana, abre: linha.abre, fecha: linha.fecha };
+  }
+
   readonly #id: string;
   readonly #nome: string;
   readonly #endereco: Endereco;

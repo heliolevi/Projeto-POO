@@ -1,9 +1,15 @@
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
-import { horasDaDuracao, valorPorHoras, type Precos } from "../../../shared/dominio/preco-aluguel.ts";
+import { CalculadoraDeAluguel, type Precos } from "../../../shared/dominio/preco-aluguel.ts";
 import { Ocorrencia, type DadosBaseOcorrencia } from "./ocorrencia.ts";
 
 // Regra assumida (docs/dados-da-locadora.md, seção 6): até 15 minutos de atraso não se cobra.
 export const TOLERANCIA_DE_ATRASO_MS = 15 * 60 * 1000;
+
+/** O que o atraso precisa da regra de preço (a CalculadoraDeAluguel de verdade, ou uma de mentira nos testes). */
+export interface CalculoDeAtraso {
+  horasDaDuracao(duracaoMs: number): number;
+  valorPorHoras(horas: number, precos: Precos): number;
+}
 
 export type DadosAtraso = DadosBaseOcorrencia & {
   // Quando a reserva terminava (já ajustado à abertura do ponto, se ele estava fechado).
@@ -11,6 +17,8 @@ export type DadosAtraso = DadosBaseOcorrencia & {
   devolvidoEm: Date;
   // Os preços do tipo da bicicleta: o atraso é cobrado pela mesma conta do aluguel.
   precos: Precos;
+  // A regra de preço; sem ela vale a do app (CalculadoraDeAluguel.padrao).
+  calculadora?: CalculoDeAtraso;
 };
 
 // Devolução fora do prazo. Passada a tolerância, todo o atraso é cobrado em horas cheias (hora
@@ -20,6 +28,7 @@ export class Atraso extends Ocorrencia {
   readonly #fimPrevisto: Date;
   readonly #devolvidoEm: Date;
   readonly #precos: Precos;
+  readonly #calculadora: CalculoDeAtraso;
 
   constructor(dados: DadosAtraso) {
     super(dados);
@@ -29,6 +38,7 @@ export class Atraso extends Ocorrencia {
     this.#fimPrevisto = new Date(dados.fimPrevisto);
     this.#devolvidoEm = new Date(dados.devolvidoEm);
     this.#precos = { ...dados.precos };
+    this.#calculadora = dados.calculadora ?? CalculadoraDeAluguel.padrao;
   }
 
   get tipo(): "ATRASO" {
@@ -49,6 +59,6 @@ export class Atraso extends Ocorrencia {
   valorSugerido(): Dinheiro {
     const atrasoMs = this.duracaoDoAtrasoMs();
     if (atrasoMs <= TOLERANCIA_DE_ATRASO_MS) return Dinheiro.ZERO;
-    return Dinheiro.deCentavos(valorPorHoras(horasDaDuracao(atrasoMs), this.#precos));
+    return Dinheiro.deCentavos(this.#calculadora.valorPorHoras(this.#calculadora.horasDaDuracao(atrasoMs), this.#precos));
   }
 }

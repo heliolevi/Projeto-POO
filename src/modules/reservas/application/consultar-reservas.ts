@@ -1,51 +1,50 @@
 import { NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
-import { ehStatusReserva, ehUuid, STATUS_RESERVA } from "../domain/reserva.ts";
-import type { SessaoCliente, Transacao } from "./portas.ts";
-import {
-  montarReserva,
-  montarReservaDetalhada,
-  type ReservaDetalhadaDto,
-  type ReservaDto,
-} from "./reserva-dto.ts";
+import { Uuid } from "../../../shared/dominio/uuid.ts";
+import { RegrasDeReserva } from "../domain/reserva.ts";
+import type { ExecutorDeReservas, SessaoCliente } from "./portas.ts";
+import { MontadorDeReserva, type ReservaDetalhadaDto, type ReservaDto } from "./reserva-dto.ts";
 
-export const MENSAGEM_NAO_ENCONTRADA = "Reserva não encontrada.";
+// As consultas do cliente sobre as próprias reservas (rotas 13 e 14). O executor da transação entra
+// pelo construtor; a sessão chega a cada chamada, então uma instância serve a todas as requisições.
+export class ConsultaDeReservas {
+  static readonly MENSAGEM_NAO_ENCONTRADA = "Reserva não encontrada.";
 
-// GET /api/reservas (rota 13): as reservas do cliente, da mais recente para a mais antiga. Antes de
-// listar, marca como EXPIRADA as pendentes vencidas, para a lista nunca mostrar como pendente uma
-// reserva que já perdeu o prazo. "Só as minhas" é da segurança por linha do banco (a view
-// reserva_detalhada filtra pela sessão), não de um WHERE do código.
-export function criarListarReservas(deps: { transacao: Transacao }) {
-  return async function listarReservas(
-    sessao: SessaoCliente,
-    filtros: { status?: unknown },
-  ): Promise<ReservaDto[]> {
+  readonly #executor: ExecutorDeReservas;
+
+  constructor(executor: ExecutorDeReservas) {
+    this.#executor = executor;
+  }
+
+  // GET /api/reservas (rota 13): as reservas do cliente, da mais recente para a mais antiga. Antes de
+  // listar, marca como EXPIRADA as pendentes vencidas, para a lista nunca mostrar como pendente uma
+  // reserva que já perdeu o prazo. "Só as minhas" é da segurança por linha do banco (a view
+  // reserva_detalhada filtra pela sessão), não de um WHERE do código.
+  async listar(sessao: SessaoCliente, filtros: { status?: unknown }): Promise<ReservaDto[]> {
     const bruto = filtros.status;
     const semFiltro = bruto === undefined || bruto === null || bruto === "";
-    if (!semFiltro && !ehStatusReserva(bruto)) {
+    if (!semFiltro && !RegrasDeReserva.ehStatus(bruto)) {
       throw new ValidationError("Dados inválidos.", {
-        status: `Status inválido. Use um destes valores: ${STATUS_RESERVA.join(", ")}.`,
+        status: `Status inválido. Use um destes valores: ${RegrasDeReserva.STATUS.join(", ")}.`,
       });
     }
-    const status = semFiltro ? null : (bruto as (typeof STATUS_RESERVA)[number]);
+    const status = semFiltro ? null : (bruto as (typeof RegrasDeReserva.STATUS)[number]);
 
-    return deps.transacao(sessao, async (op) => {
+    return this.#executor.executar(sessao, async (op) => {
       await op.expirarVencidas();
-      return (await op.listar(status)).map(montarReserva);
+      return (await op.listar(status)).map(MontadorDeReserva.reserva);
     });
-  };
-}
+  }
 
-// GET /api/reservas/{id} (rota 14). Reserva de outro cliente e reserva que não existe dão o mesmo
-// 404: a resposta não diz qual dos dois (a RLS esconde a de outro como se não existisse).
-export function criarBuscarReserva(deps: { transacao: Transacao }) {
-  return async function buscarReserva(sessao: SessaoCliente, id: unknown): Promise<ReservaDetalhadaDto> {
-    if (!ehUuid(id)) throw new NotFoundError(MENSAGEM_NAO_ENCONTRADA);
+  // GET /api/reservas/{id} (rota 14). Reserva de outro cliente e reserva que não existe dão o mesmo
+  // 404: a resposta não diz qual dos dois (a RLS esconde a de outro como se não existisse).
+  async buscar(sessao: SessaoCliente, id: unknown): Promise<ReservaDetalhadaDto> {
+    if (!Uuid.ehValido(id)) throw new NotFoundError(ConsultaDeReservas.MENSAGEM_NAO_ENCONTRADA);
 
-    return deps.transacao(sessao, async (op) => {
+    return this.#executor.executar(sessao, async (op) => {
       await op.expirarVencidas();
       const linha = await op.buscar(id);
-      if (!linha) throw new NotFoundError(MENSAGEM_NAO_ENCONTRADA);
-      return montarReservaDetalhada(linha);
+      if (!linha) throw new NotFoundError(ConsultaDeReservas.MENSAGEM_NAO_ENCONTRADA);
+      return MontadorDeReserva.detalhada(linha);
     });
-  };
+  }
 }

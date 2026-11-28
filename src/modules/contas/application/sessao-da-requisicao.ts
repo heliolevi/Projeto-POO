@@ -1,3 +1,4 @@
+import { Uuid } from "../../../shared/dominio/uuid.ts";
 import { UnauthorizedError } from "../../../shared/http/errors.ts";
 import { PERFIS } from "../domain/usuario.ts";
 import type { ArmazemDeUsuarios, SessaoAtiva, TokensDeSessao } from "./portas.ts";
@@ -5,7 +6,6 @@ import type { ArmazemDeUsuarios, SessaoAtiva, TokensDeSessao } from "./portas.ts
 export { PerfisPermitidos } from "../../../shared/http/perfis-permitidos.ts";
 export type { SessaoAtiva } from "./portas.ts";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MENSAGEM = "Sessão inválida ou expirada.";
 
 export type DependenciasDaSessao = {
@@ -34,7 +34,7 @@ export class SessaoDaRequisicao {
   async exigir(request: Request): Promise<SessaoAtiva> {
     const token = SessaoDaRequisicao.extrairBearer(request.headers.get("authorization"));
     const sessao = token ? this.#deps.tokens.verificar(token) : null;
-    if (!sessao || !UUID.test(sessao.sub)) throw new UnauthorizedError(MENSAGEM);
+    if (!sessao || !Uuid.ehValido(sessao.sub)) throw new UnauthorizedError(MENSAGEM);
 
     const usuario = await this.#deps.usuarios.buscarSituacaoPorId(sessao.sub);
     // um perfil fora da lista (banco num estado inesperado) não ganha acesso a nada

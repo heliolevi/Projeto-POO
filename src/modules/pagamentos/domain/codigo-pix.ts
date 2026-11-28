@@ -17,10 +17,10 @@
 
 export type CampoPix = { id: string; valor: string };
 
-const GUI_DO_PIX = "br.gov.bcb.pix";
-const MOEDA_REAL = "986";
-
 export class CodigoPix {
+  static readonly #GUI_DO_PIX = "br.gov.bcb.pix";
+  static readonly #MOEDA_REAL = "986";
+
   readonly #texto: string;
   readonly #pagavelEmBanco: boolean;
 
@@ -133,14 +133,14 @@ export class CodigoPix {
     if (campos[campos.length - 1].id !== "63") return false;
 
     const valorDe = (id: string) => campos.find((c) => c.id === id)?.valor;
-    if (valorDe("53") !== MOEDA_REAL || valorDe("58") !== "BR") return false;
+    if (valorDe("53") !== CodigoPix.#MOEDA_REAL || valorDe("58") !== "BR") return false;
 
     // conta Pix: algum campo de 26 a 51 com o subcampo 00 = br.gov.bcb.pix
     return campos.some((c) => {
       const n = Number(c.id);
       if (n < 26 || n > 51) return false;
       const sub = CodigoPix.campos(c.valor);
-      return sub?.some((s) => s.id === "00" && s.valor.toLowerCase() === GUI_DO_PIX) ?? false;
+      return sub?.some((s) => s.id === "00" && s.valor.toLowerCase() === CodigoPix.#GUI_DO_PIX) ?? false;
     });
   }
 }

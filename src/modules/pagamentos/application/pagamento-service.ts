@@ -1,6 +1,6 @@
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
 import { ConflictError, NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
-import { PRAZO_DO_PIX_MS, criarPagamento } from "../domain/formas-de-pagamento.ts";
+import { FabricaDePagamento, PagamentoPix } from "../domain/formas-de-pagamento.ts";
 import {
   METODOS_PAGAMENTO,
   type CobrancaGerada,
@@ -93,8 +93,8 @@ export class PagamentoService {
       return existente.cobrancaInicial(agora);
     }
 
-    const limite = agora.getTime() + PRAZO_DO_PIX_MS;
-    const pagamento = criarPagamento(metodo, {
+    const limite = agora.getTime() + PagamentoPix.PRAZO_MS;
+    const pagamento = FabricaDePagamento.criar(metodo, {
       id: this.#deps.gerarId(),
       reservaId: reserva.id,
       valor: Dinheiro.deCentavos(reserva.valorAluguelCentavos),

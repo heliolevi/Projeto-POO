@@ -1,6 +1,6 @@
 import { BancoDeDados } from "@/shared/db/banco-de-dados";
-import type { SessaoBanco } from "@/shared/db/sessao";
 import type { Atividade, Experiencia } from "@/shared/dominio/ciclista";
+import type { DisponibilidadeDeTipos, SessaoCliente } from "../application/portas";
 import type { TipoCandidato } from "../domain/recomendacao";
 
 type LinhaTipo = {
@@ -54,30 +54,35 @@ const BUSCAR_TIPOS = `
   ORDER BY x.nome
 `;
 
-export async function buscarTiposComUnidadesLivres(
-  sessao: SessaoBanco,
-  inicio: Date,
-  fim: Date,
-): Promise<TipoCandidato[]> {
-  return BancoDeDados.padrao.comSessao(sessao, async (client) => {
-    await client.query(EXPIRAR_VENCIDAS);
-    const { rows } = await client.query<LinhaTipo>(BUSCAR_TIPOS, [
-      inicio.toISOString(),
-      fim.toISOString(),
-    ]);
-    return rows.map((l) => ({
-      id: l.id,
-      nome: l.nome,
-      descricao: l.descricao,
-      atividades: l.atividades,
-      alturaMinCm: l.altura_min_cm,
-      alturaMaxCm: l.altura_max_cm,
-      nivelRecomendado: l.nivel_recomendado,
-      precoHoraCentavos: l.preco_hora_centavos,
-      precoDiaCentavos: l.preco_dia_centavos,
-      valorCaucaoCentavos: l.valor_caucao_centavos,
-      ativo: l.ativo,
-      unidadesLivres: l.unidades_livres,
-    }));
-  });
+// A disponibilidade no PostgreSQL. O banco entra pelo construtor (o do app, ou um de mentira nos testes).
+export class RepositorioDeDisponibilidade implements DisponibilidadeDeTipos {
+  /** O do app. */
+  static readonly padrao = new RepositorioDeDisponibilidade(BancoDeDados.padrao);
+
+  readonly #banco: Pick<BancoDeDados, "comSessao">;
+
+  constructor(banco: Pick<BancoDeDados, "comSessao">) {
+    this.#banco = banco;
+  }
+
+  async tiposComUnidadesLivres(sessao: SessaoCliente, inicio: Date, fim: Date): Promise<TipoCandidato[]> {
+    return this.#banco.comSessao(sessao, async (client) => {
+      await client.query(EXPIRAR_VENCIDAS);
+      const { rows } = await client.query<LinhaTipo>(BUSCAR_TIPOS, [inicio.toISOString(), fim.toISOString()]);
+      return rows.map((l) => ({
+        id: l.id,
+        nome: l.nome,
+        descricao: l.descricao,
+        atividades: l.atividades,
+        alturaMinCm: l.altura_min_cm,
+        alturaMaxCm: l.altura_max_cm,
+        nivelRecomendado: l.nivel_recomendado,
+        precoHoraCentavos: l.preco_hora_centavos,
+        precoDiaCentavos: l.preco_dia_centavos,
+        valorCaucaoCentavos: l.valor_caucao_centavos,
+        ativo: l.ativo,
+        unidadesLivres: l.unidades_livres,
+      }));
+    });
+  }
 }

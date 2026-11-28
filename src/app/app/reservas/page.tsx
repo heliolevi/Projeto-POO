@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { FormatadorDeData } from "@/shared/format/formatador-de-data";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
-import { fotoDoTipoPorId } from "@/shared/landing/fotos-dos-tipos";
+import { FotosDosTipos } from "@/shared/landing/fotos-dos-tipos";
 import { useAtividadesPorTipo } from "@/shared/landing/use-fotos-dos-tipos";
 import type { Reserva } from "@/shared/reservas/reserva";
 import { ContagemRegressiva } from "@/shared/reservas/ContagemRegressiva";
@@ -74,7 +74,7 @@ export default function MinhasReservasPage() {
                 className={`${styles.cartao} ${styles.cartaoComFoto}`}
               >
                 <FotoCapa
-                  foto={fotoDoTipoPorId(atividadesPorTipo, reserva.tipo.id)}
+                  foto={FotosDosTipos.doTipo(atividadesPorTipo, reserva.tipo.id)}
                   formato="miniatura"
                   sizes="96px"
                 />

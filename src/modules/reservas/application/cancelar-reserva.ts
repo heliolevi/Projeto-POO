@@ -1,9 +1,9 @@
 import { NotFoundError } from "../../../shared/http/errors.ts";
+import { Uuid } from "../../../shared/dominio/uuid.ts";
 import { Reserva } from "../domain/reserva-entidade.ts";
-import { ehUuid } from "../domain/reserva.ts";
-import { MENSAGEM_NAO_ENCONTRADA } from "./consultar-reservas.ts";
-import type { SessaoCliente, Transacao } from "./portas.ts";
-import { montarReserva, type ReservaDto } from "./reserva-dto.ts";
+import { ConsultaDeReservas } from "./consultar-reservas.ts";
+import type { ExecutorDeReservas, SessaoCliente } from "./portas.ts";
+import { MontadorDeReserva, type ReservaDto } from "./reserva-dto.ts";
 
 // POST /api/reservas/{id}/cancelar (rota 15): cancela a reserva pendente ou confirmada que ainda
 // não foi retirada. A bicicleta volta a ficar livre na hora (a exclusion constraint só vale para
@@ -19,21 +19,27 @@ import { montarReserva, type ReservaDto } from "./reserva-dto.ts";
 //
 // O estorno de pagamento já aprovado não faz parte do MVP: o cancelamento de reserva paga é
 // tratado no balcão (docs/contrato-api-mvp.md).
-export function criarCancelarReserva(deps: { transacao: Transacao; agora: () => Date }) {
-  const { agora } = deps;
+export class CancelamentoDeReserva {
+  readonly #executor: ExecutorDeReservas;
+  readonly #agora: () => Date;
 
-  return async function cancelarReserva(sessao: SessaoCliente, id: unknown): Promise<ReservaDto> {
-    if (!ehUuid(id)) throw new NotFoundError(MENSAGEM_NAO_ENCONTRADA);
+  constructor(deps: { executor: ExecutorDeReservas; agora: () => Date }) {
+    this.#executor = deps.executor;
+    this.#agora = deps.agora;
+  }
 
-    return deps.transacao(sessao, async (op) => {
+  async cancelar(sessao: SessaoCliente, id: unknown): Promise<ReservaDto> {
+    if (!Uuid.ehValido(id)) throw new NotFoundError(ConsultaDeReservas.MENSAGEM_NAO_ENCONTRADA);
+
+    return this.#executor.executar(sessao, async (op) => {
       await op.expirarVencidas();
       const travada = await op.travarReserva(id);
-      if (!travada) throw new NotFoundError(MENSAGEM_NAO_ENCONTRADA);
-      new Reserva(travada).cancelar(agora());
+      if (!travada) throw new NotFoundError(ConsultaDeReservas.MENSAGEM_NAO_ENCONTRADA);
+      new Reserva(travada).cancelar(this.#agora());
       await op.marcarCancelada(id);
       const linha = await op.buscar(id);
-      if (!linha) throw new NotFoundError(MENSAGEM_NAO_ENCONTRADA);
-      return montarReserva(linha);
+      if (!linha) throw new NotFoundError(ConsultaDeReservas.MENSAGEM_NAO_ENCONTRADA);
+      return MontadorDeReserva.reserva(linha);
     });
-  };
+  }
 }
