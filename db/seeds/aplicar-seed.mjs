@@ -66,12 +66,12 @@ async function main() {
   const senhaAdmin = senhaDoAmbiente('SEED_ADMIN_SENHA');
   const senhaOperador = senhaDoAmbiente('SEED_OPERADOR_SENHA');
 
-  // reaproveita a função de hash do app, para o login aceitar a senha
-  const { gerarHashSenha } = await import(
+  // reaproveita o hash (ScryptDeSenha) do app, para o login aceitar a senha
+  const { ScryptDeSenha } = await import(
     pathToFileURL(join(raiz, 'src', 'modules', 'contas', 'infrastructure', 'senha.ts')).href
   );
-  const hashAdmin = await gerarHashSenha(senhaAdmin);
-  const hashOperador = await gerarHashSenha(senhaOperador);
+  const hashAdmin = await ScryptDeSenha.padrao.gerarHash(senhaAdmin);
+  const hashOperador = await ScryptDeSenha.padrao.gerarHash(senhaOperador);
 
   const sql = readFileSync(join(aqui, 'dev.sql'), 'utf8');
   const client = new pg.Client({ connectionString: url });
