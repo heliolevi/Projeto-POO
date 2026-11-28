@@ -1,5 +1,5 @@
 import { FormatadorDeData } from "../../../shared/format/formatador-de-data.ts";
-import { STATUS_RESERVA, ehStatusReserva, type StatusReserva } from "./reserva.ts";
+import { RegrasDeReserva, type StatusReserva } from "./reserva.ts";
 
 export type ErrosPorCampo = Record<string, string>;
 
@@ -34,8 +34,8 @@ export class FiltroDoPainel {
     let status: StatusReserva | null = null;
     const statusBruto = parametros.status;
     if (statusBruto !== undefined && statusBruto !== null && statusBruto !== "") {
-      if (ehStatusReserva(statusBruto)) status = statusBruto;
-      else erros.status = `Status inválido. Use um destes valores: ${STATUS_RESERVA.join(", ")}.`;
+      if (RegrasDeReserva.ehStatus(statusBruto)) status = statusBruto;
+      else erros.status = `Status inválido. Use um destes valores: ${RegrasDeReserva.STATUS.join(", ")}.`;
     }
 
     let inicioDoDia: number | null = null;
