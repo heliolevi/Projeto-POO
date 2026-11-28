@@ -28,6 +28,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `shared/auth` | `Sessao`, `ArmazemDeSessao`, `DestinoSeguro` |
 | `shared/config` | `Ambiente` |
 | `shared/dominio` (documentos, senha, ids e período) | `Cpf`, `Cnpj`, `PoliticaDeSenha`, `Uuid`, `ValidadorDePeriodo` |
+| `shared` (lógica das telas) | `FormularioDeBusca`, `AderenciaDaRecomendacao`, `AgendaDoDia`; `ReservaEmDestaque`, `SaudacaoDoCliente`; `FormularioDePerfil` (imutável), `CompletudeDoPerfil`, `IniciaisDoNome`; `FormularioDeSenha`, `AlturaDaConta`, `DesativacaoDaConta`, `MensagensDeErroDaConta`; `RotulosDoCatalogo`, `ConversorDeReais`, `PontosDasBicicletas`; `StatusDaReserva`, `ContagemDoPrazo`, `PedidoNaUrl`, `MotivoDoErro`; `AcompanhamentoDoPix`; `RotulosDoChecklist`, `MovimentoDoBalcao`, `ChecklistDoBalcao`, `FilaDoBalcao`; `FotosDasBicicletas`, `FotosDosTipos`, `TiposDaVitrine`; `LeitorDeMarkdown`, `LinksDeDocumento`, `DocumentosDoRepositorio`; `MensagemDaFalha` |
 | `shared/format` | `FormatadorDeData` |
 | `shared/config` (ambiente) | `ValidadorDoAmbiente`, `RegraDeVariavel` (abstrata), `UrlDoBanco`, `SegredoComTamanhoMinimo`, `UrlDoApp`, `ChaveComPrefixo`, `UmDosValores` |
 
@@ -233,6 +234,7 @@ construtor (injeção de dependência):
 
 ### O que ainda não foi convertido
 
-Os módulos `contas`, `catalogo`, `recomendacao`, `reservas`, `pagamentos` e `operacao` já foram convertidos. Ainda têm funções soltas:
-a lógica das telas em `src/shared/*` (busca, agenda, início,
-perfil, conta, operação, admin, markdown e landing) e as rotas `route.ts`, que passam a só chamar classes.
+Todos os módulos (`contas`, `catalogo`, `recomendacao`, `reservas`, `pagamentos` e `operacao`), as regras
+compartilhadas e a lógica das telas já são classes. O que fica fora das classes é o que o framework
+exige como função ou configuração: as rotas `route.ts` (que só chamam os handlers e os controladores),
+os hooks do React, `instrumentation.ts`, `manifest.ts`, os componentes de interface e as constantes de dados e tipos.

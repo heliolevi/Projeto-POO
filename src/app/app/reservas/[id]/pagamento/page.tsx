@@ -5,16 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
+import { MensagemDaFalha } from "@/shared/telas/mensagem-da-falha";
 import {
-  imagemDoQrCode,
-  situacaoDoPix,
+  AcompanhamentoDoPix,
   type CobrancaPix,
   type StatusDoPagamento,
 } from "@/shared/pagamentos/pagamento";
 import pagamentoStyles from "@/shared/pagamentos/pagamento.module.css";
 import {
-  formatarContagem,
-  segundosRestantes,
+  ContagemDoPrazo,
   type ReservaDetalhada,
 } from "@/shared/reservas/reserva";
 import styles from "@/shared/reservas/reservas.module.css";
@@ -29,10 +28,6 @@ type Estado =
   | { tipo: "pagoSemReserva" }
   | { tipo: "confirmado" }
   | { tipo: "pronto"; cobranca: CobrancaPix };
-
-function mensagemDe(erro: unknown, padrao: string): string {
-  return erro instanceof ApiError ? erro.message : padrao;
-}
 
 export default function PagamentoPixPage() {
   const { id } = useParams<{ id: string }>();
@@ -63,7 +58,7 @@ export default function PagamentoPixPage() {
         }
         setEstado({
           tipo: "erro",
-          mensagem: mensagemDe(erro, "Não foi possível gerar o Pix agora. Tente novamente."),
+          mensagem: MensagemDaFalha.de(erro, "Não foi possível gerar o Pix agora. Tente novamente."),
           podeTentarDeNovo: true,
         });
       }
@@ -84,7 +79,7 @@ export default function PagamentoPixPage() {
         if (!ativo) return;
         setEstado({
           tipo: "erro",
-          mensagem: mensagemDe(erro, "Não foi possível conferir a reserva agora."),
+          mensagem: MensagemDaFalha.de(erro, "Não foi possível conferir a reserva agora."),
           podeTentarDeNovo: true,
         });
       }
@@ -109,7 +104,7 @@ export default function PagamentoPixPage() {
       try {
         const status = await ClienteApi.padrao.get<StatusDoPagamento>(`/api/pagamentos/${id}/status`);
         if (!ativo) return;
-        const situacao = situacaoDoPix(status);
+        const situacao = AcompanhamentoDoPix.situacao(status);
         if (situacao === "confirmado") return setEstado({ tipo: "confirmado" });
         if (situacao === "encerrado") return setEstado({ tipo: "encerrado" });
         if (situacao === "pago_sem_reserva") return setEstado({ tipo: "pagoSemReserva" });
@@ -166,7 +161,7 @@ export default function PagamentoPixPage() {
   }
 
   const restante =
-    estado.tipo === "pronto" ? segundosRestantes(estado.cobranca.pix.expiraEm, agora) : 0;
+    estado.tipo === "pronto" ? ContagemDoPrazo.segundosRestantes(estado.cobranca.pix.expiraEm, agora) : 0;
 
   return (
     <div>
@@ -241,14 +236,14 @@ export default function PagamentoPixPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   className={pagamentoStyles.qr}
-                  src={imagemDoQrCode(estado.cobranca.pix.qrCodeBase64)}
+                  src={AcompanhamentoDoPix.imagemDoQrCode(estado.cobranca.pix.qrCodeBase64)}
                   alt="QR code do Pix"
                 />
                 <span className={pagamentoStyles.valor}>
                   {Dinheiro.deCentavos(estado.cobranca.valorCentavos).formatar()}
                 </span>
                 <span className={pagamentoStyles.contagem}>
-                  Este Pix vale por mais {formatarContagem(restante)}
+                  Este Pix vale por mais {ContagemDoPrazo.formatar(restante)}
                 </span>
               </div>
 

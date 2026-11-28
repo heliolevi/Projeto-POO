@@ -5,11 +5,10 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useGuardaRota } from "@/shared/auth/guarda-rota";
 import {
   ATIVIDADES,
-  ROTULO_ATIVIDADE,
-  ROTULO_STATUS,
+  RotulosDoCatalogo,
   STATUS_EDITAVEIS,
-  pontosDasBicicletas,
-  reaisParaCentavos,
+  PontosDasBicicletas,
+  ConversorDeReais,
   type Atividade,
   type BicicletaAdmin,
   type StatusBicicleta,
@@ -19,6 +18,7 @@ import type { ResultadoDaEmpresa } from "@/shared/empresa";
 import { useEmpresa } from "@/shared/empresa/use-empresa";
 import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { ApiError, ClienteApi, type ErrosPorCampo } from "@/shared/http/api-cliente";
+import { MensagemDaFalha } from "@/shared/telas/mensagem-da-falha";
 import { Alert } from "@/shared/ui/Alert";
 import { AppShell } from "@/shared/ui/AppShell";
 import { Badge } from "@/shared/ui/Badge";
@@ -56,10 +56,6 @@ export default function AdminPage() {
 
 type Dados = { tipos: TipoAdmin[]; bicicletas: BicicletaAdmin[] };
 
-function mensagem(erro: unknown, padrao: string): string {
-  return erro instanceof ApiError ? erro.message : padrao;
-}
-
 function PainelCatalogo() {
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -78,7 +74,7 @@ function PainelCatalogo() {
       setErro(null);
     } catch (e) {
       setAviso(null);
-      setErro(mensagem(e, "Não foi possível carregar o catálogo agora. Tente de novo."));
+      setErro(MensagemDaFalha.de(e, "Não foi possível carregar o catálogo agora. Tente de novo."));
     }
   }, []);
 
@@ -102,18 +98,18 @@ function PainelCatalogo() {
       await carregar();
     } catch (e) {
       setAviso(null);
-      setErro(mensagem(e, "Não foi possível alterar o tipo."));
+      setErro(MensagemDaFalha.de(e, "Não foi possível alterar o tipo."));
     }
   }
 
   async function mudarStatus(bicicleta: BicicletaAdmin, status: StatusBicicleta) {
     try {
       await ClienteApi.padrao.patch(`/api/admin/bicicletas/${bicicleta.id}`, { status });
-      setAviso(`Bicicleta ${bicicleta.codigo}: ${ROTULO_STATUS[status]}.`);
+      setAviso(`Bicicleta ${bicicleta.codigo}: ${RotulosDoCatalogo.status(status)}.`);
       await carregar();
     } catch (e) {
       setAviso(null);
-      setErro(mensagem(e, "Não foi possível mudar o status."));
+      setErro(MensagemDaFalha.de(e, "Não foi possível mudar o status."));
     }
   }
 
@@ -192,7 +188,7 @@ function PainelCatalogo() {
                   cabecalho: "Status",
                   celula: (b) =>
                     b.status === "ALUGADA" ? (
-                      ROTULO_STATUS.ALUGADA
+                      RotulosDoCatalogo.status("ALUGADA")
                     ) : (
                       <select
                         aria-label={`Status da bicicleta ${b.codigo}`}
@@ -201,7 +197,7 @@ function PainelCatalogo() {
                       >
                         {STATUS_EDITAVEIS.map((s) => (
                           <option key={s} value={s}>
-                            {ROTULO_STATUS[s]}
+                            {RotulosDoCatalogo.status(s)}
                           </option>
                         ))}
                       </select>
@@ -214,7 +210,7 @@ function PainelCatalogo() {
           <NovaBicicleta
             tipos={dados.tipos}
             empresa={empresa}
-            pontosDoEstoque={pontosDasBicicletas(dados.bicicletas)}
+            pontosDoEstoque={PontosDasBicicletas.distintos(dados.bicicletas)}
             aoRecarregarPontos={recarregarEmpresa}
             aoCriar={async (codigo) => { setAviso(`Bicicleta ${codigo} cadastrada.`); await carregar(); }}
           />
@@ -236,9 +232,9 @@ function NovoTipo({ aoCriar }: { aoCriar: (nome: string) => Promise<void> }) {
     const f = new FormData(form);
     const texto = (k: string) => String(f.get(k) ?? "");
     const locais: ErrosPorCampo = {};
-    const hora = reaisParaCentavos(texto("precoHora"));
-    const dia = reaisParaCentavos(texto("precoDia"));
-    const caucao = texto("caucao") ? reaisParaCentavos(texto("caucao")) : 0;
+    const hora = ConversorDeReais.paraCentavos(texto("precoHora"));
+    const dia = ConversorDeReais.paraCentavos(texto("precoDia"));
+    const caucao = texto("caucao") ? ConversorDeReais.paraCentavos(texto("caucao")) : 0;
     if (hora === null) locais.precoHoraCentavos = "Informe o valor em reais (ex.: 10,00).";
     if (dia === null) locais.precoDiaCentavos = "Informe o valor em reais (ex.: 60,00).";
     if (caucao === null) locais.valorCaucaoCentavos = "Informe o valor em reais (ex.: 200,00).";
@@ -265,7 +261,7 @@ function NovoTipo({ aoCriar }: { aoCriar: (nome: string) => Promise<void> }) {
       await aoCriar(nome);
     } catch (e) {
       if (e instanceof ApiError && e.details) setErros(e.details);
-      else setErroGeral(mensagem(e, "Não foi possível criar o tipo."));
+      else setErroGeral(MensagemDaFalha.de(e, "Não foi possível criar o tipo."));
     } finally {
       setEnviando(false);
     }
@@ -289,7 +285,7 @@ function NovoTipo({ aoCriar }: { aoCriar: (nome: string) => Promise<void> }) {
                     setAtividades((atual) => (e.target.checked ? [...atual, a] : atual.filter((x) => x !== a)))
                   }
                 />
-                {ROTULO_ATIVIDADE[a]}
+                {RotulosDoCatalogo.atividade(a)}
               </label>
             ))}
           </div>
@@ -368,7 +364,7 @@ function NovaBicicleta({
       await aoCriar(resposta.codigo);
     } catch (e) {
       if (e instanceof ApiError && e.details) setErros(e.details);
-      else setErroGeral(mensagem(e, "Não foi possível cadastrar a bicicleta."));
+      else setErroGeral(MensagemDaFalha.de(e, "Não foi possível cadastrar a bicicleta."));
     } finally {
       setEnviando(false);
     }

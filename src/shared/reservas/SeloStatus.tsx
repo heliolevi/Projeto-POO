@@ -1,15 +1,12 @@
-import { ROTULO_STATUS, type StatusReserva } from "./reserva";
+import { StatusDaReserva, type StatusReserva } from "./reserva";
 import styles from "./reservas.module.css";
 
-function classeDoStatus(status: StatusReserva): string {
-  if (status === "CONFIRMADA" || status === "EM_ANDAMENTO") return styles.seloConfirmada;
-  if (status === "PENDENTE_PAGAMENTO") return styles.seloPendente;
-  if (status === "CONCLUIDA" || status === "CANCELADA" || status === "EXPIRADA") {
-    return styles.seloEncerrada;
-  }
-  return "";
-}
+const CLASSE_DA_VARIANTE = {
+  confirmada: styles.seloConfirmada,
+  pendente: styles.seloPendente,
+  encerrada: styles.seloEncerrada,
+} as const;
 
 export function SeloStatus({ status }: { status: StatusReserva }) {
-  return <span className={`${styles.selo} ${classeDoStatus(status)}`}>{ROTULO_STATUS[status]}</span>;
+  return <span className={`${styles.selo} ${CLASSE_DA_VARIANTE[StatusDaReserva.variante(status)]}`}>{StatusDaReserva.rotulo(status)}</span>;
 }

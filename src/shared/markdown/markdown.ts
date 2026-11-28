@@ -14,102 +14,6 @@ const ITEM_NAO_ORDENADO = /^[-*]\s+(.*)$/;
 const ITEM_ORDENADO = /^\d+\.\s+(.*)$/;
 const SEPARADOR_TABELA = /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$/;
 
-function celulas(linha: string): string[] {
-  return linha
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/\|$/, "")
-    .split("|")
-    .map((c) => c.trim());
-}
-
-function iniciaBloco(linha: string): boolean {
-  return (
-    TITULO.test(linha) ||
-    ITEM_NAO_ORDENADO.test(linha) ||
-    ITEM_ORDENADO.test(linha) ||
-    linha.startsWith(">") ||
-    linha.startsWith("|")
-  );
-}
-
-export function lerMarkdown(texto: string): Bloco[] {
-  const linhas = texto.replace(/\r\n?/g, "\n").split("\n");
-  const blocos: Bloco[] = [];
-  let i = 0;
-
-  while (i < linhas.length) {
-    const linha = linhas[i].trim();
-    if (linha === "") {
-      i++;
-      continue;
-    }
-
-    const titulo = TITULO.exec(linha);
-    if (titulo) {
-      blocos.push({ tipo: "titulo", nivel: titulo[1].length, texto: titulo[2].trim() });
-      i++;
-      continue;
-    }
-
-    if (linha.startsWith(">")) {
-      const partes: string[] = [];
-      while (i < linhas.length && linhas[i].trim().startsWith(">")) {
-        partes.push(linhas[i].trim().replace(/^>\s?/, "").trim());
-        i++;
-      }
-      blocos.push({ tipo: "citacao", texto: partes.filter(Boolean).join(" ") });
-      continue;
-    }
-
-    if (linha.startsWith("|")) {
-      const tabela: string[][] = [];
-      while (i < linhas.length && linhas[i].trim().startsWith("|")) {
-        const atual = linhas[i].trim();
-        if (!SEPARADOR_TABELA.test(atual)) tabela.push(celulas(atual));
-        i++;
-      }
-      const [cabecalho = [], ...resto] = tabela;
-      blocos.push({ tipo: "tabela", cabecalho, linhas: resto });
-      continue;
-    }
-
-    const ordenada = ITEM_ORDENADO.test(linha);
-    if (ordenada || ITEM_NAO_ORDENADO.test(linha)) {
-      const padrao = ordenada ? ITEM_ORDENADO : ITEM_NAO_ORDENADO;
-      const itens: string[] = [];
-      while (i < linhas.length) {
-        const atual = linhas[i].trim();
-        const item = padrao.exec(atual);
-        if (item) {
-          itens.push(item[1].trim());
-        } else if (atual !== "" && !iniciaBloco(atual) && itens.length > 0) {
-          itens[itens.length - 1] += ` ${atual}`; // continuação do item
-        } else {
-          break;
-        }
-        i++;
-      }
-      blocos.push({ tipo: "lista", ordenada, itens });
-      continue;
-    }
-
-    const partes: string[] = [];
-    while (i < linhas.length && linhas[i].trim() !== "" && !iniciaBloco(linhas[i].trim())) {
-      partes.push(linhas[i].trim());
-      i++;
-    }
-    blocos.push({ tipo: "paragrafo", texto: partes.join(" ") });
-  }
-
-  return blocos;
-}
-
-export function extrairVersao(texto: string): string | null {
-  const achado = /^\*\*Vers[ãa]o:\*\*\s*(\S+)/m.exec(texto);
-  return achado ? achado[1] : null;
-}
-
 // Map, e não um objeto: `"constructor" in objeto` é verdadeiro pela cadeia de protótipos e
 // devolveria uma função no lugar do endereço.
 const LINKS_ENTRE_DOCUMENTOS = new Map<string, string>([
@@ -122,14 +26,21 @@ const LINKS_ENTRE_DOCUMENTOS = new Map<string, string>([
 // "/\host" e "/<tab>/host" abririam outro site ("//host").
 const ROTA_DO_APP = /^\/(?![/\\])[^\\\s\u0000-\u001f\u007f]*$/;
 
-// Só devolve destinos seguros: rota do app, http(s) ou um dos documentos conhecidos.
-export function converterLinkDoc(destino: string): string | null {
-  const limpo = destino.trim();
-  const documento = LINKS_ENTRE_DOCUMENTOS.get(limpo);
-  if (documento !== undefined) return documento;
-  if (ROTA_DO_APP.test(limpo)) return limpo;
-  if (/^https?:\/\//i.test(limpo)) return limpo;
-  return null;
+// Destinos de link que o leitor aceita. Só tem método estático, então não se cria instância.
+export class LinksDeDocumento {
+  private constructor() {
+    throw new Error("LinksDeDocumento só tem métodos estáticos.");
+  }
+
+  // Só devolve destinos seguros: rota do app, http(s) ou um dos documentos conhecidos.
+  static converter(destino: string): string | null {
+    const limpo = destino.trim();
+    const documento = LINKS_ENTRE_DOCUMENTOS.get(limpo);
+    if (documento !== undefined) return documento;
+    if (ROTA_DO_APP.test(limpo)) return limpo;
+    if (/^https?:\/\//i.test(limpo)) return limpo;
+    return null;
+  }
 }
 
 export type Trecho =
@@ -137,32 +48,136 @@ export type Trecho =
   | { tipo: "forte"; texto: string }
   | { tipo: "link"; texto: string; href: string };
 
-// Negrito (**x**) e links ([x](destino)). Link com destino inseguro vira só texto.
-export function lerTrechos(texto: string): Trecho[] {
-  const trechos: Trecho[] = [];
-  const padrao = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
-  let ultimo = 0;
-  for (const achado of texto.matchAll(padrao)) {
-    if (achado.index > ultimo) trechos.push({ tipo: "texto", texto: texto.slice(ultimo, achado.index) });
-    if (achado[1] !== undefined) {
-      trechos.push({ tipo: "forte", texto: achado[1] });
-    } else {
-      const href = converterLinkDoc(achado[3]);
-      trechos.push(href ? { tipo: "link", texto: achado[2], href } : { tipo: "texto", texto: achado[2] });
-    }
-    ultimo = achado.index + achado[0].length;
+// Leitor mínimo de Markdown (blocos, trechos, versão e legenda de tabela). Só tem métodos estáticos
+// (não guarda estado), então não se cria instância.
+export class LeitorDeMarkdown {
+  private constructor() {
+    throw new Error("LeitorDeMarkdown só tem métodos estáticos.");
   }
-  if (ultimo < texto.length) trechos.push({ tipo: "texto", texto: texto.slice(ultimo) });
-  return trechos;
-}
 
-// Legenda da tabela (<caption>), lida por leitor de tela: o título da seção em que ela está, sem a
-// marcação. Sem título antes dela, cai para a lista dos cabeçalhos.
-export function legendaDaTabela(blocos: Bloco[], indice: number): string {
-  for (let i = indice - 1; i >= 0; i--) {
-    const bloco = blocos[i];
-    if (bloco.tipo === "titulo") return lerTrechos(bloco.texto).map((t) => t.texto).join("");
+  static blocos(texto: string): Bloco[] {
+    const linhas = texto.replace(/\r\n?/g, "\n").split("\n");
+    const blocos: Bloco[] = [];
+    let i = 0;
+
+    while (i < linhas.length) {
+      const linha = linhas[i].trim();
+      if (linha === "") {
+        i++;
+        continue;
+      }
+
+      const titulo = TITULO.exec(linha);
+      if (titulo) {
+        blocos.push({ tipo: "titulo", nivel: titulo[1].length, texto: titulo[2].trim() });
+        i++;
+        continue;
+      }
+
+      if (linha.startsWith(">")) {
+        const partes: string[] = [];
+        while (i < linhas.length && linhas[i].trim().startsWith(">")) {
+          partes.push(linhas[i].trim().replace(/^>\s?/, "").trim());
+          i++;
+        }
+        blocos.push({ tipo: "citacao", texto: partes.filter(Boolean).join(" ") });
+        continue;
+      }
+
+      if (linha.startsWith("|")) {
+        const tabela: string[][] = [];
+        while (i < linhas.length && linhas[i].trim().startsWith("|")) {
+          const atual = linhas[i].trim();
+          if (!SEPARADOR_TABELA.test(atual)) tabela.push(LeitorDeMarkdown.#celulas(atual));
+          i++;
+        }
+        const [cabecalho = [], ...resto] = tabela;
+        blocos.push({ tipo: "tabela", cabecalho, linhas: resto });
+        continue;
+      }
+
+      const ordenada = ITEM_ORDENADO.test(linha);
+      if (ordenada || ITEM_NAO_ORDENADO.test(linha)) {
+        const padrao = ordenada ? ITEM_ORDENADO : ITEM_NAO_ORDENADO;
+        const itens: string[] = [];
+        while (i < linhas.length) {
+          const atual = linhas[i].trim();
+          const item = padrao.exec(atual);
+          if (item) {
+            itens.push(item[1].trim());
+          } else if (atual !== "" && !LeitorDeMarkdown.#iniciaBloco(atual) && itens.length > 0) {
+            itens[itens.length - 1] += ` ${atual}`; // continuação do item
+          } else {
+            break;
+          }
+          i++;
+        }
+        blocos.push({ tipo: "lista", ordenada, itens });
+        continue;
+      }
+
+      const partes: string[] = [];
+      while (i < linhas.length && linhas[i].trim() !== "" && !LeitorDeMarkdown.#iniciaBloco(linhas[i].trim())) {
+        partes.push(linhas[i].trim());
+        i++;
+      }
+      blocos.push({ tipo: "paragrafo", texto: partes.join(" ") });
+    }
+
+    return blocos;
   }
-  const tabela = blocos[indice];
-  return tabela?.tipo === "tabela" ? tabela.cabecalho.join(", ") : "";
+
+  static versao(texto: string): string | null {
+    const achado = /^\*\*Vers[ãa]o:\*\*\s*(\S+)/m.exec(texto);
+    return achado ? achado[1] : null;
+  }
+
+  // Negrito (**x**) e links ([x](destino)). Link com destino inseguro vira só texto.
+  static trechos(texto: string): Trecho[] {
+    const trechos: Trecho[] = [];
+    const padrao = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
+    let ultimo = 0;
+    for (const achado of texto.matchAll(padrao)) {
+      if (achado.index > ultimo) trechos.push({ tipo: "texto", texto: texto.slice(ultimo, achado.index) });
+      if (achado[1] !== undefined) {
+        trechos.push({ tipo: "forte", texto: achado[1] });
+      } else {
+        const href = LinksDeDocumento.converter(achado[3]);
+        trechos.push(href ? { tipo: "link", texto: achado[2], href } : { tipo: "texto", texto: achado[2] });
+      }
+      ultimo = achado.index + achado[0].length;
+    }
+    if (ultimo < texto.length) trechos.push({ tipo: "texto", texto: texto.slice(ultimo) });
+    return trechos;
+  }
+
+  // Legenda da tabela (<caption>), lida por leitor de tela: o título da seção em que ela está, sem a
+  // marcação. Sem título antes dela, cai para a lista dos cabeçalhos.
+  static legendaDaTabela(blocos: Bloco[], indice: number): string {
+    for (let i = indice - 1; i >= 0; i--) {
+      const bloco = blocos[i];
+      if (bloco.tipo === "titulo") return LeitorDeMarkdown.trechos(bloco.texto).map((t) => t.texto).join("");
+    }
+    const tabela = blocos[indice];
+    return tabela?.tipo === "tabela" ? tabela.cabecalho.join(", ") : "";
+  }
+
+  static #iniciaBloco(linha: string): boolean {
+    return (
+      TITULO.test(linha) ||
+      ITEM_NAO_ORDENADO.test(linha) ||
+      ITEM_ORDENADO.test(linha) ||
+      linha.startsWith(">") ||
+      linha.startsWith("|")
+    );
+  }
+
+  static #celulas(linha: string): string[] {
+    return linha
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((c) => c.trim());
+  }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { formatarContagem, segundosRestantes } from "./reserva";
+import { ContagemDoPrazo } from "./reserva";
 
 type Props = {
   expiraEm: string | null;
@@ -24,7 +24,7 @@ export function ContagemRegressiva({ expiraEm, aoExpirar }: Props) {
     };
   }, []);
 
-  const restante = agora ? segundosRestantes(expiraEm, agora) : null;
+  const restante = agora ? ContagemDoPrazo.segundosRestantes(expiraEm, agora) : null;
 
   useEffect(() => {
     if (restante === 0 && !jaAvisou.current) {
@@ -35,7 +35,7 @@ export function ContagemRegressiva({ expiraEm, aoExpirar }: Props) {
 
   if (restante === null) return null;
   return restante > 0 ? (
-    <span>Pague em {formatarContagem(restante)} para manter a reserva</span>
+    <span>Pague em {ContagemDoPrazo.formatar(restante)} para manter a reserva</span>
   ) : (
     <span>O prazo para pagar terminou</span>
   );

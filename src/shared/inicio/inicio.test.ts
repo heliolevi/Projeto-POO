@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Reserva, StatusReserva } from "../reservas/reserva.ts";
-import { primeiroNome, proximaReserva, saudacao } from "./inicio.ts";
+import { ReservaEmDestaque, SaudacaoDoCliente } from "./inicio.ts";
 
 const AGORA = new Date("2026-11-14T15:00:00Z");
 
@@ -14,7 +14,7 @@ test("proximaReserva prefere a que está em andamento", () => {
     reserva("a", "CONFIRMADA", "2026-11-14T16:00:00Z", "2026-11-14T18:00:00Z"),
     reserva("b", "EM_ANDAMENTO", "2026-11-14T13:00:00Z", "2026-11-14T17:00:00Z"),
   ];
-  assert.equal(proximaReserva(lista, AGORA)?.id, "b");
+  assert.equal(ReservaEmDestaque.proxima(lista, AGORA)?.id, "b");
 });
 
 test("proximaReserva escolhe a mais próxima que ainda não terminou", () => {
@@ -22,7 +22,7 @@ test("proximaReserva escolhe a mais próxima que ainda não terminou", () => {
     reserva("tarde", "CONFIRMADA", "2026-11-16T12:00:00Z", "2026-11-16T14:00:00Z"),
     reserva("cedo", "PENDENTE_PAGAMENTO", "2026-11-15T12:00:00Z", "2026-11-15T14:00:00Z"),
   ];
-  assert.equal(proximaReserva(lista, AGORA)?.id, "cedo");
+  assert.equal(ReservaEmDestaque.proxima(lista, AGORA)?.id, "cedo");
 });
 
 test("proximaReserva ignora reservas encerradas, canceladas, expiradas e já terminadas", () => {
@@ -32,8 +32,8 @@ test("proximaReserva ignora reservas encerradas, canceladas, expiradas e já ter
     reserva("e", "EXPIRADA", "2026-11-20T12:00:00Z", "2026-11-20T14:00:00Z"),
     reserva("velha", "CONFIRMADA", "2026-11-13T12:00:00Z", "2026-11-13T14:00:00Z"),
   ];
-  assert.equal(proximaReserva(lista, AGORA), null);
-  assert.equal(proximaReserva([], AGORA), null);
+  assert.equal(ReservaEmDestaque.proxima(lista, AGORA), null);
+  assert.equal(ReservaEmDestaque.proxima([], AGORA), null);
 });
 
 test("proximaReserva não altera a lista recebida", () => {
@@ -42,39 +42,52 @@ test("proximaReserva não altera a lista recebida", () => {
     reserva("a", "CONFIRMADA", "2026-11-15T12:00:00Z", "2026-11-15T14:00:00Z"),
   ];
   const copia = [...lista];
-  proximaReserva(lista, AGORA);
+  ReservaEmDestaque.proxima(lista, AGORA);
   assert.deepEqual(lista, copia);
 });
 
 test("primeiroNome pega só a primeira palavra e aguenta espaços e nome vazio", () => {
-  assert.equal(primeiroNome("Maria da Silva"), "Maria");
-  assert.equal(primeiroNome("  João   Pedro "), "João");
-  assert.equal(primeiroNome("Ana"), "Ana");
-  assert.equal(primeiroNome(""), "");
-  assert.equal(primeiroNome("   "), "");
+  assert.equal(SaudacaoDoCliente.primeiroNome("Maria da Silva"), "Maria");
+  assert.equal(SaudacaoDoCliente.primeiroNome("  João   Pedro "), "João");
+  assert.equal(SaudacaoDoCliente.primeiroNome("Ana"), "Ana");
+  assert.equal(SaudacaoDoCliente.primeiroNome(""), "");
+  assert.equal(SaudacaoDoCliente.primeiroNome("   "), "");
 });
 
 test("saudacao usa a hora de São Luís (UTC-3)", () => {
-  assert.equal(saudacao(new Date("2026-11-14T08:00:00Z")), "Bom dia"); // 05:00
-  assert.equal(saudacao(new Date("2026-11-14T14:59:00Z")), "Bom dia"); // 11:59
-  assert.equal(saudacao(new Date("2026-11-14T15:00:00Z")), "Boa tarde"); // 12:00
-  assert.equal(saudacao(new Date("2026-11-14T20:59:00Z")), "Boa tarde"); // 17:59
-  assert.equal(saudacao(new Date("2026-11-14T21:00:00Z")), "Boa noite"); // 18:00
-  assert.equal(saudacao(new Date("2026-11-14T06:00:00Z")), "Boa noite"); // 03:00
-  assert.equal(saudacao(new Date("2026-11-14T02:59:00Z")), "Boa noite"); // 23:59 do dia 13
+  assert.equal(SaudacaoDoCliente.doMomento(new Date("2026-11-14T08:00:00Z")), "Bom dia"); // 05:00
+  assert.equal(SaudacaoDoCliente.doMomento(new Date("2026-11-14T14:59:00Z")), "Bom dia"); // 11:59
+  assert.equal(SaudacaoDoCliente.doMomento(new Date("2026-11-14T15:00:00Z")), "Boa tarde"); // 12:00
+  assert.equal(SaudacaoDoCliente.doMomento(new Date("2026-11-14T20:59:00Z")), "Boa tarde"); // 17:59
+  assert.equal(SaudacaoDoCliente.doMomento(new Date("2026-11-14T21:00:00Z")), "Boa noite"); // 18:00
+  assert.equal(SaudacaoDoCliente.doMomento(new Date("2026-11-14T06:00:00Z")), "Boa noite"); // 03:00
+  assert.equal(SaudacaoDoCliente.doMomento(new Date("2026-11-14T02:59:00Z")), "Boa noite"); // 23:59 do dia 13
 });
 
 test("saudacao troca nas viradas das 5h, 12h e 18h de São Luís", () => {
   const emSaoLuis = (hhmm: string) => new Date(`2026-11-14T${hhmm}:00-03:00`);
-  assert.equal(saudacao(emSaoLuis("04:59")), "Boa noite");
-  assert.equal(saudacao(emSaoLuis("05:00")), "Bom dia");
-  assert.equal(saudacao(emSaoLuis("11:59")), "Bom dia");
-  assert.equal(saudacao(emSaoLuis("12:00")), "Boa tarde");
-  assert.equal(saudacao(emSaoLuis("17:59")), "Boa tarde");
-  assert.equal(saudacao(emSaoLuis("18:00")), "Boa noite");
-  assert.equal(saudacao(emSaoLuis("00:00")), "Boa noite");
+  assert.equal(SaudacaoDoCliente.doMomento(emSaoLuis("04:59")), "Boa noite");
+  assert.equal(SaudacaoDoCliente.doMomento(emSaoLuis("05:00")), "Bom dia");
+  assert.equal(SaudacaoDoCliente.doMomento(emSaoLuis("11:59")), "Bom dia");
+  assert.equal(SaudacaoDoCliente.doMomento(emSaoLuis("12:00")), "Boa tarde");
+  assert.equal(SaudacaoDoCliente.doMomento(emSaoLuis("17:59")), "Boa tarde");
+  assert.equal(SaudacaoDoCliente.doMomento(emSaoLuis("18:00")), "Boa noite");
+  assert.equal(SaudacaoDoCliente.doMomento(emSaoLuis("00:00")), "Boa noite");
 });
 
 test("proximaReserva com lista vazia devolve null", () => {
-  assert.equal(proximaReserva([], AGORA), null);
+  assert.equal(ReservaEmDestaque.proxima([], AGORA), null);
+});
+
+test("as classes da tela inicial só têm métodos estáticos", () => {
+  for (const Classe of [ReservaEmDestaque, SaudacaoDoCliente]) {
+    assert.throws(() => new (Classe as unknown as new () => unknown)(), /só tem métodos estáticos/);
+  }
+});
+
+test("ReservaEmDestaque.proxima ignora a reserva que termina exatamente agora", () => {
+  const lista = [reserva("a", "CONFIRMADA", "2026-11-14T13:00:00Z", "2026-11-14T15:00:00Z")];
+  assert.equal(ReservaEmDestaque.proxima(lista, AGORA), null);
+  const umMsDepois = [reserva("b", "CONFIRMADA", "2026-11-14T13:00:00Z", "2026-11-14T15:00:00.001Z")];
+  assert.equal(ReservaEmDestaque.proxima(umMsDepois, AGORA)?.id, "b");
 });

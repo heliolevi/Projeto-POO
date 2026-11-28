@@ -22,28 +22,36 @@ export type StatusDoPagamento = {
 
 export type SituacaoDoPix = "aguardando" | "confirmado" | "encerrado" | "pago_sem_reserva";
 
-// Decide o que a tela do Pix faz a cada consulta de status (a cada 3 s).
-export function situacaoDoPix(status: StatusDoPagamento): SituacaoDoPix {
-  const reservaPerdida = status.statusReserva === "EXPIRADA" || status.statusReserva === "CANCELADA";
-
-  // Pagamento tardio: o Pix foi aprovado, mas a reserva já não está ativa. Não é sucesso
-  // (a pessoa não tem bicicleta garantida) nem um simples "prazo terminou" (houve cobrança).
-  // O contrato ainda não diz como a API trata esse caso; confirmar com o back-end.
-  if (status.statusPagamento === "APROVADO" && reservaPerdida) return "pago_sem_reserva";
-
-  if (status.statusReserva === "CONFIRMADA" || status.statusPagamento === "APROVADO") {
-    return "confirmado";
+// O que a tela do Pix mostra. Só tem métodos estáticos (não guarda estado), então não se cria
+// instância.
+export class AcompanhamentoDoPix {
+  private constructor() {
+    throw new Error("AcompanhamentoDoPix só tem métodos estáticos.");
   }
-  if (
-    reservaPerdida ||
-    status.statusPagamento === "RECUSADO" ||
-    status.statusPagamento === "EXPIRADO"
-  ) {
-    return "encerrado";
-  }
-  return "aguardando";
-}
 
-export function imagemDoQrCode(qrCodeBase64: string): string {
-  return `data:image/png;base64,${qrCodeBase64}`;
+  // Decide o que a tela do Pix faz a cada consulta de status (a cada 3 s).
+  static situacao(status: StatusDoPagamento): SituacaoDoPix {
+    const reservaPerdida = status.statusReserva === "EXPIRADA" || status.statusReserva === "CANCELADA";
+
+    // Pagamento tardio: o Pix foi aprovado, mas a reserva já não está ativa. Não é sucesso
+    // (a pessoa não tem bicicleta garantida) nem um simples "prazo terminou" (houve cobrança).
+    // O contrato ainda não diz como a API trata esse caso; confirmar com o back-end.
+    if (status.statusPagamento === "APROVADO" && reservaPerdida) return "pago_sem_reserva";
+
+    if (status.statusReserva === "CONFIRMADA" || status.statusPagamento === "APROVADO") {
+      return "confirmado";
+    }
+    if (
+      reservaPerdida ||
+      status.statusPagamento === "RECUSADO" ||
+      status.statusPagamento === "EXPIRADO"
+    ) {
+      return "encerrado";
+    }
+    return "aguardando";
+  }
+
+  static imagemDoQrCode(qrCodeBase64: string): string {
+    return `data:image/png;base64,${qrCodeBase64}`;
+  }
 }

@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  linkDaReserva,
-  lerPedidoDaReserva,
-  motivoDoErro,
+  MotivoDoErro,
+  PedidoNaUrl,
 } from "./nova-reserva.ts";
 
 const pedido = {
@@ -13,13 +12,13 @@ const pedido = {
 };
 
 test("o link e a leitura do pedido são inversos", () => {
-  const url = new URL(linkDaReserva(pedido), "http://localhost");
+  const url = new URL(PedidoNaUrl.link(pedido), "http://localhost");
   assert.equal(url.pathname, "/app/reservas/nova");
-  assert.deepEqual(lerPedidoDaReserva(url.searchParams), pedido);
+  assert.deepEqual(PedidoNaUrl.ler(url.searchParams), pedido);
 });
 
 test("recusa pedido incompleto, com data inválida ou com fim antes do início", () => {
-  const ler = (q: string) => lerPedidoDaReserva(new URLSearchParams(q));
+  const ler = (q: string) => PedidoNaUrl.ler(new URLSearchParams(q));
   assert.equal(ler(""), null);
   assert.equal(ler("tipoId=t-1&inicio=2026-11-15T09:00:00-03:00"), null);
   assert.equal(ler("tipoId=t-1&inicio=ontem&fim=amanha"), null);
@@ -30,7 +29,7 @@ test("recusa pedido incompleto, com data inválida ou com fim antes do início",
 });
 
 test("exige ISO completo com fuso: data solta e número não valem", () => {
-  const ler = (q: string) => lerPedidoDaReserva(new URLSearchParams(q));
+  const ler = (q: string) => PedidoNaUrl.ler(new URLSearchParams(q));
   assert.equal(ler("tipoId=t-1&inicio=2026-11-15&fim=2026-11-16"), null);
   assert.equal(ler("tipoId=t-1&inicio=0&fim=1"), null);
   assert.equal(ler("tipoId=t-1&inicio=2026-11-15T09:00:00&fim=2026-11-15T10:00:00"), null);
@@ -42,12 +41,29 @@ test("exige ISO completo com fuso: data solta e número não valem", () => {
 
 test("motivoDoErro prefere o motivo do campo à mensagem genérica", () => {
   assert.equal(
-    motivoDoErro({
+    MotivoDoErro.de({
       message: "Dados inválidos.",
       details: { inicio: "O início não pode estar no passado." },
     }),
     "O início não pode estar no passado.",
   );
-  assert.equal(motivoDoErro({ message: "Dados inválidos.", details: {} }), "Dados inválidos.");
-  assert.equal(motivoDoErro({ message: "Erro." }), "Erro.");
+  assert.equal(MotivoDoErro.de({ message: "Dados inválidos.", details: {} }), "Dados inválidos.");
+  assert.equal(MotivoDoErro.de({ message: "Erro." }), "Erro.");
+});
+
+test("PedidoNaUrl e MotivoDoErro só têm métodos estáticos: não se cria instância", () => {
+  for (const Classe of [PedidoNaUrl, MotivoDoErro]) {
+    assert.throws(() => new (Classe as unknown as new () => unknown)(), /só tem métodos estáticos/);
+  }
+});
+
+test("PedidoNaUrl.ler recusa fim igual ao início (período vazio)", () => {
+  const params = new URLSearchParams({
+    tipoId: "t-1",
+    inicio: "2026-11-15T09:00:00Z",
+    fim: "2026-11-15T09:00:00Z",
+  });
+  assert.equal(PedidoNaUrl.ler(params), null);
+  params.set("fim", "2026-11-15T09:00:01Z");
+  assert.notEqual(PedidoNaUrl.ler(params), null);
 });

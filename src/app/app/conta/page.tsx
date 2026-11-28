@@ -4,12 +4,10 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { ArmazemDeSessao } from "@/shared/auth/sessao";
 import {
-  CONFIRMACAO_DESATIVAR,
-  confirmacaoValida,
-  mensagemDeErro,
-  podeDesativarConta,
-  validarAltura,
-  validarTrocaDeSenha,
+  AlturaDaConta,
+  DesativacaoDaConta,
+  FormularioDeSenha,
+  MensagensDeErroDaConta,
   type ErrosSenha,
   type FormularioSenha,
 } from "@/shared/conta/conta";
@@ -31,12 +29,6 @@ type Estado =
   | { tipo: "erro"; mensagem: string }
   | { tipo: "pronto"; conta: ContaLogada };
 
-function textoDoErro(erro: unknown): string {
-  return erro instanceof ApiError
-    ? mensagemDeErro(erro)
-    : "Não foi possível concluir agora. Verifique a conexão e tente novamente.";
-}
-
 export default function MinhaContaPage() {
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>({ tipo: "carregando" });
@@ -48,7 +40,7 @@ export default function MinhaContaPage() {
         if (ativo) setEstado({ tipo: "pronto", conta });
       })
       .catch((erro) => {
-        if (ativo) setEstado({ tipo: "erro", mensagem: textoDoErro(erro) });
+        if (ativo) setEstado({ tipo: "erro", mensagem: MensagensDeErroDaConta.daFalha(erro) });
       });
     return () => {
       ativo = false;
@@ -79,7 +71,7 @@ export default function MinhaContaPage() {
 
         <SecaoSenha />
         {conta.perfil === "CLIENTE" && <SecaoAltura alturaInicial={conta.ciclista?.alturaCm ?? null} />}
-        {podeDesativarConta(conta.perfil) && <SecaoDesativar onDesativada={aoDesativar} />}
+        {DesativacaoDaConta.permitidaPara(conta.perfil) && <SecaoDesativar onDesativada={aoDesativar} />}
       </div>
     </div>
   );
@@ -103,7 +95,7 @@ function SecaoSenha() {
     evento.preventDefault();
     setErroGeral(null);
     setSucesso(false);
-    const encontrados = validarTrocaDeSenha(form);
+    const encontrados = new FormularioDeSenha(form).validar();
     setErros(encontrados);
     if (Object.keys(encontrados).length > 0) return;
 
@@ -122,15 +114,15 @@ function SecaoSenha() {
         // o usuário separa os dois: se a sessão caiu, o cliente HTTP já leva ao login.
         try {
           await ClienteApi.padrao.get("/api/conta/me");
-          setErros({ senhaAtual: mensagemDeErro(erro, "senha") });
+          setErros({ senhaAtual: MensagensDeErroDaConta.de(erro, "senha") });
         } catch {
-          setErroGeral(mensagemDeErro(erro));
+          setErroGeral(MensagensDeErroDaConta.de(erro));
         }
       } else if (erro instanceof ApiError && erro.details) {
         setErros(erro.details as ErrosSenha);
-        setErroGeral(mensagemDeErro(erro));
+        setErroGeral(MensagensDeErroDaConta.de(erro));
       } else {
-        setErroGeral(textoDoErro(erro));
+        setErroGeral(MensagensDeErroDaConta.daFalha(erro));
       }
     } finally {
       setEnviando(false);
@@ -192,7 +184,7 @@ function SecaoAltura({ alturaInicial }: { alturaInicial: number | null }) {
     setErro(null);
     setErroGeral(null);
     setSucesso(false);
-    const validada = validarAltura(altura);
+    const validada = AlturaDaConta.validar(altura);
     if ("erro" in validada) {
       setErro(validada.erro);
       return;
@@ -204,7 +196,7 @@ function SecaoAltura({ alturaInicial }: { alturaInicial: number | null }) {
       setSucesso(true);
     } catch (e) {
       if (e instanceof ApiError && e.details?.alturaCm) setErro(e.details.alturaCm);
-      else setErroGeral(textoDoErro(e));
+      else setErroGeral(MensagensDeErroDaConta.daFalha(e));
     } finally {
       setEnviando(false);
     }
@@ -253,14 +245,14 @@ function SecaoDesativar({ onDesativada }: { onDesativada: () => void }) {
   }
 
   async function desativar() {
-    if (!confirmacaoValida(texto)) return;
+    if (!DesativacaoDaConta.confirmacaoValida(texto)) return;
     setEnviando(true);
     setErro(null);
     try {
       await ClienteApi.padrao.post("/api/conta/desativar", {});
       onDesativada();
     } catch (e) {
-      setErro(textoDoErro(e));
+      setErro(MensagensDeErroDaConta.daFalha(e));
       setEnviando(false);
     }
   }
@@ -292,7 +284,7 @@ function SecaoDesativar({ onDesativada }: { onDesativada: () => void }) {
               type="button"
               className={contaStyles.perigo}
               onClick={desativar}
-              disabled={!confirmacaoValida(texto) || enviando}
+              disabled={!DesativacaoDaConta.confirmacaoValida(texto) || enviando}
             >
               {enviando ? "Desativando..." : "Desativar conta"}
             </button>
@@ -317,7 +309,7 @@ function SecaoDesativar({ onDesativada }: { onDesativada: () => void }) {
           </Alert>
           {erro && <Alert variant="erro">{erro}</Alert>}
           <TextField
-            label={`Digite ${CONFIRMACAO_DESATIVAR} para confirmar`}
+            label={`Digite ${DesativacaoDaConta.CONFIRMACAO} para confirmar`}
             icon={<ShieldIcon />}
             autoComplete="off"
             value={texto}

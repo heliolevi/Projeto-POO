@@ -7,35 +7,34 @@ import {
   FOTO_TURISMO,
   FOTO_URBANA,
   TODAS_AS_FOTOS,
-  fotoDoTipo,
-  fotoPorId,
+  FotosDasBicicletas,
 } from "./fotos.ts";
 
 test("trilha e esporte mostram a mountain bike, mesmo junto de outras atividades", () => {
-  assert.equal(fotoDoTipo(["TRILHA"]), FOTO_TRILHA);
-  assert.equal(fotoDoTipo(["PASSEIO", "ESPORTE"]), FOTO_TRILHA);
-  assert.equal(fotoDoTipo(["URBANO", "TRILHA"]), FOTO_TRILHA);
+  assert.equal(FotosDasBicicletas.doTipo(["TRILHA"]), FOTO_TRILHA);
+  assert.equal(FotosDasBicicletas.doTipo(["PASSEIO", "ESPORTE"]), FOTO_TRILHA);
+  assert.equal(FotosDasBicicletas.doTipo(["URBANO", "TRILHA"]), FOTO_TRILHA);
 });
 
 test("urbano e turismo têm foto própria, e o resto cai na bicicleta de passeio", () => {
-  assert.equal(fotoDoTipo(["URBANO"]), FOTO_URBANA);
-  assert.equal(fotoDoTipo(["PASSEIO", "TURISMO"]), FOTO_TURISMO);
-  assert.equal(fotoDoTipo(["URBANO", "TURISMO"]), FOTO_URBANA);
-  assert.equal(fotoDoTipo(["PASSEIO"]), FOTO_PASSEIO);
-  assert.equal(fotoDoTipo([]), FOTO_PASSEIO);
-  assert.equal(fotoDoTipo(["ATIVIDADE_NOVA"]), FOTO_PASSEIO);
+  assert.equal(FotosDasBicicletas.doTipo(["URBANO"]), FOTO_URBANA);
+  assert.equal(FotosDasBicicletas.doTipo(["PASSEIO", "TURISMO"]), FOTO_TURISMO);
+  assert.equal(FotosDasBicicletas.doTipo(["URBANO", "TURISMO"]), FOTO_URBANA);
+  assert.equal(FotosDasBicicletas.doTipo(["PASSEIO"]), FOTO_PASSEIO);
+  assert.equal(FotosDasBicicletas.doTipo([]), FOTO_PASSEIO);
+  assert.equal(FotosDasBicicletas.doTipo(["ATIVIDADE_NOVA"]), FOTO_PASSEIO);
 });
 
-test("fotoPorId devolve sempre a mesma foto para o mesmo id e usa fotos da lista", () => {
+test("FotosDasBicicletas.porId devolve sempre a mesma foto para o mesmo id e usa fotos da lista", () => {
   const id = "9f1c2d3e-aaaa-bbbb-cccc-111122223333";
-  assert.equal(fotoPorId(id), fotoPorId(id));
-  assert.ok(TODAS_AS_FOTOS.includes(fotoPorId(id)));
-  assert.ok(TODAS_AS_FOTOS.includes(fotoPorId("")));
+  assert.equal(FotosDasBicicletas.porId(id), FotosDasBicicletas.porId(id));
+  assert.ok(TODAS_AS_FOTOS.includes(FotosDasBicicletas.porId(id)));
+  assert.ok(TODAS_AS_FOTOS.includes(FotosDasBicicletas.porId("")));
 });
 
-test("fotoPorId espalha ids diferentes entre as 4 fotos", () => {
+test("FotosDasBicicletas.porId espalha ids diferentes entre as 4 fotos", () => {
   const usadas = new Set<string>();
-  for (let i = 0; i < 40; i++) usadas.add(fotoPorId(`tipo-${i}`).src);
+  for (let i = 0; i < 40; i++) usadas.add(FotosDasBicicletas.porId(`tipo-${i}`).src);
   assert.equal(usadas.size, TODAS_AS_FOTOS.length);
 });
 
@@ -46,4 +45,8 @@ test("os arquivos das fotos existem em public, com texto alternativo e medidas",
     assert.ok(foto.alt.length > 10, foto.src);
     assert.ok(foto.largura > 0 && foto.altura > 0, foto.src);
   }
+});
+
+test("FotosDasBicicletas só tem métodos estáticos: não se cria instância", () => {
+  assert.throws(() => new (FotosDasBicicletas as unknown as new () => unknown)(), /só tem métodos estáticos/);
 });
