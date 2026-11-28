@@ -1,14 +1,4 @@
-import {
-  ALTURA_MAX_CM,
-  ALTURA_MIN_CM,
-  ATIVIDADES,
-  EXPERIENCIAS,
-  alturaValida,
-  ehAtividade,
-  ehExperiencia,
-  type Atividade,
-  type Experiencia,
-} from "../../../shared/dominio/ciclista.ts";
+import { ALTURA_MAX_CM, ALTURA_MIN_CM, ATIVIDADES, EXPERIENCIAS, type Atividade, type Experiencia, RegrasDoCiclista } from "../../../shared/dominio/ciclista.ts";
 import { Uuid } from "../../../shared/dominio/uuid.ts";
 
 export type ErrosPorCampo = Record<string, string>;
@@ -104,7 +94,7 @@ export class ValidadorDoCatalogo {
     const atividades: Atividade[] = [];
     if (!Array.isArray(corpo.atividades) || corpo.atividades.length === 0) {
       erros.atividades = `Informe ao menos uma atividade: ${ATIVIDADES.join(", ")}.`;
-    } else if (!corpo.atividades.every(ehAtividade)) {
+    } else if (!corpo.atividades.every((a) => RegrasDoCiclista.ehAtividade(a))) {
       erros.atividades = `Atividade inválida. Use estes valores: ${ATIVIDADES.join(", ")}.`;
     } else {
       // repetida não muda nada; guarda uma vez só, na ordem em que veio
@@ -114,15 +104,15 @@ export class ValidadorDoCatalogo {
     }
 
     const faixa = `Altura deve ser um inteiro entre ${ALTURA_MIN_CM} e ${ALTURA_MAX_CM} (cm).`;
-    if (!alturaValida(corpo.alturaMinCm)) erros.alturaMinCm = faixa;
-    if (!alturaValida(corpo.alturaMaxCm)) erros.alturaMaxCm = faixa;
-    if (alturaValida(corpo.alturaMinCm) && alturaValida(corpo.alturaMaxCm) && corpo.alturaMinCm > corpo.alturaMaxCm) {
+    if (!RegrasDoCiclista.alturaValida(corpo.alturaMinCm)) erros.alturaMinCm = faixa;
+    if (!RegrasDoCiclista.alturaValida(corpo.alturaMaxCm)) erros.alturaMaxCm = faixa;
+    if (RegrasDoCiclista.alturaValida(corpo.alturaMinCm) && RegrasDoCiclista.alturaValida(corpo.alturaMaxCm) && corpo.alturaMinCm > corpo.alturaMaxCm) {
       erros.alturaMaxCm = "A altura máxima precisa ser maior ou igual à mínima.";
     }
 
     let nivelRecomendado: Experiencia | undefined;
     if (corpo.nivelRecomendado !== undefined && corpo.nivelRecomendado !== null) {
-      if (ehExperiencia(corpo.nivelRecomendado)) nivelRecomendado = corpo.nivelRecomendado;
+      if (RegrasDoCiclista.ehExperiencia(corpo.nivelRecomendado)) nivelRecomendado = corpo.nivelRecomendado;
       else erros.nivelRecomendado = `Nível inválido. Use um destes valores: ${EXPERIENCIAS.join(", ")}.`;
     }
 

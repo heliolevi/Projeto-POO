@@ -13,7 +13,8 @@ import { criarCriarReserva } from '../../../src/modules/reservas/application/cri
 import { criarBuscarReserva, criarListarReservas } from '../../../src/modules/reservas/application/consultar-reservas.ts';
 import { criarCancelarReserva } from '../../../src/modules/reservas/application/cancelar-reserva.ts';
 import { operacoesNoBanco } from '../../../src/modules/reservas/infrastructure/repositorio-reservas.ts';
-import { calcularValorAluguel } from '../../../src/shared/dominio/preco-aluguel.ts';
+import { CalculadoraDeAluguel } from '../../../src/shared/dominio/preco-aluguel.ts';
+const calcularValorAluguel = (p, pr) => CalculadoraDeAluguel.padrao.calcularValorAluguel(p, pr);
 import { gerarCodigoReserva } from '../../../src/modules/reservas/domain/reserva.ts';
 import { TransacaoComSessao } from '../../../src/shared/db/sessao.ts';
 

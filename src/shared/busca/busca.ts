@@ -1,4 +1,4 @@
-import { ehAtividade, type Atividade } from "../dominio/ciclista.ts";
+import { RegrasDoCiclista, type Atividade } from "../dominio/ciclista.ts";
 import { FormatadorDeData } from "../format/formatador-de-data.ts";
 
 // Resultado de GET /api/recomendacao (contrato, rota 11).
@@ -58,7 +58,7 @@ export function validarBusca(form: FormularioBusca, agora: Date = new Date()): E
   if (!form.data) erros.data = "Escolha o dia da retirada.";
   if (!form.hora) erros.hora = "Escolha o horário de início.";
   if (!VALORES_DE_DURACAO.includes(form.duracao)) erros.duracao = "Escolha por quanto tempo.";
-  if (form.atividade !== "" && !ehAtividade(form.atividade)) {
+  if (form.atividade !== "" && !RegrasDoCiclista.ehAtividade(form.atividade)) {
     erros.atividade = "Escolha uma das opções.";
   }
 
@@ -83,7 +83,7 @@ export function periodoDaBusca(form: FormularioBusca): { inicio: string; fim: st
 export function montarConsulta(form: FormularioBusca): string {
   const { inicio, fim } = periodoDaBusca(form);
   const parametros = new URLSearchParams({ inicio, fim });
-  if (ehAtividade(form.atividade)) parametros.set("atividade", form.atividade as Atividade);
+  if (RegrasDoCiclista.ehAtividade(form.atividade)) parametros.set("atividade", form.atividade as Atividade);
   return parametros.toString();
 }
 

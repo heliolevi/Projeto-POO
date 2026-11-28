@@ -8,8 +8,7 @@
 export {
   ATIVIDADES,
   EXPERIENCIAS,
-  ehAtividade,
-  ehExperiencia,
+  RegrasDoCiclista,
   type Atividade,
   type Experiencia,
   type PerfilCiclista,

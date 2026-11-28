@@ -1,5 +1,5 @@
 import { perfilDoCiclista, sessoes } from "@/modules/contas";
-import { calcularValorAluguel, horasCobradas } from "@/modules/reservas";
+import { CalculadoraDeAluguel } from "@/modules/reservas";
 import { BancoDeDados } from "@/shared/db/banco-de-dados";
 import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
 import { BuscaDeRecomendacoes } from "../application/busca-de-recomendacoes";
@@ -15,7 +15,7 @@ const controlador = new ControladorDeRecomendacao({
   busca: new BuscaDeRecomendacoes({
     perfis: perfilDoCiclista,
     disponibilidade: RepositorioDeDisponibilidade.padrao,
-    preco: { calcularValorAluguel, horasCobradas },
+    preco: CalculadoraDeAluguel.padrao,
     agora: () => new Date(),
   }),
 });

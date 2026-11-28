@@ -1,4 +1,4 @@
-import { PRAZO_DE_PAGAMENTO_MS } from "../../../shared/dominio/prazos.ts";
+import { PrazoDePagamento } from "../../../shared/dominio/prazos.ts";
 import { CodigoPix } from "./codigo-pix.ts";
 import {
   Pagamento,
@@ -9,7 +9,7 @@ import {
 } from "./pagamento.ts";
 
 // O Pix vale 15 minutos, o mesmo prazo da reserva pendente (uma constante só para os dois).
-export const PRAZO_DO_PIX_MS = PRAZO_DE_PAGAMENTO_MS;
+export const PRAZO_DO_PIX_MS = PrazoDePagamento.MS;
 
 export type CobrancaPix = CobrancaGerada & {
   metodo: "PIX";

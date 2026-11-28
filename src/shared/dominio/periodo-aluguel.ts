@@ -1,4 +1,4 @@
-import { horasDaDuracao } from "./preco-aluguel.ts";
+import { CalculadoraDeAluguel } from "./preco-aluguel.ts";
 
 // Objeto de valor: um intervalo de tempo [inicio, fim) com início antes do fim.
 //
@@ -39,7 +39,7 @@ export class Periodo {
   // Horas arredondadas para cima: qualquer fração conta como hora cheia (a regra de cobrança, que
   // mora em preco-aluguel.ts).
   get horasCobradas(): number {
-    return horasDaDuracao(this.duracaoMs);
+    return CalculadoraDeAluguel.padrao.horasDaDuracao(this.duracaoMs);
   }
 
   // Dois períodos se sobrepõem quando cada um começa antes de o outro terminar. Encostar não conta:

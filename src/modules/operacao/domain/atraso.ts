@@ -1,5 +1,5 @@
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
-import { horasDaDuracao, valorPorHoras, type Precos } from "../../../shared/dominio/preco-aluguel.ts";
+import { CalculadoraDeAluguel, type Precos } from "../../../shared/dominio/preco-aluguel.ts";
 import { Ocorrencia, type DadosBaseOcorrencia } from "./ocorrencia.ts";
 
 // Regra assumida (docs/dados-da-locadora.md, seção 6): até 15 minutos de atraso não se cobra.
@@ -49,6 +49,6 @@ export class Atraso extends Ocorrencia {
   valorSugerido(): Dinheiro {
     const atrasoMs = this.duracaoDoAtrasoMs();
     if (atrasoMs <= TOLERANCIA_DE_ATRASO_MS) return Dinheiro.ZERO;
-    return Dinheiro.deCentavos(valorPorHoras(horasDaDuracao(atrasoMs), this.#precos));
+    return Dinheiro.deCentavos(CalculadoraDeAluguel.padrao.valorPorHoras(CalculadoraDeAluguel.padrao.horasDaDuracao(atrasoMs), this.#precos));
   }
 }

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { ATIVIDADES, ehAtividade } from "@/shared/dominio/ciclista";
-import { DESCRICAO_ATIVIDADE, ROTULO_ATIVIDADE } from "@/shared/dominio/ciclista-rotulos";
+import { ATIVIDADES, RegrasDoCiclista } from "@/shared/dominio/ciclista";
+import { RotulosDoCiclista } from "@/shared/dominio/ciclista-rotulos";
 import { Dinheiro } from "@/shared/dominio/dinheiro";
 import { FormatadorDeData } from "@/shared/format/formatador-de-data";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
@@ -129,14 +129,14 @@ export default function BuscarPage() {
     {
       valor: "",
       rotulo: "A do meu perfil",
-      detalhe: ehAtividade(atividadeDoPerfil)
-        ? `${ROTULO_ATIVIDADE[atividadeDoPerfil]}, como está no seu perfil.`
+      detalhe: RegrasDoCiclista.ehAtividade(atividadeDoPerfil)
+        ? `${RotulosDoCiclista.atividade(atividadeDoPerfil)}, como está no seu perfil.`
         : "Usa o que você marcou no perfil.",
     },
     ...ATIVIDADES.map((valor) => ({
       valor,
-      rotulo: ROTULO_ATIVIDADE[valor],
-      detalhe: DESCRICAO_ATIVIDADE[valor],
+      rotulo: RotulosDoCiclista.atividade(valor),
+      detalhe: RotulosDoCiclista.descricaoDaAtividade(valor),
     })),
   ];
 

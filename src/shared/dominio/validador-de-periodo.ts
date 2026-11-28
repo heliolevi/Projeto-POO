@@ -1,4 +1,4 @@
-import { ATIVIDADES, ehAtividade, type Atividade } from "./ciclista.ts";
+import { ATIVIDADES, RegrasDoCiclista, type Atividade } from "./ciclista.ts";
 
 export type ErrosPorCampo = Record<string, string>;
 
@@ -58,7 +58,7 @@ export class ValidadorDePeriodo {
     let atividade: Atividade | null = null;
     const bruta = parametros.atividade;
     if (bruta !== undefined && bruta !== null && bruta !== "") {
-      if (ehAtividade(bruta)) atividade = bruta;
+      if (RegrasDoCiclista.ehAtividade(bruta)) atividade = bruta;
       else erros.atividade = `Atividade inválida. Use um destes valores: ${ATIVIDADES.join(", ")}.`;
     }
 

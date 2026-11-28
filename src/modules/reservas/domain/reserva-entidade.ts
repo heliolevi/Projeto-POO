@@ -1,6 +1,6 @@
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
 import { Periodo } from "../../../shared/dominio/periodo-aluguel.ts";
-import { calcularValorAluguel, type Precos } from "../../../shared/dominio/preco-aluguel.ts";
+import { CalculadoraDeAluguel, type Precos } from "../../../shared/dominio/preco-aluguel.ts";
 import { TransicaoDeReservaInvalida } from "./erros.ts";
 import { calcularExpiraEm, podeTransitar, type StatusReserva } from "./reserva.ts";
 
@@ -197,7 +197,7 @@ export class Reserva {
 
   // Valor do aluguel deste período pelos preços do tipo (a regra única de preço do sistema).
   calcularValor(precos: Precos): Dinheiro {
-    return Dinheiro.deCentavos(calcularValorAluguel(this.#periodo, precos));
+    return Dinheiro.deCentavos(CalculadoraDeAluguel.padrao.calcularValorAluguel(this.#periodo, precos));
   }
 
   // Passou do fim e a bicicleta ainda não voltou.

@@ -2,12 +2,11 @@
 import {
   ATIVIDADES,
   EXPERIENCIAS,
-  ehAtividade,
-  ehExperiencia,
+  RegrasDoCiclista,
   type Atividade,
   type Experiencia,
 } from "../../../shared/dominio/ciclista.ts";
-export { ATIVIDADES, EXPERIENCIAS, ehAtividade, ehExperiencia, type Atividade, type Experiencia };
+export { ATIVIDADES, EXPERIENCIAS, RegrasDoCiclista, type Atividade, type Experiencia };
 
 // Os dados do cliente que a recomendação usa, e só estes (minimização da LGPD).
 // Qualquer um pode faltar: o cliente não é obrigado a preencher o perfil de ciclista.

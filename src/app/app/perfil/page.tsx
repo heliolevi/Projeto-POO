@@ -3,12 +3,7 @@
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { ApiError, ClienteApi } from "@/shared/http/api-cliente";
 import { ALTURA_MAX_CM, ALTURA_MIN_CM, ATIVIDADES, EXPERIENCIAS } from "@/shared/dominio/ciclista";
-import {
-  DESCRICAO_ATIVIDADE,
-  DESCRICAO_EXPERIENCIA,
-  ROTULO_ATIVIDADE,
-  ROTULO_EXPERIENCIA,
-} from "@/shared/dominio/ciclista-rotulos";
+import { RotulosDoCiclista } from "@/shared/dominio/ciclista-rotulos";
 import {
   ajustarAltura,
   atualizarCampo,
@@ -40,8 +35,8 @@ const NAO_INFORMAR: OpcaoDeEscolha = {
 const OPCOES_EXPERIENCIA: OpcaoDeEscolha[] = [
   ...EXPERIENCIAS.map((valor) => ({
     valor,
-    rotulo: ROTULO_EXPERIENCIA[valor],
-    detalhe: DESCRICAO_EXPERIENCIA[valor],
+    rotulo: RotulosDoCiclista.experiencia(valor),
+    detalhe: RotulosDoCiclista.descricaoDaExperiencia(valor),
   })),
   NAO_INFORMAR,
 ];
@@ -49,8 +44,8 @@ const OPCOES_EXPERIENCIA: OpcaoDeEscolha[] = [
 const OPCOES_ATIVIDADE: OpcaoDeEscolha[] = [
   ...ATIVIDADES.map((valor) => ({
     valor,
-    rotulo: ROTULO_ATIVIDADE[valor],
-    detalhe: DESCRICAO_ATIVIDADE[valor],
+    rotulo: RotulosDoCiclista.atividade(valor),
+    detalhe: RotulosDoCiclista.descricaoDaAtividade(valor),
   })),
   NAO_INFORMAR,
 ];

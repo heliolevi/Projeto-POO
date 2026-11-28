@@ -6,8 +6,7 @@
  * Camadas internas: domain → application → infrastructure / http.
  */
 export {
-  calcularValorAluguel,
-  horasCobradas,
+  CalculadoraDeAluguel,
   type PeriodoCobravel as Periodo,
   type Precos,
 } from "../../shared/dominio/preco-aluguel";

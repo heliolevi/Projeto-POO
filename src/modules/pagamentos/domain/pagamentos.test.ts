@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
-import { PRAZO_DE_PAGAMENTO_MS } from "../../../shared/dominio/prazos.ts";
+import { PrazoDePagamento } from "../../../shared/dominio/prazos.ts";
 import { ConflictError } from "../../../shared/http/errors.ts";
 import {
   criarPagamento,
@@ -403,7 +403,7 @@ describe("pagamentos: cobrança inicial e prazo", () => {
   });
 
   test("o prazo padrão do Pix é o da reserva pendente (uma constante só)", () => {
-    assert.equal(PRAZO_DO_PIX_MS, PRAZO_DE_PAGAMENTO_MS);
-    assert.equal(PRAZO_DE_PAGAMENTO_MS, 15 * MIN);
+    assert.equal(PRAZO_DO_PIX_MS, PrazoDePagamento.MS);
+    assert.equal(PrazoDePagamento.MS, 15 * MIN);
   });
 });
