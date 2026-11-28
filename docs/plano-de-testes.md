@@ -280,7 +280,7 @@ As regras e os testes da função vêm do PR #14 (aprovado pelo tech lead; confe
 | CT-PAG-15 | P1 | Stripe sem chave (`STRIPE_SECRET_KEY` ausente) | `502 PAGAMENTO_INDISPONIVEL` na rota 16, sem gravar nada; o webhook só precisa do `STRIPE_WEBHOOK_SECRET` | Auto | Automatizado (`pagar-reserva.test.ts`, `pagamento-tardio-e-webhook.test.ts`) |
 | CT-PAG-16 | P1 | Valores monetários | Sempre inteiros em centavos, sem arredondamento errado | Auto | Aguarda rota |
 | CT-PAG-17 | P0 | Pix aprovado depois que a reserva expirou (e a bicicleta já foi reservada por outra pessoa) | O aviso não confirma a reserva expirada: ela continua `EXPIRADA`, a Stripe devolve o valor e o pagamento fica `ESTORNADO`; não há duas reservas ativas na mesma bicicleta | Integração | Automatizado (`pagar-reserva.test.ts`: pago depois do prazo ou no último segundo estorna em vez de confirmar; `pagamentos_api.test.mjs`) |
-| CT-PAG-18 | P0 | Aviso com valor pago diferente do cobrado | Hoje não há valor para comparar no aviso: depende da decisão ao lado | Integração | Bloqueado (decisão do tech lead: com a Stripe o valor é fixado pelo servidor ao criar o Pix e o aviso traz só o id e a situação; ou o caso deixa de existir, ou o aviso passa a trazer o valor para conferência) |
+| CT-PAG-18 | P0 | Aviso com valor pago diferente do cobrado | Não se aplica com a Stripe: o valor do Pix é fixado pelo servidor ao criar a cobrança, e o cliente não envia nem escolhe valor | Integração | Não se aplica (decidido em 27/11/2026, ver seção 7). O risco que o caso cobria está fechado pelo desenho: `gateway-stripe.ts` cria a cobrança com `pagamento.valor`, calculado no servidor a partir da reserva, e o aviso traz só o id e a situação. Os casos CT-PAG-17 e CT-PAG-19 cobrem o que restou de risco (pagamento depois da expiração e pagamento duplicado) |
 | CT-PAG-19 | P0 | Dois pagamentos `APROVADO` na mesma reserva | O segundo é recusado pelo índice único parcial `pagamento_um_ativo_por_reserva` (migration 0012) | Integração | Automatizado (`pagamentos_api.test.mjs`: a mesma reserva não tem dois pagamentos `PENDENTE` ou `APROVADO`; índice `pagamento_um_ativo_por_reserva`, migration 0012) |
 | CT-PAG-20 | P0 | Aviso da Stripe sem sessão de usuário atualizando `pagamento` e `reserva` com a RLS ligada | A atualização funciona pela função `cliente_do_pagamento()`, que acha o dono da cobrança; um visitante ou um cliente não consegue fazer o mesmo | Integração | Automatizado (`pagamentos_api.test.mjs`, rota 18: o aviso sem sessão de usuário confirma pela função `cliente_do_pagamento()`, migration 0012; `isolamento_rls.test.mjs`: visitante e cliente não alteram `pagamento` nem `reserva`) |
 
@@ -431,7 +431,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 | 7 | A RLS só vale com o papel `app_login`, e o `.env` de desenvolvimento conecta como dono do banco | CT-BD-04 fica `Bloqueado` até o tech lead fechar a pendência |
 | 8 | `src/shared/http/api-cliente.ts` ainda declara `GERENTE_LOCADORA` e `ADMIN_PLATAFORMA` no tipo do perfil, e `lerSessao` aceita token sem `exp` (sugestões do tech lead no PR #19, para outro PR) | Alinhar os tipos com o modelo novo; caso CT-UI-10 |
 | 9 | O PR #15 está com base em `feat/contas-gestao-conta-cliente`, que já foi mesclada pelo #9, e não em `dev` | Trocar a base para `dev` antes do merge. Dependem dele CT-SES-07 a CT-SES-09, CT-CTA-12 e CT-BD-05 |
-| 10 | Riscos de reserva e pagamento apontados na revisão do tech lead: pendente vencida que ninguém listou, Pix aprovado depois da expiração, valor pago diferente do cobrado, dois pagamentos aprovados na mesma reserva e webhook sem perfil sob RLS | CT-RES-17, CT-REC-20 e CT-PAG-17 a CT-PAG-20. Resolvidos e com teste: CT-RES-17, CT-PAG-17, CT-PAG-19 e CT-PAG-20. Em aberto: CT-PAG-18, porque com a Stripe o valor é fixado pelo servidor e o aviso não o traz |
+| 10 | Riscos de reserva e pagamento apontados na revisão do tech lead: pendente vencida que ninguém listou, Pix aprovado depois da expiração, valor pago diferente do cobrado, dois pagamentos aprovados na mesma reserva e webhook sem perfil sob RLS | CT-RES-17, CT-REC-20 e CT-PAG-17 a CT-PAG-20. Resolvidos e com teste: CT-RES-17, CT-PAG-17, CT-PAG-19 e CT-PAG-20. CT-PAG-18 deixou de se aplicar: com a Stripe o valor é fixado pelo servidor e o aviso não o traz |
 | 11 | Na revisão do PR #19, o `/app` do `ADMIN` aparece como "Painel da plataforma", nome do modelo antigo; com uma só locadora o nome esperado é o da locadora | Confirmar o texto com o Renan e o Luis; conferir em CT-UI-04 |
 
 ### Decisões ainda em aberto
@@ -442,6 +442,7 @@ Encontrados ao comparar o contrato com o código e os testes.
 | Formato final de `horarios` do ponto (`diaSemana` de 0 a 6?) | Resultado esperado do CT-CAT-01 |
 | Texto exato das mensagens de erro 409 mostradas ao cliente | Checklist das telas de reserva e cadastro |
 | Menu do perfil `ADMIN` (por enquanto pode ser igual ao do `OPERADOR`) | CT-UI-03, CT-UI-04 e o checklist de navegação |
+| Valor pago diferente do cobrado (CT-PAG-18) | Decidido em 27/11/2026: o caso deixa de se aplicar. O valor do Pix é fixado pelo servidor ao criar a cobrança (`pagamento.valor`) e o cliente não o escolhe; o aviso da Stripe não traz valor para comparar. Se um dia o aviso passar a ser conferido por valor, vira uma tarefa nova, com teste |
 | O que fazer com um pagamento aprovado de uma reserva já expirada | Decidido nos PRs #80 e #84: a Stripe devolve o valor e o pagamento fica `ESTORNADO` (CT-PAG-17) |
 | Perfil ou papel de serviço para o webhook atualizar `pagamento` e `reserva` sob a RLS | Decidido no #84 (migration 0012): a função `cliente_do_pagamento()` acha o dono da cobrança, sem perfil de serviço (CT-PAG-20) |
 | Regras de preço (horas arredondadas para cima, 24 h = uma diária, horas que sobram limitadas a uma diária) e a folga de 5 minutos no início são regras assumidas (dados fictícios); reavaliar quando houver locadora real | CT-REC-10 e CT-REC-13 |
@@ -458,7 +459,7 @@ Preencher a cada rodada de testes.
 | Data | Versão (commit na `dev`) | Quem testou | Casos executados | Passou | Falhou | Defeitos abertos |
 |---|---|---|---|---|---|---|
 | 10/11/2026 | `7c70046` | William | `npm ci`, `lint`, `typecheck`, `npm test` (70 testes) e `build` | 5 de 5 comandos (70 de 70 testes) | 0 | Nenhum |
-| 27/11/2026 | `19d093e` | William, com o Claude | P0 da S10: `scripts/verificar-p0.mjs` (15 casos), `scripts/teste-de-estresse.mjs` (11 cenários), `migrar:simular` e `migrar` no Neon `dev` | 15 de 15 casos, 11 de 11 cenários | 0 | Nenhum novo; CT-PAG-18 aguarda decisão do tech lead |
+| 27/11/2026 | `19d093e` | William, com o Claude | P0 da S10: `scripts/verificar-p0.mjs` (15 casos), `scripts/teste-de-estresse.mjs` (11 cenários), `migrar:simular` e `migrar` no Neon `dev` | 15 de 15 casos, 11 de 11 cenários | 0 | Nenhum novo; CT-PAG-18 aguardava decisão do tech lead (decidido depois: não se aplica) |
 
 Observações da rodada de 10/11/2026:
 
@@ -476,7 +477,7 @@ Observações da rodada de 27/11/2026 (S10, casos P0):
 - A parte de API da S7 passou: com o token do cliente B, ler, pagar, cancelar e consultar o status da reserva do cliente A dão 404 (`teste-de-estresse.mjs`, cenário de isolamento).
 - A corrida de Pix por HTTP não foi executada: o ambiente de teste não tem `STRIPE_SECRET_KEY`. A regra tem prova no banco (índice `pagamento_um_ativo_por_reserva`) e nos testes de `pagar-reserva`.
 - A migration `0012_pagamento_stripe.sql` estava pendente no Neon `dev` e foi aplicada em 27/11/2026, com autorização do tech lead. Antes disso, CT-PAG-19 e CT-PAG-20 só valiam no banco da CI.
-- CT-PAG-18 (valor pago diferente do cobrado) está `Bloqueado`: com a Stripe o servidor fixa o valor ao criar o Pix e o aviso não traz valor para comparar.
+- CT-PAG-18 (valor pago diferente do cobrado) deixou de se aplicar em 27/11/2026: com a Stripe o servidor fixa o valor ao criar o Pix e o aviso não traz valor para comparar.
 - CT-SEG-03 ficou `Parcial` (sem o segredo certo não dá para provar o 200) e CT-RES-16 e CT-CTA-12 ficaram `Parcial` (falta chamar as rotas com token de `OPERADOR`).
 - Passaram à mão no navegador: CT-UI-01 a CT-UI-05. Segue `Pendente` só o CT-BD-02 (editar uma migration e ver o aviso de checksum).
 - Contas de teste criadas no Neon `dev` com `npm run criar-equipe` (e-mails `@bikeilha.test`): `qa.william.operador` e `qa.william.admin`, além das contas `verificar.*` (desativadas pelo script) e `estresse.*` dos scripts. O tech lead pode desativá-las depois da entrega.
