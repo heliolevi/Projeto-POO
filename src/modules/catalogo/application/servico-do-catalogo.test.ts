@@ -10,7 +10,8 @@ import {
   PontoInexistente,
   TipoInexistente,
 } from "../domain/erros.ts";
-import { criarCatalogo, type RepositorioCatalogo } from "./catalogo.ts";
+import type { RepositorioCatalogo } from "./portas.ts";
+import { ServicoDoCatalogo } from "./servico-do-catalogo.ts";
 
 const ADMIN: SessaoBanco = { perfil: "ADMIN", usuarioId: "aaaaaaaa-0000-4000-8000-000000000001" };
 const VISITANTE: SessaoBanco = { perfil: null, usuarioId: null };
@@ -129,7 +130,7 @@ function repositorioFalso() {
       return nova;
     },
   };
-  return { catalogo: criarCatalogo(repositorio), tipos, bicicletas, sessoesVistas };
+  return { catalogo: new ServicoDoCatalogo(repositorio), tipos, bicicletas, sessoesVistas };
 }
 
 // ---------------------------------------------------------------------------
@@ -322,7 +323,7 @@ test("listar bicicletas filtra por tipoId e status; filtro inválido responde 40
 });
 
 test("erro inesperado do banco não é engolido nem vira 409/404", async () => {
-  const catalogo = criarCatalogo({
+  const catalogo = new ServicoDoCatalogo({
     async obterEmpresaPublica() { throw new Error("banco fora do ar"); },
     async listarTipos() { throw new Error("banco fora do ar"); },
     async criarTipo() { throw new Error("banco fora do ar"); },
@@ -411,11 +412,27 @@ test("GET /api/empresa: devolve os dados públicos da locadora, só com pontos a
     nomeFantasia: "Bike Ilha", email: "contato@bikeilha.com", telefone: null,
     pontos: [{ ...ponto, ativo: true }, { ...ponto, id: ID_PONTO_INATIVO, nome: "Fechado", ativo: false }],
   };
-  const comDados = criarCatalogo({ obterEmpresaPublica: async () => doRepositorio } as unknown as RepositorioCatalogo);
+  const comDados = new ServicoDoCatalogo({ obterEmpresaPublica: async () => doRepositorio } as unknown as RepositorioCatalogo);
   assert.deepEqual(await comDados.obterEmpresaPublica(VISITANTE), {
     nomeFantasia: "Bike Ilha", email: "contato@bikeilha.com", telefone: null, pontos: [ponto],
   });
 
-  const semCadastro = criarCatalogo({ obterEmpresaPublica: async () => null } as unknown as RepositorioCatalogo);
+  const semCadastro = new ServicoDoCatalogo({ obterEmpresaPublica: async () => null } as unknown as RepositorioCatalogo);
   await assert.rejects(semCadastro.obterEmpresaPublica(VISITANTE), NotFoundError);
+});
+
+test("id que nem é UUID responde 404 SEM consultar o repositório (tipo e bicicleta)", async () => {
+  let consultas = 0;
+  const contador = new Proxy({} as RepositorioCatalogo, {
+    get: () => async () => {
+      consultas++;
+      return null;
+    },
+  });
+  const servico = new ServicoDoCatalogo(contador);
+  for (const id of ["", "1", "abc", "1; DROP TABLE bicicleta", "x".repeat(5000), " ", "3f2b8c1e-5d4a-4b6f-9c7e-1a2b3c4d5e6"]) {
+    await assert.rejects(servico.atualizarTipo(ADMIN, id, CORPO_TIPO), NotFoundError, id.slice(0, 20));
+    await assert.rejects(servico.atualizarBicicleta(ADMIN, id, { status: "MANUTENCAO" }), NotFoundError, id.slice(0, 20));
+  }
+  assert.equal(consultas, 0);
 });

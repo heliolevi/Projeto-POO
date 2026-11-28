@@ -7,7 +7,7 @@ import {
 } from "../../../shared/dominio/ciclista.ts";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
 import { calcularValorAluguel, type PeriodoCobravel } from "../../../shared/dominio/preco-aluguel.ts";
-import { paraPublico as paraPublicoDoDto, type TipoAdmin, type TipoPublico } from "./catalogo.ts";
+import type { TipoAdmin, TipoPublico } from "./catalogo.ts";
 
 // Um modelo de bicicleta que a locadora aluga (Urbana, Mountain bike...): para quem serve, quanto
 // custa e qual caução cobra. As unidades físicas são `Bicicleta`.
@@ -144,9 +144,21 @@ export class TipoBicicleta {
     };
   }
 
-  // O catálogo público não mostra `ativo`. A cópia campo a campo mora em paraPublico() (catalogo.ts),
-  // de propósito: um campo novo em TipoAdmin não vaza para o público sem alguém decidir.
+  // O catálogo público não mostra `ativo`. A cópia é campo a campo, de propósito: um campo novo em
+  // TipoAdmin não vaza para o público sem alguém decidir.
   paraPublico(): TipoPublico {
-    return paraPublicoDoDto(this.paraAdmin());
+    const tipo = this.paraAdmin();
+    return {
+      id: tipo.id,
+      nome: tipo.nome,
+      descricao: tipo.descricao,
+      atividades: tipo.atividades,
+      alturaMinCm: tipo.alturaMinCm,
+      alturaMaxCm: tipo.alturaMaxCm,
+      nivelRecomendado: tipo.nivelRecomendado,
+      precoHoraCentavos: tipo.precoHoraCentavos,
+      precoDiaCentavos: tipo.precoDiaCentavos,
+      valorCaucaoCentavos: tipo.valorCaucaoCentavos,
+    };
   }
 }

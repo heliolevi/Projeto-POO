@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { VISITANTE, type PerfilSessao, type SessaoBanco } from "../../../shared/db/sessao.ts";
 import { UnauthorizedError } from "../../../shared/http/errors.ts";
-import { criarCatalogo, type RepositorioCatalogo } from "../application/catalogo.ts";
-import { criarHandlersCatalogo, type Catalogo } from "./fabrica-handlers.ts";
+import type { RepositorioCatalogo } from "../application/portas.ts";
+import { ServicoDoCatalogo } from "../application/servico-do-catalogo.ts";
+import { ControladorDoCatalogo } from "./controlador-do-catalogo.ts";
 
 // Estes testes provam que CADA rota do painel exige sessão (401) e perfil ADMIN (403) antes de
 // tocar o catálogo. O PerfisPermitidos é o de verdade (shared/http/perfis-permitidos.ts). O exigirSessao é de
@@ -61,9 +62,9 @@ function montar() {
     listarBicicletas: registra("listarBicicletas", []),
     criarBicicleta: registra("criarBicicleta", { id: ID_RECURSO }),
     atualizarBicicleta: registra("atualizarBicicleta", { id: ID_RECURSO }),
-  } as unknown as Catalogo;
+  } as unknown as ServicoDoCatalogo;
 
-  const handlers = criarHandlersCatalogo({
+  const handlers = new ControladorDoCatalogo({
     exigirSessao: async (request) => {
       consultasDeSessao++;
       const cabecalho = request.headers.get("authorization") ?? "";
@@ -95,12 +96,12 @@ const ROTAS: {
   chamar: (h: Handlers, r: Request) => Promise<Response>;
   usaCatalogo: string;
 }[] = [
-  { nome: "GET /api/admin/tipos", metodo: "GET", sucesso: 200, usaCatalogo: "listarTiposAdmin", chamar: (h, r) => h.getAdminTipos(r) },
-  { nome: "POST /api/admin/tipos", metodo: "POST", sucesso: 201, usaCatalogo: "criarTipo", chamar: (h, r) => h.postAdminTipos(r) },
-  { nome: "PUT /api/admin/tipos/{id}", metodo: "PUT", sucesso: 200, usaCatalogo: "atualizarTipo", chamar: (h, r) => h.putAdminTipo(r, ID_RECURSO) },
-  { nome: "GET /api/admin/bicicletas", metodo: "GET", sucesso: 200, usaCatalogo: "listarBicicletas", chamar: (h, r) => h.getAdminBicicletas(r) },
-  { nome: "POST /api/admin/bicicletas", metodo: "POST", sucesso: 201, usaCatalogo: "criarBicicleta", chamar: (h, r) => h.postAdminBicicletas(r) },
-  { nome: "PATCH /api/admin/bicicletas/{id}", metodo: "PATCH", sucesso: 200, usaCatalogo: "atualizarBicicleta", chamar: (h, r) => h.patchAdminBicicleta(r, ID_RECURSO) },
+  { nome: "GET /api/admin/tipos", metodo: "GET", sucesso: 200, usaCatalogo: "listarTiposAdmin", chamar: (h, r) => h.tiposAdmin(r) },
+  { nome: "POST /api/admin/tipos", metodo: "POST", sucesso: 201, usaCatalogo: "criarTipo", chamar: (h, r) => h.criarTipo(r) },
+  { nome: "PUT /api/admin/tipos/{id}", metodo: "PUT", sucesso: 200, usaCatalogo: "atualizarTipo", chamar: (h, r) => h.atualizarTipo(r, ID_RECURSO) },
+  { nome: "GET /api/admin/bicicletas", metodo: "GET", sucesso: 200, usaCatalogo: "listarBicicletas", chamar: (h, r) => h.bicicletasAdmin(r) },
+  { nome: "POST /api/admin/bicicletas", metodo: "POST", sucesso: 201, usaCatalogo: "criarBicicleta", chamar: (h, r) => h.criarBicicleta(r) },
+  { nome: "PATCH /api/admin/bicicletas/{id}", metodo: "PATCH", sucesso: 200, usaCatalogo: "atualizarBicicleta", chamar: (h, r) => h.atualizarBicicleta(r, ID_RECURSO) },
 ];
 
 async function corpoDe(resposta: Response) {
@@ -176,13 +177,13 @@ test("o id da URL chega ao caso de uso (PUT de tipo e PATCH de bicicleta)", asyn
   const catalogo = {
     atualizarTipo: async (_s: SessaoBanco, id: string) => (ids.push(id), { id }),
     atualizarBicicleta: async (_s: SessaoBanco, id: string) => (ids.push(id), { id }),
-  } as unknown as Catalogo;
-  const handlers = criarHandlersCatalogo({
+  } as unknown as ServicoDoCatalogo;
+  const handlers = new ControladorDoCatalogo({
     exigirSessao: async () => CONTAS["token-admin"],
     catalogo,
   });
-  await handlers.putAdminTipo(pedido("PUT", "x"), ID_RECURSO);
-  await handlers.patchAdminBicicleta(pedido("PATCH", "x"), ID_RECURSO);
+  await handlers.atualizarTipo(pedido("PUT", "x"), ID_RECURSO);
+  await handlers.atualizarBicicleta(pedido("PATCH", "x"), ID_RECURSO);
   assert.deepEqual(ids, [ID_RECURSO, ID_RECURSO]);
 });
 
@@ -191,7 +192,7 @@ test("o id da URL chega ao caso de uso (PUT de tipo e PATCH de bicicleta)", asyn
 // ---------------------------------------------------------------------------
 test("GET /api/catalogo/tipos é público: sem token responde 200 e nem consulta a sessão", async () => {
   const { handlers, chamadas, consultas } = montar();
-  const resposta = await handlers.getTiposPublicos();
+  const resposta = await handlers.tiposPublicos();
   assert.equal(resposta.status, 200);
   assert.equal(consultas(), 0, "a rota pública não pode exigir sessão");
   assert.equal(chamadas.length, 1);
@@ -212,18 +213,18 @@ function handlersComRepositorio(obterEmpresaPublica: RepositorioCatalogo["obterE
       return obterEmpresaPublica(sessao);
     },
   } as unknown as RepositorioCatalogo;
-  const handlers = criarHandlersCatalogo({
+  const handlers = new ControladorDoCatalogo({
     exigirSessao: async () => {
       throw new Error("a rota pública não pode exigir sessão");
     },
-    catalogo: criarCatalogo(repositorio),
+    catalogo: new ServicoDoCatalogo(repositorio),
   });
   return { handlers, sessoes };
 }
 
 test("GET /api/empresa é público: sem token responde 200, sem cache, e nem consulta a sessão", async () => {
   const { handlers, chamadas, consultas } = montar();
-  const resposta = await handlers.getEmpresaPublica();
+  const resposta = await handlers.empresaPublica();
   assert.equal(resposta.status, 200);
   assert.equal(resposta.headers.get("cache-control"), "no-store");
   assert.equal(consultas(), 0, "a rota pública não pode exigir sessão");
@@ -238,7 +239,7 @@ test("GET /api/empresa traz pontos no formato do contrato (a tela de reserva lê
     ...EMPRESA_PUBLICA,
     pontos: [{ ...PONTO_PUBLICO, ativo: true }],
   }));
-  const resposta = await handlers.getEmpresaPublica();
+  const resposta = await handlers.empresaPublica();
   assert.equal(resposta.status, 200);
   const { data } = await resposta.json();
   assert.ok(Array.isArray(data.pontos), "pontos precisa ser uma lista, mesmo vazia");
@@ -249,7 +250,7 @@ test("GET /api/empresa traz pontos no formato do contrato (a tela de reserva lê
 
 test("GET /api/empresa sem locadora cadastrada responde 404 no formato de erro do contrato", async () => {
   const { handlers } = handlersComRepositorio(async () => null);
-  const resposta = await handlers.getEmpresaPublica();
+  const resposta = await handlers.empresaPublica();
   assert.equal(resposta.status, 404);
   const corpo = await resposta.json();
   assert.equal(corpo.error.code, "NOT_FOUND");
@@ -271,7 +272,7 @@ test("GET /api/empresa nunca devolve CNPJ, razão social, conta de recebimento, 
       { ...PONTO_PUBLICO, id: ID_PONTO_INATIVO, nome: "Ponto Fechado", ativo: false },
     ],
   }) as never);
-  const resposta = await handlers.getEmpresaPublica();
+  const resposta = await handlers.empresaPublica();
   assert.equal(resposta.status, 200);
   const { data } = await resposta.json();
 

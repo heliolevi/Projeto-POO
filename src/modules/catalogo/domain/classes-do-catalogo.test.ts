@@ -4,14 +4,17 @@ import { ConflictError } from "../../../shared/http/errors.ts";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
 import { Periodo } from "../../../shared/dominio/periodo-aluguel.ts";
 import { Bicicleta, TransicaoDeBicicletaInvalida } from "./bicicleta.ts";
-import { criarCatalogo, type RepositorioCatalogo } from "../application/catalogo.ts";
-import { paraPublico } from "./catalogo.ts";
+import type { RepositorioCatalogo } from "../application/portas.ts";
+import { ServicoDoCatalogo } from "../application/servico-do-catalogo.ts";
 import type { BicicletaAdmin, TipoAdmin } from "./catalogo.ts";
 import { Cnpj } from "../../../shared/dominio/cnpj.ts";
 import { Cpf } from "../../../shared/dominio/cpf.ts";
 import { Empresa } from "./empresa.ts";
-import { Ponto, horarioDoBanco, type DadosPonto } from "./ponto.ts";
+import { Ponto, type DadosPonto } from "./ponto.ts";
 import { TipoBicicleta } from "./tipo-bicicleta.ts";
+
+// O catálogo público é o tipo do admin sem o campo `ativo`.
+const semAtivo = (tipo: TipoAdmin) => Object.fromEntries(Object.entries(tipo).filter(([campo]) => campo !== "ativo"));
 
 const PASSEIO: TipoAdmin = {
   id: "t-passeio",
@@ -132,7 +135,7 @@ describe("TipoBicicleta", () => {
   test("paraPublico não tem `ativo` e é igual à função paraPublico do catálogo", () => {
     const publico = new TipoBicicleta(PASSEIO).paraPublico();
     assert.ok(!("ativo" in publico));
-    assert.deepEqual(publico, paraPublico(PASSEIO));
+    assert.deepEqual(publico, semAtivo(PASSEIO));
   });
 
   test("encapsulamento: alterar o que a classe devolve não muda o tipo", () => {
@@ -420,8 +423,8 @@ describe("Ponto", () => {
     assert.equal(p.localizacao!.latitude, -2.49);
   });
 
-  test("horarioDoBanco converte dia_semana (jsonb do banco) para diaSemana", () => {
-    assert.deepEqual(horarioDoBanco({ dia_semana: 1, abre: "08:00", fecha: "18:00" }), {
+  test("Ponto.horarioDoBanco converte dia_semana (jsonb do banco) para diaSemana", () => {
+    assert.deepEqual(Ponto.horarioDoBanco({ dia_semana: 1, abre: "08:00", fecha: "18:00" }), {
       diaSemana: 1,
       abre: "08:00",
       fecha: "18:00",
@@ -438,7 +441,7 @@ describe("Ponto", () => {
       { dia_semana: 5, abre: "08:00", fecha: "18:00" },
       { dia_semana: 6, abre: "08:00", fecha: "16:00" },
     ];
-    const p = new Ponto({ ...DADOS_PONTO, horarios: jsonb.map(horarioDoBanco) });
+    const p = new Ponto({ ...DADOS_PONTO, horarios: jsonb.map((h) => Ponto.horarioDoBanco(h)) });
     assert.ok(p.estaAberto(T(11, 0, 16)), "segunda 08:00");
     assert.ok(!p.estaAberto(T(21, 0, 16)), "segunda 18:00");
     assert.ok(!p.estaAberto(T(17, 0, 15)), "domingo 14:00");
@@ -527,13 +530,13 @@ describe("catálogo público: uma linha que o banco aceita não derruba a listag
 
   test("com um tipo de nome em branco (permitido pelo banco) a lista sai inteira, no mesmo formato de antes", async () => {
     const tipos = [PASSEIO, { ...PASSEIO, id: "t-branco", nome: "  " }, { ...PASSEIO, id: "t-3", nome: "Urbana", ativo: false }];
-    const lista = await criarCatalogo(repositorioCom(tipos)).listarTiposPublicos(SESSAO);
+    const lista = await new ServicoDoCatalogo(repositorioCom(tipos)).listarTiposPublicos(SESSAO);
     assert.equal(lista.length, 3);
-    assert.deepEqual(lista, tipos.map((t) => paraPublico(t)));
+    assert.deepEqual(lista, tipos.map((t) => semAtivo(t)));
     assert.ok(lista.every((t) => !("ativo" in t)));
   });
 
   test("a lista vazia continua vazia", async () => {
-    assert.deepEqual(await criarCatalogo(repositorioCom([])).listarTiposPublicos(SESSAO), []);
+    assert.deepEqual(await new ServicoDoCatalogo(repositorioCom([])).listarTiposPublicos(SESSAO), []);
   });
 });

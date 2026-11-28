@@ -1,6 +1,6 @@
 import type { Atividade, Experiencia } from "../../../shared/dominio/ciclista.ts";
 import type { Horario } from "./ponto.ts";
-import type { StatusBicicleta } from "./validacao.ts";
+import type { StatusBicicleta } from "./validador-do-catalogo.ts";
 
 // Como a API devolve um tipo de bicicleta (docs/contrato-api-mvp.md, rotas 10 e 19 a 21).
 export type TipoAdmin = {
@@ -19,22 +19,6 @@ export type TipoAdmin = {
 
 // O catálogo público não mostra `ativo`: só os tipos ativos aparecem nele.
 export type TipoPublico = Omit<TipoAdmin, "ativo">;
-
-// Campo a campo, de propósito: um campo novo em TipoAdmin não vaza para o público sem alguém decidir.
-export function paraPublico(tipo: TipoAdmin): TipoPublico {
-  return {
-    id: tipo.id,
-    nome: tipo.nome,
-    descricao: tipo.descricao,
-    atividades: tipo.atividades,
-    alturaMinCm: tipo.alturaMinCm,
-    alturaMaxCm: tipo.alturaMaxCm,
-    nivelRecomendado: tipo.nivelRecomendado,
-    precoHoraCentavos: tipo.precoHoraCentavos,
-    precoDiaCentavos: tipo.precoDiaCentavos,
-    valorCaucaoCentavos: tipo.valorCaucaoCentavos,
-  };
-}
 
 // Como a API devolve uma unidade da frota (rotas 22 a 24). Só a equipe vê estes dados.
 export type BicicletaAdmin = {

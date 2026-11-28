@@ -15,7 +15,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 |---|---|
 | `shared/dominio` | `Dinheiro`, `Periodo` (objetos de valor); a regra de preço do aluguel (`preco-aluguel.ts`) e o prazo de pagamento (`prazos.ts`) |
 | `contas` | `Usuario` (abstrata), `Cliente`, `Operador`, `Admin`, `FabricaDeUsuario`, `ValidadorDeConta`, `CadastroDeCliente`, `Autenticador`, `PerfilDoCiclista`, `ManutencaoDaConta`, `SessaoDaRequisicao`, `EmissorDeSessao`, `RepositorioDeUsuarios`, `ScryptDeSenha`, `ServicoDeToken`, `ControladorDeContas` |
-| `catalogo` | `Empresa`, `Ponto`, `TipoBicicleta`, `Bicicleta` |
+| `catalogo` | `Empresa`, `Ponto`, `TipoBicicleta`, `Bicicleta`, `ValidadorDoCatalogo`, `ServicoDoCatalogo`, `RepositorioDoCatalogo`, `ControladorDoCatalogo` |
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia` |
 | `reservas` | `Reserva`, `ReservaService`, `FiltroDoPainel`, `ReservaDoPainel`, `PainelDeReservas`, `RepositorioDoPainel`, `ControladorDoPainel` |
 | `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService`, `PagarReservaService`, `IntervaloDeConsulta`, `GatewayPix` (interface), `GatewayStripe`, `CodigoPix` (objeto de valor) |
@@ -27,7 +27,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `shared/db` | `BancoDeDados`, `TransacaoComSessao`, `LimiteDeTentativas`, `VerificadorDoBanco` |
 | `shared/auth` | `Sessao`, `ArmazemDeSessao`, `DestinoSeguro` |
 | `shared/config` | `Ambiente` |
-| `shared/dominio` (documentos e senha) | `Cpf`, `Cnpj`, `PoliticaDeSenha` |
+| `shared/dominio` (documentos, senha e ids) | `Cpf`, `Cnpj`, `PoliticaDeSenha`, `Uuid` |
 | `shared/format` | `FormatadorDeData` |
 | `shared/config` (ambiente) | `ValidadorDoAmbiente`, `RegraDeVariavel` (abstrata), `UrlDoBanco`, `SegredoComTamanhoMinimo`, `UrlDoApp`, `ChaveComPrefixo`, `UmDosValores` |
 
@@ -235,6 +235,6 @@ construtor (injeção de dependência):
 
 Estes grupos ainda têm funções soltas e entram nas próximas fases: as regras compartilhadas do domínio
 (`preco-aluguel.ts`, `periodo.ts` e `ciclista.ts`, que estão ligadas a `reservas`, `operacao` e
-`catalogo`), os módulos `catalogo`, `recomendacao`, `reservas`, `pagamentos` e `operacao`
-(casos de uso, repositórios e handlers; `contas` já foi convertido), a lógica das telas em `src/shared/*` (busca, agenda, início,
+`catalogo`), os módulos `recomendacao`, `reservas`, `pagamentos` e `operacao`
+(casos de uso, repositórios e handlers; `contas` e `catalogo` já foram convertidos), a lógica das telas em `src/shared/*` (busca, agenda, início,
 perfil, conta, operação, admin, markdown e landing) e as rotas `route.ts`, que passam a só chamar classes.
