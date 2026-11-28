@@ -18,7 +18,7 @@ O resto deste documento registra as primeiras semanas e o modelo antigo. O estad
   `ADMIN`, RLS por cliente e papel `app_login` sem `BYPASSRLS`.
 - **Sistema de ponta a ponta:** cadastro e login, perfil de ciclista, catálogo (tipos, bicicletas,
   pontos), recomendação da bicicleta, reserva com exclusion constraint contra sobreposição, pagamento por
-  Pix e cartão pela Stripe (webhook assinado e idempotente), painel da equipe, retirada e devolução com
+  Pix pela Stripe (só Pix no MVP; webhook assinado e idempotente), painel da equipe, retirada e devolução com
   checklist, expiração das reservas não pagas e telas para cada perfil. As 27 rotas do contrato
   (`docs/contrato-api-mvp.md`) estão implementadas.
 - **Orientação a objetos:** todos os módulos (`contas`, `catalogo`, `recomendacao`, `reservas`,
@@ -27,9 +27,8 @@ O resto deste documento registra as primeiras semanas e o modelo antigo. O estad
   componentes de interface). O desenho está em `docs/orientacao-a-objetos.md`; a conversão saiu nos PRs
   #91, #92, #94 e #95 a #99, em cadeia.
 - **Testes:** cerca de 1.600 testes unitários na CI (`npm test`), 15 suítes de banco (`teste:banco`)
-  contra um PostgreSQL descartável e o fluxo completo pelos `route.ts` reais. Os defeitos injetados de
-  propósito em cada módulo foram todos pegos pelos testes. O plano e os resultados estão em
-  `docs/plano-de-testes.md`.
+  contra um PostgreSQL descartável e o fluxo completo pelos `route.ts` reais. O plano e os resultados
+  estão em `docs/plano-de-testes.md`.
 - **Segurança:** scrypt, token de 24 h, limite de tentativas, corpo limitado, RLS e `npm audit` sem
   vulnerabilidades (`docs/revisao-de-seguranca-mvp.md`).
 
@@ -38,7 +37,7 @@ O resto deste documento registra as primeiras semanas e o modelo antigo. O estad
 | Item | Responsável | Observação |
 |---|---|---|
 | Aplicar as migrations `0004` a `0012` no branch `production` do Neon e criar o papel `app_login` | Tech lead | Só com decisão da equipe; passo a passo em `db/README.md` (issue #23) |
-| Trocar a `DATABASE_URL` da Vercel para o papel `app_login` e cadastrar `SESSION_SECRET`, `HEALTH_DB_SECRET`, `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` | DevOps | Sem as chaves reais da Stripe o pagamento responde `PAGAMENTO_INDISPONIVEL` (502) |
+| Trocar a `DATABASE_URL` da Vercel para o papel `app_login` e cadastrar `SESSION_SECRET`, `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` (e `HEALTH_DB_SECRET`, que é opcional) | DevOps | Sem as chaves reais da Stripe o pagamento responde `PAGAMENTO_INDISPONIVEL` (502) |
 | Cadastrar o endpoint do webhook na Stripe e testar um pagamento real | DevOps e Hélio | O fluxo foi provado com a Stripe simulada e aviso assinado |
 | Rodar a expiração das reservas não pagas por agendamento (issue #73) | Hélio | Hoje a expiração acontece quando alguém lista, cria ou busca |
 | Ler o horário do balcão do banco em vez de fixo em `agenda.ts` (issue #82) | Renan | Pode divergir do cadastro do ponto |
