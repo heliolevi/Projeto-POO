@@ -7,7 +7,7 @@
  */
 export {
   getMe,
-  perfilCiclista,
+  perfilDoCiclista,
   postAceitarTermos,
   postAlterarSenha,
   postAtualizarAltura,
@@ -16,11 +16,11 @@ export {
   postLogin,
   putPerfilCiclista,
 } from "./http/handlers";
-export { verificarToken, type SessaoToken } from "./infrastructure/token";
-export { PerfisPermitidos, type SessaoAtiva } from "./application/exigir-sessao";
+export { ServicoDeToken, type SessaoToken } from "./infrastructure/token";
+export { PerfisPermitidos, SessaoDaRequisicao, type SessaoAtiva } from "./application/sessao-da-requisicao";
 export { Admin } from "./domain/admin";
 export { Cliente } from "./domain/cliente";
-export { criarUsuario, type LinhaDeUsuario } from "./domain/fabrica-usuario";
+export { FabricaDeUsuario, type LinhaDeUsuario } from "./domain/fabrica-usuario";
 export { Operador } from "./domain/operador";
 export {
   PERMISSOES,
@@ -37,6 +37,6 @@ export {
   type UsuarioPublico,
 } from "./domain/usuario";
 
-// Rotas que exigem login: `const sessao = await exigirSessao(request)` (401 se não houver
+// Rotas que exigem login: `const sessao = await sessoes.exigir(request)` (401 se não houver
 // sessão válida). Para restringir o perfil: `new PerfisPermitidos("OPERADOR", "ADMIN").exigir(sessao)` (403).
-export { exigirSessao } from "./http/sessao";
+export { sessoes } from "./http/sessao";

@@ -1,5 +1,5 @@
 import { Bicicleta } from "@/modules/catalogo";
-import { exigirSessao, PerfisPermitidos } from "@/modules/contas";
+import { PerfisPermitidos, sessoes } from "@/modules/contas";
 import { Reserva } from "@/modules/reservas";
 import { LeitorDeCorpo } from "@/shared/http/leitor-de-corpo";
 import { Resposta } from "@/shared/http/resposta";
@@ -20,7 +20,7 @@ const operacao = new OperacaoService({
 
 // As rotas de operação são da equipe: 401 sem sessão válida, 403 para o cliente.
 async function sessaoDaEquipe(request: Request) {
-  return soEquipe.exigir(await exigirSessao(request));
+  return soEquipe.exigir(await sessoes.exigir(request));
 }
 
 // POST /api/operacao/reservas/{id}/retirada (rota 26). O corpo só é lido depois de conferir o id.

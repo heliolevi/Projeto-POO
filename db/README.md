@@ -48,10 +48,10 @@ Crie o papel por SQL, e não pelo botão de roles do console, que costuma dar `B
 - **`DATABASE_URL`** (app e Vercel): usuário `app_login`, host com `-pooler`.
 - **`DATABASE_URL_UNPOOLED`** (migrations): continua com o dono do banco.
 
-As consultas às tabelas com segurança por linha devem passar por `comSessao`
-(`src/shared/db/sessao.ts`), que declara `app.perfil` e `app.usuario_id` dentro de uma transação para
-as políticas valerem. A rota repassa a sessão do `exigirSessao` direto
-(`comSessao(sessao, (c) => c.query(...))`); visitante usa `VISITANTE`.
+As consultas às tabelas com segurança por linha devem passar por `BancoDeDados.comSessao`
+(`src/shared/db/banco-de-dados.ts`), que declara `app.perfil` e `app.usuario_id` dentro de uma transação para
+as políticas valerem. A rota repassa a sessão da `SessaoDaRequisicao` (`sessoes.exigir`) direto
+(`BancoDeDados.padrao.comSessao(sessao, (c) => c.query(...))`); visitante usa `VISITANTE`.
 
 > **Uma única locadora.** A migration `0004` leva o banco do modelo anterior (várias locadoras) para o
 > modelo atual: tabela `empresa` com uma linha só, perfis `CLIENTE`, `OPERADOR` e `ADMIN`, sem

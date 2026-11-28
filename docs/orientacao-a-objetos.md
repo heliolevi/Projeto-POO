@@ -14,7 +14,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | Módulo | Classes |
 |---|---|
 | `shared/dominio` | `Dinheiro`, `Periodo` (objetos de valor); a regra de preço do aluguel (`preco-aluguel.ts`) e o prazo de pagamento (`prazos.ts`) |
-| `contas` | `Usuario` (abstrata), `Cliente`, `Operador`, `Admin` |
+| `contas` | `Usuario` (abstrata), `Cliente`, `Operador`, `Admin`, `FabricaDeUsuario`, `ValidadorDeConta`, `CadastroDeCliente`, `Autenticador`, `PerfilDoCiclista`, `ManutencaoDaConta`, `SessaoDaRequisicao`, `EmissorDeSessao`, `RepositorioDeUsuarios`, `ScryptDeSenha`, `ServicoDeToken`, `ControladorDeContas` |
 | `catalogo` | `Empresa`, `Ponto`, `TipoBicicleta`, `Bicicleta` |
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia` |
 | `reservas` | `Reserva`, `ReservaService`, `FiltroDoPainel`, `ReservaDoPainel`, `PainelDeReservas`, `RepositorioDoPainel`, `ControladorDoPainel` |
@@ -93,7 +93,7 @@ validar o código não mexe no pagamento, e `pix.pagavelEmBanco` na resposta é 
   `APP_URL` tem a sua (`UrlDoApp`), as chaves da Stripe usam `ChaveComPrefixo`, e uma variável nova entra na lista de regras sem mexer no validador.
 - `EnviadorDeNotificacao.enviar()`: o `RoteadorDeEnvio` escolhe o enviador pelo canal (web push, WhatsApp
   ou e-mail), e a `Notificacao` só conhece a interface.
-- Fábricas escolhem a subclasse certa: `criarUsuario(linha)`, `criarPagamento(metodo, dados)` e
+- Fábricas escolhem a subclasse certa: `FabricaDeUsuario.criar(linha)`, `criarPagamento(metodo, dados)` e
   `abrirOcorrencia(tipo, dados)`.
 
 ### Abstração e interfaces
@@ -152,7 +152,7 @@ classe é a que está rodando quando ela ainda não está:
 
 | Já usado pelo código que roda | Onde |
 |---|---|
-| `Usuario`, `criarUsuario` e `autenticar()` | O login (`POST /api/auth/login`) cria o usuário pela fábrica e autentica por ele. |
+| `Usuario`, `FabricaDeUsuario` e `autenticar()` | O `Autenticador` (`POST /api/auth/login`) cria o usuário pela fábrica e autentica por ele. |
 | `Reserva` | Toda resposta das rotas de reservas passa por `Reserva.paraDto()` e `paraDtoDetalhado()` (inclui a regra do `expiraEm`), e o cancelamento chama `Reserva.cancelar()`. |
 | `ReservaService` | É o que as quatro rotas de reservas chamam. |
 | `TipoBicicleta` | O catálogo público monta cada tipo por `TipoBicicleta` e devolve `paraPublico()`. |
@@ -235,6 +235,6 @@ construtor (injeção de dependência):
 
 Estes grupos ainda têm funções soltas e entram nas próximas fases: as regras compartilhadas do domínio
 (`preco-aluguel.ts`, `periodo.ts` e `ciclista.ts`, que estão ligadas a `reservas`, `operacao` e
-`catalogo`), os módulos `contas`, `catalogo`, `recomendacao`, `reservas`, `pagamentos` e `operacao`
-(casos de uso, repositórios e handlers), a lógica das telas em `src/shared/*` (busca, agenda, início,
+`catalogo`), os módulos `catalogo`, `recomendacao`, `reservas`, `pagamentos` e `operacao`
+(casos de uso, repositórios e handlers; `contas` já foi convertido), a lógica das telas em `src/shared/*` (busca, agenda, início,
 perfil, conta, operação, admin, markdown e landing) e as rotas `route.ts`, que passam a só chamar classes.

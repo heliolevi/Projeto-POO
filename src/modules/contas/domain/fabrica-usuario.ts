@@ -10,18 +10,25 @@ export type LinhaDeUsuario = { perfil: PerfilUsuario } & DadosUsuario &
 
 // Fábrica: escolhe a subclasse certa pelo perfil. Quem usa o resultado só conhece Usuario e
 // chama os mesmos métodos; o comportamento de cada perfil vem da própria subclasse (polimorfismo).
-export function criarUsuario(linha: LinhaDeUsuario): Usuario {
-  switch (linha.perfil) {
-    case "CLIENTE":
-      return new Cliente(linha);
-    case "OPERADOR":
-      return new Operador(linha);
-    case "ADMIN":
-      return new Admin(linha);
-    default: {
-      // um perfil fora da lista (banco num estado inesperado) não vira nenhum objeto
-      const desconhecido: never = linha.perfil;
-      throw new RangeError(`Perfil de usuário desconhecido: ${String(desconhecido)}`);
+// Só tem método estático: não se cria instância.
+export class FabricaDeUsuario {
+  private constructor() {
+    throw new TypeError("FabricaDeUsuario só tem método estático; não se cria instância.");
+  }
+
+  static criar(linha: LinhaDeUsuario): Usuario {
+    switch (linha.perfil) {
+      case "CLIENTE":
+        return new Cliente(linha);
+      case "OPERADOR":
+        return new Operador(linha);
+      case "ADMIN":
+        return new Admin(linha);
+      default: {
+        // um perfil fora da lista (banco num estado inesperado) não vira nenhum objeto
+        const desconhecido: never = linha.perfil;
+        throw new RangeError(`Perfil de usuário desconhecido: ${String(desconhecido)}`);
+      }
     }
   }
 }

@@ -1,4 +1,4 @@
-import { exigirSessao, PerfisPermitidos, perfilCiclista } from "@/modules/contas";
+import { PerfisPermitidos, perfilDoCiclista, sessoes } from "@/modules/contas";
 import { calcularValorAluguel, horasCobradas } from "@/modules/reservas";
 import { BancoDeDados } from "@/shared/db/banco-de-dados";
 import { LimiteDeTentativas } from "@/shared/db/limite-tentativas";
@@ -21,7 +21,7 @@ const soCliente = new PerfisPermitidos("CLIENTE");
 
 // Criado uma vez só: não guarda estado, e a sessão do cliente chega a cada busca.
 const buscar = criarBuscarRecomendacoes({
-  buscarPerfil: (usuarioId) => perfilCiclista.consultarPerfilCiclista(usuarioId),
+  buscarPerfil: (usuarioId) => perfilDoCiclista.consultar(usuarioId),
   buscarTipos: buscarTiposComUnidadesLivres,
   calcularValorAluguel,
   horasCobradas,
@@ -31,7 +31,7 @@ const buscar = criarBuscarRecomendacoes({
 // GET /api/recomendacao (rota 11): só CLIENTE (sessão 401, perfil 403, depois os limites 429).
 export async function getRecomendacao(request: Request) {
   try {
-    const sessao = soCliente.exigir(await exigirSessao(request));
+    const sessao = soCliente.exigir(await sessoes.exigir(request));
     await limite.exigirDentroDoLimite(`recomendacao:usuario:${sessao.usuarioId}`, LIMITE_BUSCAS_POR_USUARIO);
     await limite.exigirDentroDoLimite(`recomendacao:ip:${new ClienteDaRequisicao(request.headers).ip.slice(0, 64)}`,
       LIMITE_BUSCAS_POR_IP,
