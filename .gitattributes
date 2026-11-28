@@ -1,3 +1,7 @@
 # Migrations e scripts sempre com quebra de linha LF, em qualquer sistema
 *.sql text eol=lf
 *.mjs text eol=lf
+
+# Documentos binarios: nunca converter quebra de linha (o PDF gerado e texto puro e seria corrompido)
+*.pdf binary
+*.pptx binary

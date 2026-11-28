@@ -31,10 +31,10 @@ testes que já existem no repositório. Mantido por William (DevOps e QA).
 | P2 | Desejável. Pode ficar para depois |
 
 **Tipo:** `Auto` (teste automatizado no repositório), `Manual` (executado por uma pessoa seguindo o
-passo a passo) ou `Integração` (precisa do banco e, quando for o caso, do sandbox do Mercado Pago).
+passo a passo) ou `Integração` (precisa do banco e, quando for o caso, do sandbox da Stripe).
 
 **Status:** `Automatizado`, `Em revisão (PR #n)`, `Pendente`, `Aguarda rota`, `Aguarda fase N`, `Passou`,
-`Falhou`, `Bloqueado` ou `Stand by` (caso adiado de propósito, como os do Mercado Pago). `Automatizado` quer dizer que a regra tem teste no repositório (em geral de uma
+`Falhou`, `Bloqueado` ou `Stand by` (caso adiado de propósito, como os que dependem de chave real da Stripe). `Automatizado` quer dizer que a regra tem teste no repositório (em geral de uma
 função ou do banco); o caminho completo pela rota só é provado nos casos do tipo `Integração`. Ao executar um caso manual, troque para `Passou` ou `Falhou` e registre a data e o
 PR ou issue do defeito.
 
@@ -380,7 +380,7 @@ no do celular, com a conta e os dados de teste.
 - [ ] Mostra QR code, código copia e cola e o prazo de expiração.
 - [ ] A tela consulta o status a cada 3 segundos e passa para "confirmada" sem recarregar a página.
 - [ ] Se o Pix expirar, a tela avisa que a reserva expirou e leva a uma nova busca.
-- [ ] *(Stand by, só com o Mercado Pago)* Se a cobrança falhar (502), mostra mensagem clara e permite tentar de novo.
+- [ ] *(Stand by, só com a chave real da Stripe)* Se a cobrança falhar (502), mostra mensagem clara e permite tentar de novo.
 
 ### Minhas reservas
 - [ ] Lista só as reservas do cliente logado, com status e código.

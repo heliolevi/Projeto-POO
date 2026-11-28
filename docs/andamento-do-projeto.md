@@ -25,9 +25,10 @@ O resto deste documento registra as primeiras semanas e o modelo antigo. O estad
   `pagamentos`, `operacao`), as regras compartilhadas e a lógica das telas são classes, com injeção de
   dependência por construtor. O que não é classe é o que o framework exige (`route.ts`, hooks do React,
   componentes de interface). O desenho está em `docs/orientacao-a-objetos.md`; a conversão saiu nos PRs
-  #91, #92, #94 e #95 a #99, em cadeia.
-- **Testes:** cerca de 1.600 testes unitários na CI (`npm test`), 15 suítes de banco (`teste:banco`)
-  contra um PostgreSQL descartável e o fluxo completo pelos `route.ts` reais. O plano e os resultados
+  #91, #92, #94 e #95 a #99, em cadeia, e chegou na `dev` pelo #101.
+- **Testes (verificação final em 28/11/2026):** 1618 testes unitários (`npm test`), 15 suítes de banco
+  com 185 testes (`teste:banco`, PostgreSQL descartável), o fluxo completo pelos `route.ts` reais (57
+  verificações) e o teste de estresse contra o servidor de produção local (13 cenários), tudo passando. O plano e os resultados
   estão em `docs/plano-de-testes.md`.
 - **Segurança:** scrypt, token de 24 h, limite de tentativas, corpo limitado, RLS e `npm audit` sem
   vulnerabilidades (`docs/revisao-de-seguranca-mvp.md`).
@@ -41,7 +42,6 @@ O resto deste documento registra as primeiras semanas e o modelo antigo. O estad
 | Cadastrar o endpoint do webhook na Stripe e testar um pagamento real | DevOps e Hélio | O fluxo foi provado com a Stripe simulada e aviso assinado |
 | Rodar a expiração das reservas não pagas por agendamento (issue #73) | Hélio | Hoje a expiração acontece quando alguém lista, cria ou busca |
 | Ler o horário do balcão do banco em vez de fixo em `agenda.ts` (issue #82) | Renan | Pode divergir do cadastro do ponto |
-| Revisar e fazer o merge dos PRs #91, #92, #94 e #95 a #99 (nessa ordem, trocando a base para `dev`) | Luis e William | Cada PR tem o diff só do seu módulo |
 
 ## Equipe
 
@@ -130,7 +130,7 @@ Além do relatório, o mesmo trabalho corrigiu três pontos que ele não listava
 para que um estranho não consiga trancar a conta de outra pessoa; e a limpeza de linhas antigas do
 limitador agora é aguardada, em vez de rodar solta.
 
-## Estado atual do backend
+## Estado do backend em 12/11/2026 (histórico)
 
 - **Aplicação:** Next.js 16 em monólito modular, com fronteiras entre módulos impostas pelo ESLint.
 - **Rotas:** `GET /api/health`, `GET /api/health/db` (protegida), `POST /api/auth/cadastro` e
@@ -147,7 +147,7 @@ limitador agora é aguardada, em vez de rodar solta.
   distorcida pela RLS). A consulta de disponibilidade roda em cerca de 0,25 ms com 200 bicicletas e
   2.000 reservas (`cd db && npm run perf:recomendacao`, banco local descartável). 70 testes de banco.
 
-## Pendências
+## Pendências de novembro (histórico; a lista atual está em "O que ainda depende da equipe")
 
 | Item | Responsável | Observação |
 |---|---|---|

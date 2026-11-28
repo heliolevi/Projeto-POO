@@ -2,7 +2,9 @@
 
 O domínio do sistema é modelado com classes, herança, polimorfismo e encapsulamento. Este documento
 mostra onde cada pilar está no código, como as classes se ligam ao
-[diagrama de classes](diagrama-de-classes.pdf) e quais escolhas foram feitas.
+[diagrama de classes](diagrama-de-classes.pdf) e quais escolhas foram feitas. O diagrama tem uma página
+com o domínio e outra com o padrão de camadas que cada módulo repete (controlador, caso de uso, interface,
+repositório).
 
 ## Onde ficam as classes
 
@@ -148,28 +150,28 @@ Dados e regras que a documentação marca como assumidos (não há locadora real
 
 ## O que já roda nas rotas e o que é modelo ainda não ligado
 
-Nem toda classe tem uma rota que a use hoje. Isto é o estado real, para ninguém supor que a regra de uma
-classe é a que está rodando quando ela ainda não está:
+Estado em 28/11/2026. Os módulos `contas`, `catalogo`, `recomendacao`, `reservas`, `pagamentos` e `operacao`
+são classes ligadas por injeção de dependência: o `route.ts` chama o `handlers.ts`, que monta as peças e
+entrega a requisição ao controlador; o controlador chama o caso de uso; o caso de uso fala com o repositório
+(ou com o gateway) por uma interface.
 
 | Já usado pelo código que roda | Onde |
 |---|---|
-| `Usuario`, `FabricaDeUsuario` e `autenticar()` | O `Autenticador` (`POST /api/auth/login`) cria o usuário pela fábrica e autentica por ele. |
-| `Reserva` | Toda resposta das rotas de reservas passa por `Reserva.paraDto()` e `paraDtoDetalhado()` (inclui a regra do `expiraEm`), e o cancelamento chama `Reserva.cancelar()`. |
-| `ReservaService` | É o que as quatro rotas de reservas chamam. |
-| `TipoBicicleta` | O catálogo público monta cada tipo por `TipoBicicleta` e devolve `paraPublico()`. |
-| `RecomendacaoService` e os critérios | `GET /api/recomendacao`. |
-| `Pagamento`, `PagamentoPix`, `CodigoPix`, `PagamentoService`, `PagarReservaService`, `GatewayStripe` | As rotas 16 a 18 (Pix pela Stripe). `GatewayStripe` implementa a interface `GatewayPix`, que é tudo o que os casos de uso conhecem. |
-| `Dinheiro`, `Periodo` | Dentro de `Reserva` e `TipoBicicleta`. |
-| `OperacaoService`, `Movimentacao`, `Checklist`, `ItemDoChecklist` | As rotas 26 e 27 (retirada e devolução). O serviço coordena `Reserva` (`iniciar()`/`concluir()`), `Bicicleta` (`estaDisponivel()`) e `Movimentacao`. |
+| `Usuario`, `FabricaDeUsuario`, `Autenticador`, `CadastroDeCliente`, `PerfilDoCiclista`, `ManutencaoDaConta` | Rotas 1 a 8 (`ControladorDeContas`). |
+| `Reserva`, `RegrasDeReserva`, `CriadorDeReserva`, `ConsultaDeReservas`, `CancelamentoDeReserva` | Rotas 12 a 15 (`ControladorDeReservas`); toda resposta passa por `Reserva.paraDto()` e o cancelamento chama `Reserva.cancelar()`. |
+| `PainelDeReservas`, `FiltroDoPainel`, `ReservaDoPainel` | Rota 25 (`ControladorDoPainel`), o painel do balcão. |
+| `TipoBicicleta`, `Ponto`, `Empresa`, `ServicoDoCatalogo`, `RepositorioDoCatalogo` | Rotas 9, 10 e 19 a 24 (`ControladorDoCatalogo`). |
+| `RecomendacaoService`, `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia`, `BuscaDeRecomendacoes` | Rota 11. |
+| `Pagamento`, `PagamentoPix`, `CodigoPix`, `FabricaDePagamento`, `PagamentoService`, `PagarReservaService`, `GatewayStripe`, `LeitorDeAvisoDaStripe` | Rotas 16 a 18 (`ControladorDePagamentos`). `GatewayStripe` implementa `GatewayPix`, que é tudo o que os casos de uso conhecem. |
+| `OperacaoService`, `Movimentacao`, `Checklist`, `ItemDoChecklist`, `Bicicleta` | Rotas 26 e 27 (`ControladorDeOperacao`): retirada e devolução. O serviço coordena `Reserva` (`iniciar()`/`concluir()`), `Bicicleta` (`estaDisponivel()`) e `Movimentacao`. |
+| `Dinheiro`, `Periodo`, `CalculadoraDeAluguel`, `RegrasDoCiclista`, `PrazoDePagamento` | Dentro de `Reserva`, `TipoBicicleta`, dos casos de uso e das telas. |
 
 | Modelo de domínio com testes, ainda sem rota | O que falta para ligar |
 |---|---|
 | `PagamentoCartao` | A rota de pagamento com cartão (o MVP só tem Pix). |
-| `Ocorrencia` (`Dano`, `Atraso`, `Furto`), `Arquivo` | A tabela `ocorrencia` e o armazenamento de arquivos (fase 5 do plano). A devolução com atraso ainda não abre `Atraso`. |
-| `Notificacao`, `RoteadorDeEnvio` | Os canais de envio reais (fase de avisos). |
+| `Ocorrencia` (`Dano`, `Atraso`, `Furto`), `FabricaDeOcorrencia`, `Arquivo` | A tabela `ocorrencia` e o armazenamento de arquivos. A devolução com atraso ainda não abre `Atraso` nem cobra o valor. |
+| `Notificacao`, `RoteadorDeEnvio` | Os canais de envio reais (WhatsApp, e-mail e push). |
 | `AuditoriaLog` | A gravação da trilha pelo servidor. |
-| `Empresa`, `Ponto`, `Bicicleta` | Os repositórios que leem do banco para objeto e as rotas que os usam. |
-| Métodos de `Reserva` além de `paraDto` e `cancelar` (`confirmar`, `iniciar`, `concluir`, `expirar`...) e de `Cliente` (perfil e termos) | Os casos de uso de pagamento, operação e conta, que ainda trabalham sobre o banco. |
 
 ### Cancelar reserva: a regra é da classe
 
@@ -181,15 +183,23 @@ passarem juntos pela regra; um teste com conexões reais confere isso (um respon
 
 ## Como os testes provam que nada quebrou
 
-- `scripts/teste-de-estresse.mjs` ataca a API rodando (concorrência, força bruta, tokens forjados,
-  entradas maliciosas) e confere as regras das classes sob carga: duas reservas na mesma bicicleta,
-  dois Pix na mesma reserva e um cliente mexendo na reserva de outro nunca passam.
+Verificação final em 28/11/2026, na `dev` já com todos os módulos convertidos:
 
-- Testes unitários ao lado do código (`*.test.ts`), um grupo para cada classe e cada serviço. Rodam na CI.
-- Os testes de comportamento que já existiam (rotas, casos de uso, banco) continuam passando: a refatoração
-  não muda o JSON das respostas, as rotas nem as migrations.
-- Os testes de banco (`db/tests`) conferem o cancelamento de reserva em conexões reais, inclusive a corrida
-  de dois cancelamentos ao mesmo tempo.
+| O quê | Resultado |
+|---|---|
+| Testes unitários ao lado do código (`*.test.ts`, `npm test`) | 1618 de 1618 |
+| Lint, typecheck e `npm run build` | sem erro |
+| Banco (`npm run teste:banco`, no PostgreSQL descartável com PostGIS): unitários, caixa branca e caixa preta, incluindo as rotas reais de reservas, pagamentos e operação com RLS | 15 suítes, 185 testes |
+| Fluxo completo pelos `route.ts` reais com o papel `app_login`: cadastro, reserva, webhook assinado, retirada, devolução, expiração e limites | 57 de 57 |
+| `scripts/teste-de-estresse.mjs` contra o servidor de produção local: carga, entradas maliciosas, tokens forjados, força bruta, corridas de reserva e de Pix, isolamento entre clientes | 13 de 13 cenários |
+| Defeitos injetados de propósito nas classes de cada módulo (11 nas regras compartilhadas, 35 em reservas, 29 em pagamentos, 22 em operação e 25 nas telas) | todos pegos pelos testes |
+
+- `scripts/teste-de-estresse.mjs` ataca a API rodando e confere as regras das classes sob carga: duas
+  reservas na mesma bicicleta, dois Pix na mesma reserva e um cliente mexendo na reserva de outro nunca passam.
+- A refatoração não mudou o JSON das respostas, as rotas nem as migrations: os testes de comportamento que já
+  existiam continuaram passando.
+- Os testes de banco (`db/tests`) conferem, em conexões reais, o cancelamento de reserva, 20 webhooks assinados
+  simultâneos (1 confirmado e 19 ignorados) e 5 retiradas simultâneas (1 sucesso e 4 conflitos).
 
 ## As telas (front-end)
 
