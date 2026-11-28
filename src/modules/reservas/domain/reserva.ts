@@ -1,6 +1,6 @@
 import { PRAZO_DE_PAGAMENTO_MS } from "../../../shared/dominio/prazos.ts";
 import { randomBytes } from "node:crypto";
-import { validarBusca, type ErrosPorCampo } from "../../../shared/dominio/periodo.ts";
+import { ValidadorDePeriodo, type ErrosPorCampo } from "../../../shared/dominio/validador-de-periodo.ts";
 
 // Mesmos valores do enum status_reserva do banco (migration 0006). O contrato lista seis; o
 // NAO_RETIRADA existe no banco e entra na operação (fase 5).
@@ -80,7 +80,7 @@ export function validarNovaReserva(
     erros.tipoId = "Informe o tipoId da bicicleta (um UUID).";
   }
 
-  const periodo = validarBusca({ inicio: objeto.inicio, fim: objeto.fim }, agora);
+  const periodo = new ValidadorDePeriodo().validar({ inicio: objeto.inicio, fim: objeto.fim }, agora);
   if ("erros" in periodo) Object.assign(erros, periodo.erros);
 
   if (Object.keys(erros).length > 0 || "erros" in periodo) return { erros };

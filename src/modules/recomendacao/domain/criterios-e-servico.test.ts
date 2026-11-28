@@ -4,12 +4,13 @@ import {
   CriterioAltura,
   CriterioAtividade,
   CriterioExperiencia,
-  criteriosPadrao,
   PESOS,
   type CriterioDeRecomendacao,
 } from "./criterios.ts";
 import type { PerfilCiclista } from "./perfil.ts";
-import { RecomendacaoService, recomendar, type TipoCandidato } from "./recomendacao.ts";
+import { RecomendacaoService, type TipoCandidato } from "./recomendacao.ts";
+
+const criteriosPadrao = () => RecomendacaoService.criteriosPadrao();
 
 function tipo(parcial: Partial<TipoCandidato> = {}): TipoCandidato {
   return {
@@ -239,13 +240,5 @@ describe("RecomendacaoService", () => {
     const copia = tipos.map((t) => t.id);
     new RecomendacaoService().recomendar(SEM_DADOS, tipos, valor);
     assert.deepEqual(tipos.map((t) => t.id), copia);
-  });
-
-  test("a função recomendar() dá o mesmo resultado que o serviço padrão", () => {
-    const tipos = [tipo({ id: "a", nome: "A" }), tipo({ id: "b", nome: "B", atividades: ["TRILHA"] })];
-    assert.deepEqual(
-      recomendar(PERFIL_COMPLETO, tipos, valor),
-      new RecomendacaoService().recomendar(PERFIL_COMPLETO, tipos, valor),
-    );
   });
 });

@@ -12,24 +12,6 @@ export const PESOS = { altura: 50, atividade: 30, experiencia: 20 } as const;
 
 type FaixaDeAltura = Pick<TipoCandidato, "alturaMinCm" | "alturaMaxCm">;
 
-export function cabeNaAltura(alturaCm: number, tipo: FaixaDeAltura): boolean {
-  return alturaCm >= tipo.alturaMinCm && alturaCm <= tipo.alturaMaxCm;
-}
-
-// Ajuste da altura dentro da faixa do tipo: 1 no centro, caindo em linha reta até 0 nas
-// pontas. Faixa de um valor só (mínimo igual ao máximo) é ajuste perfeito.
-export function ajusteDeAltura(alturaCm: number, tipo: FaixaDeAltura): number {
-  if (!cabeNaAltura(alturaCm, tipo)) return 0;
-  const meiaFaixa = (tipo.alturaMaxCm - tipo.alturaMinCm) / 2;
-  if (meiaFaixa === 0) return 1;
-  const centro = tipo.alturaMinCm + meiaFaixa;
-  return 1 - Math.abs(alturaCm - centro) / meiaFaixa;
-}
-
-export function experienciaSuficiente(cliente: Experiencia, recomendado: Experiencia): boolean {
-  return EXPERIENCIAS.indexOf(cliente) >= EXPERIENCIAS.indexOf(recomendado);
-}
-
 // O que um critério diz de um tipo para um cliente: quantos pontos dá e o motivo em texto.
 export type Avaliacao = { pontos: number; motivo: string };
 
@@ -47,9 +29,24 @@ export class CriterioAltura implements CriterioDeRecomendacao {
   readonly nome = "altura";
   readonly peso: number = PESOS.altura;
 
+  /** A altura do cliente está dentro da faixa do tipo (as pontas contam). */
+  static cabe(alturaCm: number, tipo: FaixaDeAltura): boolean {
+    return alturaCm >= tipo.alturaMinCm && alturaCm <= tipo.alturaMaxCm;
+  }
+
+  // Ajuste da altura dentro da faixa do tipo: 1 no centro, caindo em linha reta até 0 nas
+  // pontas. Faixa de um valor só (mínimo igual ao máximo) é ajuste perfeito.
+  static ajuste(alturaCm: number, tipo: FaixaDeAltura): number {
+    if (!CriterioAltura.cabe(alturaCm, tipo)) return 0;
+    const meiaFaixa = (tipo.alturaMaxCm - tipo.alturaMinCm) / 2;
+    if (meiaFaixa === 0) return 1;
+    const centro = tipo.alturaMinCm + meiaFaixa;
+    return 1 - Math.abs(alturaCm - centro) / meiaFaixa;
+  }
+
   avaliar(perfil: PerfilCiclista, tipo: TipoCandidato): Avaliacao | null {
     if (perfil.alturaCm === null) return null;
-    const ajuste = ajusteDeAltura(perfil.alturaCm, tipo);
+    const ajuste = CriterioAltura.ajuste(perfil.alturaCm, tipo);
     return {
       pontos: this.peso * ajuste,
       motivo:
@@ -77,15 +74,15 @@ export class CriterioExperiencia implements CriterioDeRecomendacao {
   readonly nome = "experiência";
   readonly peso: number = PESOS.experiencia;
 
+  /** A experiência do cliente é igual ou maior que o nível recomendado do tipo. */
+  static suficiente(cliente: Experiencia, recomendado: Experiencia): boolean {
+    return EXPERIENCIAS.indexOf(cliente) >= EXPERIENCIAS.indexOf(recomendado);
+  }
+
   avaliar(perfil: PerfilCiclista, tipo: TipoCandidato): Avaliacao | null {
     if (perfil.experiencia === null) return null;
-    return experienciaSuficiente(perfil.experiencia, tipo.nivelRecomendado)
+    return CriterioExperiencia.suficiente(perfil.experiencia, tipo.nivelRecomendado)
       ? { pontos: this.peso, motivo: `Adequada ao seu nível (${NOME_EXPERIENCIA[perfil.experiencia]})` }
       : { pontos: 0, motivo: `Recomendada a partir do nível ${NOME_EXPERIENCIA[tipo.nivelRecomendado]}` };
   }
-}
-
-// A ordem da lista é a ordem dos motivos devolvidos ao cliente.
-export function criteriosPadrao(): CriterioDeRecomendacao[] {
-  return [new CriterioAltura(), new CriterioAtividade(), new CriterioExperiencia()];
 }
