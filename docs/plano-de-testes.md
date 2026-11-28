@@ -461,6 +461,8 @@ Preencher a cada rodada de testes.
 | 10/11/2026 | `7c70046` | William | `npm ci`, `lint`, `typecheck`, `npm test` (70 testes) e `build` | 5 de 5 comandos (70 de 70 testes) | 0 | Nenhum |
 | 27/11/2026 | `19d093e` | William, com o Claude | P0 da S10: `scripts/verificar-p0.mjs` (15 casos), `scripts/teste-de-estresse.mjs` (11 cenários), `migrar:simular` e `migrar` no Neon `dev` | 15 de 15 casos, 11 de 11 cenários | 0 | Nenhum novo; CT-PAG-18 aguardava decisão do tech lead (decidido depois: não se aplica) |
 
+| 28/11/2026 | `55ae1df` | Luis, com o Claude | Fluxo completo (buscar, reservar, pagar, retirar e devolver) por `scripts/teste-fluxo-completo.mjs`, em dois ambientes: servidor local no Neon `dev` (conexão do app com `app_login`) e Preview da Vercel da branch `dev` | 27 de 27 verificações no local e 28 de 28 na Preview (a versão do roteiro usada na Preview tinha uma verificação a mais) | 0 | Nenhum novo; achados nas observações abaixo |
+
 Observações da rodada de 10/11/2026:
 
 - O `npm audit` aponta 7 vulnerabilidades moderadas e o `eslint@9.39.5` aparece como descontinuado. Não são da T06; sugerir uma tarefa de dependências ao tech lead.
@@ -483,3 +485,12 @@ Observações da rodada de 27/11/2026 (S10, casos P0):
 - Contas de teste criadas no Neon `dev` com `npm run criar-equipe` (e-mails `@bikeilha.test`): `qa.william.operador` e `qa.william.admin`, além das contas `verificar.*` (desativadas pelo script) e `estresse.*` dos scripts. O tech lead pode desativá-las depois da entrega.
 - Sobre a nota 11 da seção 7: o `/app` do `ADMIN` agora mostra "Painel da equipe", não mais "Painel da plataforma". O texto final continua para o Renan e o Luis confirmarem.
 - CT-SEG-05 passou: nenhuma chave, senha de banco ou `.env` no código nem nos 372 commits das branches conhecidas.
+
+Observações da rodada de 28/11/2026 (fluxo completo):
+
+- **O que o roteiro faz:** `scripts/teste-fluxo-completo.mjs` percorre as rotas reais: cadastro e perfil, empresa, catálogo, recomendação, reserva, Pix no sandbox da Stripe (`sk_test_`), aviso assinado do webhook (com repetição), retirada e devolução pelo operador, e confere as duas movimentações no banco. No fim desativa as contas que criou. Recusa chave `sk_live_` e servidor que não seja local sem `ESTRESSE_PERMITIR_REMOTO=sim`.
+- **Resultado:** local contra o Neon `dev` e Preview da `dev` passaram sem falhas. Cobre CT-CAD-01, CT-REC-15, CT-RES-01, CT-PAG-01, CT-PAG-02, CT-PAG-09, CT-PAG-10, CT-PAG-11, CT-OPE-01, CT-OPE-03, CT-OPE-04, CT-OPE-05 e CT-OPE-06 por HTTP.
+- **Limite da prova do webhook:** o aviso foi assinado pelo próprio roteiro, com o segredo do ambiente. Isso prova que o app aceita um aviso bem assinado, mas não que a Stripe entrega o aviso ao endpoint cadastrado. Isso só se vê com um pagamento de teste de verdade (QR de teste da Stripe).
+- **Limite da prova da RLS:** a Preview da Vercel estava com `DATABASE_URL` do dono do banco (`neondb_owner`), que ignora a RLS. O fluxo passou, mas isso não prova isolamento. A prova com a RLS valendo é a do servidor local, que usa `app_login`. Em Production a `DATABASE_URL` precisa ser do `app_login`.
+- **Achado:** `scripts/criar-equipe.mjs` e `db/seeds/aplicar-seed.mjs` importavam `gerarHashSenha`, que deixou de existir quando o hash virou a classe `ScryptDeSenha`. Os dois falhariam ao rodar; foram corrigidos para usar `ScryptDeSenha.padrao.gerarHash`. Além disso, as senhas das contas do seed no Neon `dev` (compartilhado) não são as do `.env.local` de cada pessoa.
+- **Deploy do domínio principal:** em 28/11/2026, antes da publicação, `bike-ilha-club.vercel.app` ainda servia uma versão sem as rotas de pagamento, de `admin/reservas` e de operação (404). Conferir de novo depois que a `main` for publicada.
