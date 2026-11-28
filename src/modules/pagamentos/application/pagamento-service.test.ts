@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { ConflictError, NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
-import { criarPagamento, PagamentoPix, type CobrancaPix } from "../domain/formas-de-pagamento.ts";
+import { FabricaDePagamento, PagamentoPix, type CobrancaPix } from "../domain/formas-de-pagamento.ts";
 import { TransicaoDePagamentoInvalida, type CobrancaGerada, type MetodoPagamento, type Pagamento } from "../domain/pagamento.ts";
 import { PagamentoService, type RepositorioDePagamentos } from "./pagamento-service.ts";
 
@@ -320,7 +320,7 @@ describe("PagamentoService.processarWebhook", () => {
     };
     const banco = new Map<string, Retrato>();
     const ler = (r: Retrato) =>
-      criarPagamento(r.metodo, {
+      FabricaDePagamento.criar(r.metodo, {
         id: r.id,
         reservaId: r.reservaId,
         valor: Dinheiro.deCentavos(r.centavos),

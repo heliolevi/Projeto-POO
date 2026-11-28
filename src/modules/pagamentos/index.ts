@@ -7,10 +7,9 @@
  * Camadas internas: domain → application → infrastructure / http.
  */
 export {
-  criarPagamento,
+  FabricaDePagamento,
   PagamentoCartao,
   PagamentoPix,
-  PRAZO_DO_PIX_MS,
   type CobrancaCartao,
   type CobrancaPix,
 } from "./domain/formas-de-pagamento";
@@ -37,5 +36,13 @@ export {
   type ResultadoDoAviso,
   type StatusDoPagamento,
 } from "./application/pagar-reserva";
-export type { GatewayPix, SituacaoNoGateway } from "./application/portas";
+export { AssinaturaInvalida } from "./application/portas";
+export type {
+  AvisoDoGateway,
+  GatewayPix,
+  GeradorDeQrCode,
+  LeitorDeAviso,
+  SituacaoNoGateway,
+} from "./application/portas";
+export { ControladorDePagamentos } from "./http/controlador-de-pagamentos";
 export { getStatusDoPagamento, postPagamentos, postWebhookDePagamento } from "./http/handlers";

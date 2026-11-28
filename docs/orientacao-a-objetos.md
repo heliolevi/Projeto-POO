@@ -18,7 +18,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `catalogo` | `Empresa`, `Ponto`, `TipoBicicleta`, `Bicicleta`, `ValidadorDoCatalogo`, `ServicoDoCatalogo`, `RepositorioDoCatalogo`, `ControladorDoCatalogo` |
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia`, `BuscaDeRecomendacoes`, `RepositorioDeDisponibilidade`, `ControladorDeRecomendacao` |
 | `reservas` | `Reserva`, `RegrasDeReserva` (status, transições, prazo), `ValidadorDeNovaReserva`, `GeradorDeCodigoDeReserva`, `ReservaService`, `CriadorDeReserva`, `ConsultaDeReservas`, `CancelamentoDeReserva`, `MontadorDeReserva`, `RepositorioDeReservas`, `OperacoesDeReservasNoBanco`, `ControladorDeReservas`, `FiltroDoPainel`, `ReservaDoPainel`, `PainelDeReservas`, `RepositorioDoPainel`, `ControladorDoPainel` |
-| `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `PagamentoService`, `PagarReservaService`, `IntervaloDeConsulta`, `GatewayPix` (interface), `GatewayStripe`, `CodigoPix` (objeto de valor) |
+| `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `FabricaDePagamento`, `CodigoPix` (objeto de valor), `PagamentoService`, `PagarReservaService`, `IntervaloDeConsulta`, `GatewayPix` (interface), `GatewayStripe` (fetch e chave injetados), `LeitorDeAvisoDaStripe` (webhook assinado), `TraducaoDaStripe`, `QrCodePng`, `OperacoesDePagamentoNoBanco`, `RepositorioDePagamentosNoBanco`, `ControladorDePagamentos` |
 | `operacao` | `Movimentacao`, `Checklist`, `ItemDoChecklist`, `OperacaoService`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
 | `administracao` | `AuditoriaLog` |
@@ -93,7 +93,7 @@ validar o código não mexe no pagamento, e `pix.pagavelEmBanco` na resposta é 
   `APP_URL` tem a sua (`UrlDoApp`), as chaves da Stripe usam `ChaveComPrefixo`, e uma variável nova entra na lista de regras sem mexer no validador.
 - `EnviadorDeNotificacao.enviar()`: o `RoteadorDeEnvio` escolhe o enviador pelo canal (web push, WhatsApp
   ou e-mail), e a `Notificacao` só conhece a interface.
-- Fábricas escolhem a subclasse certa: `FabricaDeUsuario.criar(linha)`, `criarPagamento(metodo, dados)` e
+- Fábricas escolhem a subclasse certa: `FabricaDeUsuario.criar(linha)`, `FabricaDePagamento.criar(metodo, dados)` e
   `abrirOcorrencia(tipo, dados)`.
 
 ### Abstração e interfaces
@@ -233,6 +233,6 @@ construtor (injeção de dependência):
 
 ### O que ainda não foi convertido
 
-Estes grupos ainda têm funções soltas e entram nas próximas fases: os módulos `pagamentos` e `operacao`
-(casos de uso, repositórios e handlers; `contas`, `catalogo`, `recomendacao` e `reservas` já foram convertidos), a lógica das telas em `src/shared/*` (busca, agenda, início,
+Estes grupos ainda têm funções soltas e entram nas próximas fases: o módulo `operacao`
+(casos de uso, repositórios e handlers; `contas`, `catalogo`, `recomendacao`, `reservas` e `pagamentos` já foram convertidos), a lógica das telas em `src/shared/*` (busca, agenda, início,
 perfil, conta, operação, admin, markdown e landing) e as rotas `route.ts`, que passam a só chamar classes.

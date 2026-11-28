@@ -9,7 +9,7 @@ import { rodarSuite } from '../suporte.mjs';
 import { criarFixtures, criarReserva } from '../fixtures.mjs';
 import { PagarReservaService } from '../../../src/modules/pagamentos/application/pagar-reserva.ts';
 import { IntervaloDeConsulta } from '../../../src/modules/pagamentos/application/intervalo-de-consulta.ts';
-import { operacoesNoBanco } from '../../../src/modules/pagamentos/infrastructure/repositorio-pagamentos.ts';
+import { OperacoesDePagamentoNoBanco } from '../../../src/modules/pagamentos/infrastructure/repositorio-pagamentos.ts';
 
 const HORA = 60 * 60 * 1000;
 const base = new Date(Date.now() + 3 * 24 * HORA);
@@ -33,7 +33,7 @@ await rodarSuite('blackbox/pagamentos_api', async (executor, client) => {
         "SELECT set_config('app.perfil', $1, true), set_config('app.usuario_id', $2, true)",
         [sessao.perfil ?? '', sessao.usuarioId ?? ''],
       );
-      const resultado = await fn(operacoesNoBanco(client));
+      const resultado = await fn(new OperacoesDePagamentoNoBanco(client));
       await client.query('RELEASE SAVEPOINT caso_de_uso');
       return resultado;
     } catch (erro) {
@@ -150,7 +150,7 @@ await rodarSuite('blackbox/pagamentos_api', async (executor, client) => {
         "SELECT set_config('app.perfil', $1, true), set_config('app.usuario_id', $2, true)",
         [sessao.perfil, sessao.usuarioId],
       );
-      const resultado = await fn(operacoesNoBanco(client));
+      const resultado = await fn(new OperacoesDePagamentoNoBanco(client));
       await client.query('RELEASE SAVEPOINT sem_rls');
       return resultado;
     } catch (erro) {

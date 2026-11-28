@@ -1,3 +1,4 @@
+import { Uuid } from "../../../shared/dominio/uuid.ts";
 import { ConflictError, NotFoundError, ValidationError } from "../../../shared/http/errors.ts";
 import { PagamentoPix, type CobrancaPix } from "../domain/formas-de-pagamento.ts";
 import type { Pagamento, StatusPagamento } from "../domain/pagamento.ts";
@@ -21,24 +22,6 @@ import type {
 //    (migration 0008). Ordem invertida entre o aviso da Stripe e a consulta de status dava deadlock.
 // 2. A consulta à Stripe da rota 17 acontece FORA da transação: a conexão do banco não fica presa
 //    esperando a rede (o pool do app é pequeno).
-
-export const MENSAGEM_RESERVA_NAO_ENCONTRADA = "Reserva não encontrada.";
-export const MENSAGEM_PRAZO_TERMINANDO =
-  "O prazo para pagar esta reserva está terminando. Faça uma nova reserva para pagar com calma.";
-export const MENSAGEM_RESERVA_NAO_ACEITA_PAGAMENTO =
-  "Esta reserva não aceita mais pagamento: ela não está pendente de pagamento.";
-
-// A Stripe só aceita Pix que vença pelo menos 60 segundos depois da criação.
-export const VALIDADE_MINIMA_DO_PIX_MS = 60 * 1000;
-
-// A rota 17 pergunta à Stripe sobre a mesma cobrança no máximo a cada 6 s (a tela consulta a cada 3 s).
-export const INTERVALO_DE_CONSULTA_MS = 6 * 1000;
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Um id que não é UUID não chega ao banco (daria erro 22P02 e um 500): para a API é só uma reserva
-// que não existe.
-const ehUuid = (valor: unknown): valor is string => typeof valor === "string" && UUID.test(valor);
 
 // Cobrança da rota 16: o que o domínio gera mais a imagem do QR code (PNG em base64).
 export type CobrancaPixComQrCode = Omit<CobrancaPix, "pix"> & {
@@ -75,31 +58,25 @@ export type DependenciasPagarReserva = {
   intervaloDeConsulta?: IntervaloDeConsulta;
 };
 
-// Corpo da rota 16: { "reservaId": "uuid", "metodo": "PIX" }. Por enquanto só PIX.
-function validarCorpo(corpo: unknown): { reservaId: string } {
-  const objeto = typeof corpo === "object" && corpo !== null && !Array.isArray(corpo) ? corpo : null;
-  if (!objeto) throw new ValidationError("O corpo precisa ser um objeto JSON.");
-  const { reservaId, metodo } = objeto as { reservaId?: unknown; metodo?: unknown };
-  const erros: Record<string, string> = {};
-  if (!ehUuid(reservaId)) erros.reservaId = "Informe o id (UUID) da reserva.";
-  if (metodo !== "PIX") erros.metodo = "Forma de pagamento inválida. Por enquanto só há PIX.";
-  if (Object.keys(erros).length > 0) throw new ValidationError("Dados inválidos.", erros);
-  return { reservaId: reservaId as string };
-}
-
-async function lerSituacao(op: OperacoesPagamento, reservaId: string): Promise<StatusDoPagamento> {
-  const situacao = await op.situacao(reservaId);
-  if (!situacao) throw new NotFoundError(MENSAGEM_RESERVA_NAO_ENCONTRADA);
-  return { reservaId, statusPagamento: situacao.statusPagamento, statusReserva: situacao.statusReserva };
-}
-
 export class PagarReservaService {
+  static readonly MENSAGEM_RESERVA_NAO_ENCONTRADA = "Reserva não encontrada.";
+  static readonly MENSAGEM_PRAZO_TERMINANDO =
+    "O prazo para pagar esta reserva está terminando. Faça uma nova reserva para pagar com calma.";
+  static readonly MENSAGEM_RESERVA_NAO_ACEITA_PAGAMENTO =
+    "Esta reserva não aceita mais pagamento: ela não está pendente de pagamento.";
+
+  /** A Stripe só aceita Pix que vença pelo menos 60 segundos depois da criação. */
+  static readonly VALIDADE_MINIMA_DO_PIX_MS = 60 * 1000;
+
+  /** A rota 17 pergunta à Stripe sobre a mesma cobrança no máximo a cada 6 s (a tela consulta a cada 3 s). */
+  static readonly INTERVALO_DE_CONSULTA_MS = 6 * 1000;
+
   readonly #deps: DependenciasPagarReserva;
   readonly #intervalo: IntervaloDeConsulta;
 
   constructor(deps: DependenciasPagarReserva) {
     this.#deps = deps;
-    this.#intervalo = deps.intervaloDeConsulta ?? new IntervaloDeConsulta(INTERVALO_DE_CONSULTA_MS);
+    this.#intervalo = deps.intervaloDeConsulta ?? new IntervaloDeConsulta(PagarReservaService.INTERVALO_DE_CONSULTA_MS);
   }
 
   /**
@@ -107,7 +84,7 @@ export class PagarReservaService {
    * pendente que já existia (200).
    */
   async iniciar(sessao: SessaoCliente, corpo: unknown): Promise<{ cobranca: CobrancaPixComQrCode; criada: boolean }> {
-    const { reservaId } = validarCorpo(corpo);
+    const { reservaId } = PagarReservaService.#validarCorpo(corpo);
 
     // O limite de cobranças só conta quando uma cobrança nova vai ser criada: reabrir a tela e
     // reaproveitar o Pix pendente não conta. Ele é conferido ANTES da transação principal, numa
@@ -128,15 +105,15 @@ export class PagarReservaService {
       resultado = await this.#deps.transacao(sessao, async (op) => {
         await op.expirarVencidas();
         const reserva = await op.travarReserva(reservaId);
-        if (!reserva) throw new NotFoundError(MENSAGEM_RESERVA_NAO_ENCONTRADA);
+        if (!reserva) throw new NotFoundError(PagarReservaService.MENSAGEM_RESERVA_NAO_ENCONTRADA);
 
         const registrarCobranca = async (pagamento: Pagamento) => {
           if (!(pagamento instanceof PagamentoPix)) throw new Error("Só o Pix tem cobrança nesta rota.");
-          if (pagamento.expiraEm().getTime() - this.#deps.agora().getTime() < VALIDADE_MINIMA_DO_PIX_MS) {
-            throw new ConflictError(MENSAGEM_PRAZO_TERMINANDO);
+          if (pagamento.expiraEm().getTime() - this.#deps.agora().getTime() < PagarReservaService.VALIDADE_MINIMA_DO_PIX_MS) {
+            throw new ConflictError(PagarReservaService.MENSAGEM_PRAZO_TERMINANDO);
           }
           const pagador = await op.pagador();
-          if (!pagador) throw new NotFoundError(MENSAGEM_RESERVA_NAO_ENCONTRADA);
+          if (!pagador) throw new NotFoundError(PagarReservaService.MENSAGEM_RESERVA_NAO_ENCONTRADA);
           const { idExterno, copiaECola } = await this.#deps.gateway().criarCobrancaPix({
             pagamentoId: pagamento.id,
             reservaId: pagamento.reservaId,
@@ -184,7 +161,7 @@ export class PagarReservaService {
    * consulta tenta de novo.
    */
   async consultarStatus(sessao: SessaoCliente, reservaId: unknown): Promise<StatusDoPagamento> {
-    if (!ehUuid(reservaId)) throw new NotFoundError(MENSAGEM_RESERVA_NAO_ENCONTRADA);
+    if (!Uuid.ehValido(reservaId)) throw new NotFoundError(PagarReservaService.MENSAGEM_RESERVA_NAO_ENCONTRADA);
 
     const pendente = await this.#deps.transacao(sessao, (op) => op.buscarPendenteDaReserva(reservaId));
     const idExterno = pendente?.mpPaymentId ?? null;
@@ -208,7 +185,7 @@ export class PagarReservaService {
 
     return this.#deps.transacao(sessao, async (op) => {
       await op.expirarVencidas();
-      return lerSituacao(op, reservaId);
+      return PagarReservaService.#lerSituacao(op, reservaId);
     });
   }
 
@@ -224,6 +201,25 @@ export class PagarReservaService {
     if (!clienteId) return "ignorado";
     const sessao: SessaoCliente = { perfil: "CLIENTE", usuarioId: clienteId };
     return this.#deps.transacao(sessao, (op) => this.#aplicarComTravas(op, idExterno, situacao));
+  }
+
+  // Corpo da rota 16: { "reservaId": "uuid", "metodo": "PIX" }. Por enquanto só PIX. Um id que não é UUID
+  // não chega ao banco (daria erro 22P02 e um 500): para a API é só uma reserva que não existe.
+  static #validarCorpo(corpo: unknown): { reservaId: string } {
+    const objeto = typeof corpo === "object" && corpo !== null && !Array.isArray(corpo) ? corpo : null;
+    if (!objeto) throw new ValidationError("O corpo precisa ser um objeto JSON.");
+    const { reservaId, metodo } = objeto as { reservaId?: unknown; metodo?: unknown };
+    const erros: Record<string, string> = {};
+    if (!Uuid.ehValido(reservaId)) erros.reservaId = "Informe o id (UUID) da reserva.";
+    if (metodo !== "PIX") erros.metodo = "Forma de pagamento inválida. Por enquanto só há PIX.";
+    if (Object.keys(erros).length > 0) throw new ValidationError("Dados inválidos.", erros);
+    return { reservaId: reservaId as string };
+  }
+
+  static async #lerSituacao(op: OperacoesPagamento, reservaId: string): Promise<StatusDoPagamento> {
+    const situacao = await op.situacao(reservaId);
+    if (!situacao) throw new NotFoundError(PagarReservaService.MENSAGEM_RESERVA_NAO_ENCONTRADA);
+    return { reservaId, statusPagamento: situacao.statusPagamento, statusReserva: situacao.statusReserva };
   }
 
   // Trava a reserva e depois o pagamento (a ordem da regra 1) e aplica o que a Stripe disse.
@@ -315,7 +311,7 @@ export class PagarReservaService {
         }),
       aoAprovar: async (reservaId) => {
         if (!(await op.confirmarReserva(reservaId))) {
-          throw new ConflictError(MENSAGEM_RESERVA_NAO_ACEITA_PAGAMENTO);
+          throw new ConflictError(PagarReservaService.MENSAGEM_RESERVA_NAO_ACEITA_PAGAMENTO);
         }
       },
     });
