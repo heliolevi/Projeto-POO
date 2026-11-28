@@ -460,7 +460,6 @@ Preencher a cada rodada de testes.
 |---|---|---|---|---|---|---|
 | 10/11/2026 | `7c70046` | William | `npm ci`, `lint`, `typecheck`, `npm test` (70 testes) e `build` | 5 de 5 comandos (70 de 70 testes) | 0 | Nenhum |
 | 27/11/2026 | `19d093e` | William, com o Claude | P0 da S10: `scripts/verificar-p0.mjs` (15 casos), `scripts/teste-de-estresse.mjs` (11 cenários), `migrar:simular` e `migrar` no Neon `dev` | 15 de 15 casos, 11 de 11 cenários | 0 | Nenhum novo; CT-PAG-18 aguardava decisão do tech lead (decidido depois: não se aplica) |
-
 | 28/11/2026 | `55ae1df` | Luis, com o Claude | Fluxo completo (buscar, reservar, pagar, retirar e devolver) por `scripts/teste-fluxo-completo.mjs`, em dois ambientes: servidor local no Neon `dev` (conexão do app com `app_login`) e Preview da Vercel da branch `dev` | 27 de 27 verificações no local e 28 de 28 na Preview (a versão do roteiro usada na Preview tinha uma verificação a mais) | 0 | Nenhum novo; achados nas observações abaixo |
 
 Observações da rodada de 10/11/2026:
