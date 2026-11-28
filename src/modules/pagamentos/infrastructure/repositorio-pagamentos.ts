@@ -1,0 +1,215 @@
+import type { PoolClient } from "pg";
+import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
+import { PrazoDePagamento } from "../../../shared/dominio/prazos.ts";
+import { BancoDeDados } from "../../../shared/db/banco-de-dados.ts";
+import { VISITANTE } from "../../../shared/db/sessao.ts";
+import type { OperacoesPagamento, Pagador, SessaoCliente, SituacaoDaReserva } from "../application/portas.ts";
+import type { ReservaParaPagar } from "../application/pagamento-service.ts";
+import { FabricaDePagamento, PagamentoPix } from "../domain/formas-de-pagamento.ts";
+import type { MetodoPagamento, Pagamento, StatusPagamento } from "../domain/pagamento.ts";
+
+type LinhaPagamento = {
+  id: string;
+  reserva_id: string;
+  metodo: MetodoPagamento;
+  valor_centavos: number;
+  status: StatusPagamento;
+  mp_payment_id: string | null;
+  pix_expira_em: Date | null;
+  qr_code_pix: string | null;
+  pago_em: Date | null;
+  criado_em: Date;
+};
+
+// Operações das rotas 16, 17 e 18, dentro da transação do comSessao (sessão do cliente declarada). Uma
+// instância vale por UMA transação: a conexão entra pelo construtor.
+// Toda consulta filtra pelo cliente da sessão (sessao_usuario_id()) no próprio SQL, e não só pela RLS
+// de reserva e de pagamento (migration 0006): o dono do banco ignora a RLS, então, se a DATABASE_URL
+// for a do dono (como no ambiente local), só a RLS deixaria o cliente B cobrar a reserva do cliente A
+// (achado do teste de estresse, scripts/teste-de-estresse.mjs). Com o filtro aqui, a reserva de
+// outro cliente não aparece (404) com qualquer papel; a RLS continua como segunda barreira.
+// SQL sempre parametrizado; datas vão como ISO.
+export class OperacoesDePagamentoNoBanco implements OperacoesPagamento {
+  static readonly #COLUNAS = `id, reserva_id, metodo, valor_centavos, status, mp_payment_id, pix_expira_em, qr_code_pix, pago_em, criado_em`;
+
+  // Só os pagamentos de reservas do cliente da sessão.
+  static readonly #DO_CLIENTE = `reserva_id IN (SELECT id FROM reserva WHERE cliente_id = sessao_usuario_id())`;
+
+  readonly #client: Pick<PoolClient, "query">;
+
+  constructor(client: Pick<PoolClient, "query">) {
+    this.#client = client;
+  }
+
+  // A linha do banco vira a subclasse certa (Pix ou cartão) pela fábrica do domínio.
+  static #paraPagamento(l: LinhaPagamento): Pagamento {
+    return FabricaDePagamento.criar(l.metodo, {
+      id: l.id,
+      reservaId: l.reserva_id,
+      valor: Dinheiro.deCentavos(l.valor_centavos),
+      criadoEm: l.criado_em,
+      status: l.status,
+      mpPaymentId: l.mp_payment_id,
+      pagoEm: l.pago_em,
+      expiraEm: l.pix_expira_em,
+      copiaECola: l.qr_code_pix,
+    });
+  }
+
+  async expirarVencidas(): Promise<void> {
+    await this.#client.query("SELECT expirar_reservas_vencidas()");
+  }
+
+  // FOR UPDATE: duas chamadas ao mesmo tempo para a mesma reserva (clique duplo, duas abas)
+  // passam uma de cada vez, então não nascem dois Pix pendentes nem uma aprovação dupla.
+  async travarReserva(reservaId: string): Promise<ReservaParaPagar | null> {
+    const { rows } = await this.#client.query<{
+      id: string;
+      status: string;
+      valor_aluguel_centavos: number;
+      criado_em: Date;
+    }>(
+      `SELECT id, status, valor_aluguel_centavos, criado_em
+         FROM reserva WHERE id = $1 AND cliente_id = sessao_usuario_id() FOR UPDATE`,
+      [reservaId],
+    );
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      id: r.id,
+      status: r.status,
+      valorAluguelCentavos: r.valor_aluguel_centavos,
+      // o mesmo prazo de expirar_reservas_vencidas(): criação + 15 minutos
+      expiraEm: r.status === "PENDENTE_PAGAMENTO" ? PrazoDePagamento.venceEm(r.criado_em) : null,
+    };
+  }
+
+  // reserva_detalhada (migration 0011) já traz o status do pagamento mais recente e filtra pela
+  // sessão como a política de reserva.
+  async situacao(reservaId: string): Promise<SituacaoDaReserva | null> {
+    const { rows } = await this.#client.query<{ status: string; pagamento_status: StatusPagamento | null }>(
+      `SELECT status, pagamento_status FROM reserva_detalhada WHERE id = $1`,
+      [reservaId],
+    );
+    return rows[0] ? { statusReserva: rows[0].status, statusPagamento: rows[0].pagamento_status } : null;
+  }
+
+  // O prazo também é conferido aqui (e não só em expirar_reservas_vencidas, que pula linhas
+  // travadas): uma reserva vencida nunca é confirmada.
+  async confirmarReserva(reservaId: string): Promise<boolean> {
+    const { rowCount } = await this.#client.query(
+      `UPDATE reserva SET status = 'CONFIRMADA'
+        WHERE id = $1 AND cliente_id = sessao_usuario_id() AND status = 'PENDENTE_PAGAMENTO'
+          AND criado_em > now() - make_interval(secs => $2::double precision / 1000)`,
+      [reservaId, PrazoDePagamento.MS],
+    );
+    return rowCount === 1;
+  }
+
+  // Grava o pagamento novo ou o que mudou (status, aprovação, estorno). O "copia e cola" que a
+  // Stripe devolveu fica em qr_code_pix, para o mesmo Pix pendente poder ser mostrado de novo.
+  async salvar(pagamento: Pagamento): Promise<void> {
+    const ehPix = pagamento instanceof PagamentoPix;
+    const pixExpiraEm = ehPix ? pagamento.expiraEm().toISOString() : null;
+    const copiaECola = ehPix ? pagamento.copiaECola : null;
+    await this.#client.query(
+      `INSERT INTO pagamento
+         (id, reserva_id, metodo, valor_centavos, status, mp_payment_id, pix_expira_em, pago_em, criado_em,
+          qr_code_pix)
+       VALUES ($1, $2, $3::metodo_pagamento, $4, $5::status_pagamento, $6, $7::timestamptz, $8::timestamptz,
+               $9::timestamptz, $10)
+       ON CONFLICT (id) DO UPDATE
+         SET status = EXCLUDED.status,
+             mp_payment_id = EXCLUDED.mp_payment_id,
+             pago_em = EXCLUDED.pago_em`,
+      [
+        pagamento.id,
+        pagamento.reservaId,
+        pagamento.metodo,
+        pagamento.valor.centavos,
+        pagamento.status,
+        pagamento.mpPaymentId,
+        pixExpiraEm,
+        pagamento.pagoEmParaPersistir()?.toISOString() ?? null,
+        pagamento.criadoEm.toISOString(),
+        copiaECola,
+      ],
+    );
+  }
+
+  // nome e e-mail do cliente da sessão, para a cobrança na Stripe
+  async pagador(): Promise<Pagador | null> {
+    const { rows } = await this.#client.query<{ nome: string; email: string }>(
+      `SELECT nome, email::text AS email FROM usuario WHERE id = sessao_usuario_id()`,
+    );
+    return rows[0] ?? null;
+  }
+
+  async buscarPorIdExterno(idExterno: string): Promise<Pagamento | null> {
+    return this.#buscarUm(
+      `SELECT ${OperacoesDePagamentoNoBanco.#COLUNAS} FROM pagamento
+        WHERE mp_payment_id = $1 AND ${OperacoesDePagamentoNoBanco.#DO_CLIENTE}`,
+      [idExterno],
+    );
+  }
+
+  async travarPorIdExterno(idExterno: string): Promise<Pagamento | null> {
+    return this.#buscarUm(
+      `SELECT ${OperacoesDePagamentoNoBanco.#COLUNAS} FROM pagamento
+        WHERE mp_payment_id = $1 AND ${OperacoesDePagamentoNoBanco.#DO_CLIENTE} FOR UPDATE`,
+      [idExterno],
+    );
+  }
+
+  async buscarPorId(id: string): Promise<Pagamento | null> {
+    return this.#buscarUm(
+      `SELECT ${OperacoesDePagamentoNoBanco.#COLUNAS} FROM pagamento
+        WHERE id = $1 AND ${OperacoesDePagamentoNoBanco.#DO_CLIENTE}`,
+      [id],
+    );
+  }
+
+  async buscarPendenteDaReserva(reservaId: string): Promise<Pagamento | null> {
+    return this.#buscarUm(
+      `SELECT ${OperacoesDePagamentoNoBanco.#COLUNAS} FROM pagamento
+        WHERE reserva_id = $1 AND status = 'PENDENTE' AND ${OperacoesDePagamentoNoBanco.#DO_CLIENTE}
+        ORDER BY criado_em DESC LIMIT 1`,
+      [reservaId],
+    );
+  }
+
+  async #buscarUm(sql: string, valores: unknown[]): Promise<Pagamento | null> {
+    const { rows } = await this.#client.query<LinhaPagamento>(sql, valores);
+    return rows[0] ? OperacoesDePagamentoNoBanco.#paraPagamento(rows[0]) : null;
+  }
+}
+
+// O pagamento no PostgreSQL: abre a transação com a sessão do cliente e entrega as operações. O banco
+// entra pelo construtor (o do app, ou um de mentira nos testes).
+export class RepositorioDePagamentosNoBanco {
+  /** O do app. */
+  static readonly padrao = new RepositorioDePagamentosNoBanco(BancoDeDados.padrao);
+
+  readonly #banco: Pick<BancoDeDados, "comSessao">;
+
+  constructor(banco: Pick<BancoDeDados, "comSessao">) {
+    this.#banco = banco;
+  }
+
+  /** Roda fn dentro de UMA transação, com a sessão declarada para a RLS (a porta TransacaoPagamento). */
+  emTransacao<T>(sessao: SessaoCliente, fn: (operacoes: OperacoesPagamento) => Promise<T>): Promise<T> {
+    return this.#banco.comSessao(sessao, (client) => fn(new OperacoesDePagamentoNoBanco(client)));
+  }
+
+  // O aviso da Stripe chega sem sessão: cliente_do_pagamento() (migration 0012, SECURITY DEFINER)
+  // diz de quem é a cobrança, e o resto do processamento roda com a sessão desse cliente.
+  async clienteDoPagamento(idExterno: string): Promise<string | null> {
+    return this.#banco.comSessao(VISITANTE, async (client) => {
+      const { rows } = await client.query<{ cliente_id: string | null }>(
+        "SELECT cliente_do_pagamento($1) AS cliente_id",
+        [idExterno],
+      );
+      return rows[0]?.cliente_id ?? null;
+    });
+  }
+}

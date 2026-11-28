@@ -1,0 +1,16 @@
+import { sessoes } from "@/modules/contas";
+import { PainelDeReservas } from "../application/painel-de-reservas";
+import { RepositorioDoPainel } from "../infrastructure/repositorio-do-painel";
+import { ControladorDoPainel } from "./controlador-do-painel";
+
+// A ligação do painel: o controlador com o SessaoDaRequisicao REAL do módulo contas e o banco do app.
+// Criado uma vez só; nada aqui guarda estado entre as requisições (a sessão chega a cada uma).
+const controlador = new ControladorDoPainel({
+  exigirSessao: (request) => sessoes.exigir(request),
+  painel: new PainelDeReservas(RepositorioDoPainel.padrao),
+});
+
+// GET /api/admin/reservas (rota 25)
+export function getPainelDeReservas(request: Request): Promise<Response> {
+  return controlador.listar(request);
+}

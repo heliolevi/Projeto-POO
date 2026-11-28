@@ -1,0 +1,188 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.label {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.icon {
+  position: absolute;
+  left: var(--space-14);
+  display: inline-flex;
+  color: var(--color-text-support);
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-surface-border-strong);
+  background: var(--color-surface-soft);
+  padding: 0 var(--space-16);
+  padding-left: 42px;
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input::placeholder {
+  color: var(--color-text-support);
+}
+
+.input:focus {
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.inputError {
+  border-color: var(--color-danger);
+}
+
+.toggleVisibility {
+  position: absolute;
+  right: var(--space-10);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-support);
+  display: inline-flex;
+  padding: var(--space-8);
+}
+
+.errorText {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+.hintText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-support);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-10);
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.checkboxLabel {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.checkboxLabel a {
+  color: var(--color-link-blue);
+  text-decoration: none;
+  font-weight: var(--font-weight-semibold);
+}
+
+.checkboxLabel a:hover {
+  text-decoration: underline;
+}
+
+/* Texto só para leitor de tela (por exemplo, "abre em nova aba" nos links com target="_blank"). */
+.somenteLeitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.rowBetween {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.link {
+  font-size: var(--font-size-base);
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: var(--font-weight-semibold);
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.button {
+  height: 50px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.05s ease;
+  margin-top: var(--space-4);
+}
+
+.button:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+/* Com "reduzir movimento" o giro fica mais lento, mas não some: o spinner é o único sinal de
+   que o envio está em andamento. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

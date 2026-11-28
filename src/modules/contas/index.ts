@@ -1,0 +1,42 @@
+/**
+ * Módulo contas — Cadastro e autenticação de clientes, operadores e administradores; documento e aceite dos termos; perfis de acesso.
+ *
+ * API pública do módulo: apenas o que for exportado aqui pode ser importado por
+ * outros módulos ou pelos Route Handlers em src/app/api.
+ * Camadas internas: domain → application → infrastructure / http.
+ */
+export {
+  getMe,
+  perfilDoCiclista,
+  postAceitarTermos,
+  postAlterarSenha,
+  postAtualizarAltura,
+  postCadastro,
+  postDesativar,
+  postLogin,
+  putPerfilCiclista,
+} from "./http/handlers";
+export { ServicoDeToken, type SessaoToken } from "./infrastructure/token";
+export { PerfisPermitidos, SessaoDaRequisicao, type SessaoAtiva } from "./application/sessao-da-requisicao";
+export { Admin } from "./domain/admin";
+export { Cliente } from "./domain/cliente";
+export { FabricaDeUsuario, type LinhaDeUsuario } from "./domain/fabrica-usuario";
+export { Operador } from "./domain/operador";
+export {
+  PERMISSOES,
+  SenhaAtualIncorreta,
+  Usuario,
+  type Permissao,
+  type ServicoDeSenha,
+} from "./domain/usuario-base";
+export {
+  PERFIS,
+  type ContaLogada,
+  type PerfilCiclistaConta,
+  type PerfilUsuario,
+  type UsuarioPublico,
+} from "./domain/usuario";
+
+// Rotas que exigem login: `const sessao = await sessoes.exigir(request)` (401 se não houver
+// sessão válida). Para restringir o perfil: `new PerfisPermitidos("OPERADOR", "ADMIN").exigir(sessao)` (403).
+export { sessoes } from "./http/sessao";

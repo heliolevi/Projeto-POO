@@ -1,0 +1,684 @@
+# Contrato da API do MVP
+
+Este documento é o combinado entre quem **implementa** as rotas (back-end) e quem **consome** (telas).
+Cada rota tem o que precisa para ser feita e usada sem perguntar: método, caminho, quem pode chamar,
+corpo, resposta de sucesso e erros. Se algo precisar mudar, avise na PR ou no grupo antes de mudar o
+código: o contrato só muda com os dois lados de acordo.
+
+> **Pagamento com a Stripe (26/11/2026).** O Pix é cobrado pela **Stripe** (API de PaymentIntents),
+> com QR code e "copia e cola" de verdade. Não há mais pagamento simulado. No sandbox da Stripe
+> (`sk_test_...`) nada é cobrado; com a chave de produção (`sk_live_...`) a cobrança é real. A
+> confirmação chega pelo webhook (rota 18) e também pela consulta de status (rota 17). O Mercado Pago
+> saiu do plano.
+
+> **Estado (28/11/2026):** as 27 rotas deste contrato já estão no código. Quem faz cada uma está na tabela do [resumo](#resumo-das-rotas).
+
+## Convenções
+
+**Sucesso:** `{ "data": ... }`, com o status da tabela de cada rota. Respostas `204` não têm corpo.
+
+**Erro:** `{ "error": { "code": "...", "message": "...", "details": { "campo": "mensagem" } } }`.
+`details` só aparece em erro de validação (`400`), com uma mensagem por campo.
+
+| Status | `code` | Quando |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Corpo ou parâmetro inválido (JSON quebrado, campo fora da regra) |
+| 401 | `UNAUTHORIZED` | Sem token, token inválido ou expirado, ou conta inativa |
+| 403 | `FORBIDDEN` | Logado, mas o perfil não pode chamar a rota |
+| 404 | `NOT_FOUND` | Recurso não existe **ou não é seu** (não se diz qual dos dois) |
+| 409 | `CONFLICT` | O estado atual não permite a ação (sem bicicleta livre, reserva já paga, etc.) |
+| 413 | `PAYLOAD_TOO_LARGE` | Corpo acima de 16 KiB |
+| 429 | `TOO_MANY_REQUESTS` | Limite de tentativas; vem o cabeçalho `Retry-After` (segundos) |
+| 502 | `PAGAMENTO_INDISPONIVEL` | A Stripe não respondeu, recusou a criação da cobrança ou o pagamento não está configurado no ambiente |
+| 500 | `INTERNAL_ERROR` | Erro inesperado; a mensagem é sempre genérica |
+
+**Autenticação:** `Authorization: Bearer <token>`, com o token devolvido pelo login ou cadastro (vale 24 h).
+Em cada rota, "Quem" diz o perfil exigido: `Visitante` (sem login), `CLIENTE`, `OPERADOR`, `ADMIN`.
+O servidor confere sempre se a conta ainda está ativa.
+
+**Perfis:** `CLIENTE`, `OPERADOR` e `ADMIN` (o modelo antigo, com gerente e administrador da plataforma,
+deixou de existir).
+
+**Valores:**
+
+- **Dinheiro:** sempre em **centavos inteiros** (`precoDiaCentavos: 5000` é R$ 50,00). Nunca decimal.
+- **Datas e horas:** texto ISO 8601. A tela envia com o fuso de São Luís (`2026-11-14T09:00:00-03:00`);
+  a API devolve em UTC (`2026-11-14T12:00:00.000Z`).
+- **Identificadores:** UUID em texto.
+- **Enumerações:** em maiúsculas, iguais às do banco.
+
+| Enumeração | Valores |
+|---|---|
+| `experiencia` | `INICIANTE`, `INTERMEDIARIO`, `AVANCADO` |
+| `atividade` | `PASSEIO`, `URBANO`, `TRILHA`, `ESPORTE`, `TURISMO` |
+| `status` da reserva | `PENDENTE_PAGAMENTO`, `CONFIRMADA`, `EM_ANDAMENTO`, `CONCLUIDA`, `CANCELADA`, `EXPIRADA` |
+| `status` do pagamento | `PENDENTE`, `APROVADO`, `RECUSADO`, `EXPIRADO` |
+| `status` da bicicleta | `DISPONIVEL`, `MANUTENCAO`, `BLOQUEADA`, `BAIXADA` |
+
+> `ALUGADA` existe no banco, mas **no MVP não é usada**: a disponibilidade vem das reservas, e o
+> `status` da bicicleta só marca manutenção ou bloqueio.
+
+**Decisão do MVP:** o cliente reserva um **tipo** de bicicleta, e o sistema escolhe a **unidade** livre
+dentro da transação. A tela nunca escolhe uma bicicleta específica.
+
+### Reserva: estados e transições
+
+```
+PENDENTE_PAGAMENTO --(pagamento aprovado)--> CONFIRMADA --(retirada)--> EM_ANDAMENTO --(devolução)--> CONCLUIDA
+        |                                        |
+        |--(15 min sem pagar)--> EXPIRADA        |--(cancelar antes da retirada)--> CANCELADA
+        |--(cancelar)--> CANCELADA
+```
+
+Uma reserva `PENDENTE_PAGAMENTO` segura a bicicleta por **15 minutos** (`expiraEm`). Passado o prazo,
+ela vira `EXPIRADA` e a bicicleta volta a ficar livre.
+
+### Objeto `reserva` (devolvido pelas rotas de reserva)
+
+```json
+{
+  "id": "uuid",
+  "codigo": "BIC-7K2F9Q",
+  "status": "PENDENTE_PAGAMENTO",
+  "tipo": { "id": "uuid", "nome": "Urbana" },
+  "ponto": { "id": "uuid", "nome": "Ponto Litorânea", "endereco": "Av. Litorânea, 100, Calhau" },
+  "periodo": { "inicio": "2026-11-14T12:00:00.000Z", "fim": "2026-11-14T16:00:00.000Z" },
+  "valorAluguelCentavos": 4000,
+  "valorCaucaoCentavos": 15000,
+  "expiraEm": "2026-11-14T11:15:00.000Z",
+  "criadaEm": "2026-11-14T11:00:00.000Z"
+}
+```
+
+`expiraEm` só vem preenchido enquanto a reserva está `PENDENTE_PAGAMENTO`; nos outros estados é `null`.
+É sempre `criadaEm` + 15 minutos: o banco não tem coluna `expira_em`, e a função `expirar_reservas_vencidas()`
+conta o mesmo prazo a partir de `criado_em`.
+O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rotas de operação.
+
+---
+
+## Resumo das rotas
+
+| # | Rota | Quem | Estado | Implementa | Consome |
+|---|---|---|---|---|---|
+| 1 | `POST /api/auth/cadastro` | Visitante | existe | Hélio | Renan |
+| 2 | `POST /api/auth/login` | Visitante | existe | Hélio | Renan |
+| 3 | `GET /api/conta/me` | Logado | existe | Hélio | Renan |
+| 4 | `PUT /api/conta/perfil-ciclista` | CLIENTE | existe | Hélio | Renan |
+| 5 | `POST /api/conta/senha` | Logado | existe (PR do Renan) | Renan | Luis |
+| 6 | `POST /api/conta/altura` | CLIENTE | existe (PR do Renan) | Renan | Luis |
+| 7 | `POST /api/conta/termos` | CLIENTE | existe (PR do Renan) | Renan | Luis |
+| 8 | `POST /api/conta/desativar` | Logado | existe (PR do Renan) | Renan | Luis |
+| 9 | `GET /api/empresa` | Visitante | existe | Hélio | Renan |
+| 10 | `GET /api/catalogo/tipos` | Visitante | existe | Hélio | Renan |
+| 11 | `GET /api/recomendacao` | CLIENTE | existe | Hélio | Renan |
+| 12 | `POST /api/reservas` | CLIENTE | existe | Luis | Renan |
+| 13 | `GET /api/reservas` | CLIENTE | existe | Luis | Renan |
+| 14 | `GET /api/reservas/{id}` | CLIENTE | existe | Luis | Renan |
+| 15 | `POST /api/reservas/{id}/cancelar` | CLIENTE | existe | Luis | Renan |
+| 16 | `POST /api/pagamentos` | CLIENTE | existe | Hélio | Renan |
+| 17 | `GET /api/pagamentos/{reservaId}/status` | CLIENTE | existe | Hélio | Renan |
+| 18 | `POST /api/pagamentos/webhook` | Stripe | existe | Hélio | Stripe |
+| 19 | `GET /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
+| 20 | `POST /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
+| 21 | `PUT /api/admin/tipos/{id}` | ADMIN | existe | Hélio | Hélio |
+| 22 | `GET /api/admin/bicicletas` | ADMIN | existe | Hélio | Hélio |
+| 23 | `POST /api/admin/bicicletas` | ADMIN | existe | Hélio | Hélio |
+| 24 | `PATCH /api/admin/bicicletas/{id}` | ADMIN | existe | Hélio | Hélio |
+| 25 | `GET /api/admin/reservas` | OPERADOR, ADMIN | existe | Luis | Luis |
+| 26 | `POST /api/operacao/reservas/{id}/retirada` | OPERADOR, ADMIN | existe | Hélio | Luis |
+| 27 | `POST /api/operacao/reservas/{id}/devolucao` | OPERADOR, ADMIN | existe | Hélio | Luis |
+
+---
+
+## Contas
+
+### 1. `POST /api/auth/cadastro`
+
+Cria a conta de um cliente e já devolve a sessão. **Existe.**
+
+| | |
+|---|---|
+| **Quem** | Visitante |
+| **Limite** | por IP (ver `limite_tentativas`); excedeu: `429` |
+
+**Corpo:**
+
+```json
+{
+  "nome": "Maria da Silva",
+  "email": "maria@exemplo.com",
+  "senha": "senha-forte-123",
+  "cpf": "529.982.247-25",
+  "aceiteTermos": true,
+  "telefone": "(98) 99999-0000",
+  "dataNascimento": "1990-05-20",
+  "alturaCm": 172
+}
+```
+
+Obrigatórios: `nome` (3 a 120), `email`, `senha` (8 a 128, com letra e número), `cpf` (válido, com ou sem
+máscara) e `aceiteTermos` (precisa ser o booleano `true`). Opcionais: `telefone`, `dataNascimento`
+(`AAAA-MM-DD`) e `alturaCm` (inteiro de 100 a 250).
+
+**Sucesso `201`:**
+
+```json
+{ "data": { "token": "...", "tipo": "Bearer", "expiraEm": "2026-11-15T12:00:00.000Z",
+            "usuario": { "id": "uuid", "perfil": "CLIENTE", "nome": "Maria da Silva", "email": "maria@exemplo.com" } } }
+```
+
+**Erros:** `400` (com `details` por campo), `409` (e-mail ou CPF já cadastrado), `413`, `429`.
+
+### 2. `POST /api/auth/login`
+
+| | |
+|---|---|
+| **Quem** | Visitante |
+| **Limite** | 10 por e-mail+IP, 30 por IP e 100 por e-mail em 15 minutos; excedeu: `429` |
+
+**Corpo:** `{ "email": "maria@exemplo.com", "senha": "senha-forte-123" }`
+
+**Sucesso `200`:** o mesmo formato do cadastro (`token`, `tipo`, `expiraEm`, `usuario`).
+
+**Erros:** `400`, `401` (a mensagem é a mesma para e-mail inexistente, senha errada e conta inativa),
+`413`, `429`.
+
+### 3. `GET /api/conta/me`
+
+Dados da conta logada e, para cliente, os dados usados na recomendação. **Existe.**
+
+| | |
+|---|---|
+| **Quem** | CLIENTE, OPERADOR, ADMIN |
+| **Corpo** | nenhum |
+
+**Sucesso `200`:**
+
+```json
+{ "data": { "id": "uuid", "perfil": "CLIENTE", "nome": "Maria da Silva", "email": "maria@exemplo.com",
+            "ciclista": { "alturaCm": 172, "experiencia": "INICIANTE", "atividade": "PASSEIO" } } }
+```
+
+`ciclista` só vem para `CLIENTE`; campos não preenchidos vêm `null`.
+
+**Erros:** `401`.
+
+### 4. `PUT /api/conta/perfil-ciclista`
+
+Grava os dados da recomendação. Substitui os três campos de uma vez. **Existe.**
+
+| | |
+|---|---|
+| **Quem** | CLIENTE |
+| **Alvo** | sempre a conta do token (um `id` no corpo não é aceito: veja abaixo) |
+
+**Corpo:**
+
+```json
+{ "alturaCm": 172, "experiencia": "INICIANTE", "atividade": "PASSEIO" }
+```
+
+Cada campo pode ser `null` (ou ausente) para apagar o dado. `alturaCm`: inteiro de 100 a 250. O corpo
+precisa trazer **ao menos uma** das três chaves, e **só elas**: um corpo `{}` ou com um nome de campo
+errado (ex.: `"altura"`), e também um campo certo ao lado de um errado (ex.: `{"alturaCm": 180,
+"atividde": "TRILHA"}`, em que o typo apagaria a atividade), recebem `400` com `details.corpo` dizendo qual
+campo não existe, em vez de apagar o perfil em silêncio. Isso vale para qualquer chave fora das três,
+inclusive `id` e `perfil`: o alvo é sempre a conta do token. Para apagar tudo de propósito, envie as três
+chaves como `null`. Quem consome a rota deve mostrar `details.corpo` quando vier.
+
+**Sucesso `200`:** `{ "data": { "alturaCm": 172, "experiencia": "INICIANTE", "atividade": "PASSEIO" } }`
+
+**Erros:** `400` (`details`: `alturaCm`, `experiencia`, `atividade` ou `corpo`), `401`, `403` (não é cliente), `413`.
+
+### 5. `POST /api/conta/senha`
+
+| | |
+|---|---|
+| **Quem** | CLIENTE, OPERADOR, ADMIN |
+| **Limite** | tentativas de senha atual errada, por usuário (pedido da review do PR); excedeu: `429` |
+
+**Corpo:** `{ "senhaAtual": "...", "novaSenha": "..." }` (nova: 8 a 128, com letra e número).
+
+**Sucesso `204`.** **Erros:** `400`, `401` (token inválido **ou** senha atual incorreta), `413`, `429`.
+
+### 6. `POST /api/conta/altura`
+
+**Corpo:** `{ "alturaCm": 172 }` (inteiro de 100 a 250). **Quem:** CLIENTE.
+**Sucesso `204`.** **Erros:** `400` (`details.alturaCm`), `401`, `413`.
+
+> **Qual rota de altura usar.** As rotas 4 e 6 gravam a mesma coluna (`altura_cm`). A **oficial para a
+> tela do perfil de ciclista é a rota 4** (`PUT /api/conta/perfil-ciclista`), que grava altura, experiência
+> e atividade juntas. Esta rota 6 só altera a altura isolada e fica para a tela "Minha conta". Quem
+> grava o perfil inteiro não precisa chamar a rota 6 antes nem depois.
+
+### 7. `POST /api/conta/termos`
+
+Registra o aceite da versão vigente dos termos de uso.
+
+**Corpo:** `{ "versao": "2026-11" }`. **Quem:** CLIENTE.
+**Sucesso `204`.** **Erros:** `400` (versão vazia, grande demais ou diferente da vigente), `401`, `413`.
+
+### 8. `POST /api/conta/desativar`
+
+Marca a conta como inativa (não apaga). O token anterior passa a ser recusado na hora.
+
+**Corpo:** `{}`. **Quem:** CLIENTE, OPERADOR, ADMIN.
+**Sucesso `204`.** **Erros:** `401`.
+
+---
+
+## Informações públicas e catálogo
+
+### 9. `GET /api/empresa`
+
+Dados públicos da locadora e do ponto de retirada, para a página inicial, o resumo da reserva e a tela
+de sucesso.
+
+| | |
+|---|---|
+| **Quem** | Visitante |
+| **Corpo** | nenhum |
+
+**Sucesso `200`:**
+
+```json
+{ "data": {
+    "nomeFantasia": "Bike Ilha Club", "telefone": "(98) 90000-0000", "email": "contato@exemplo.com",
+    "pontos": [ { "id": "uuid", "nome": "Ponto Litorânea", "logradouro": "Av. Litorânea", "numero": "100",
+                  "complemento": null, "bairro": "Calhau", "cep": "65071380", "cidade": "São Luís", "uf": "MA",
+                  "telefone": "(98) 90000-0000",
+                  "horarios": [ { "diaSemana": 1, "abre": "08:00", "fecha": "18:00" } ] } ] } }
+```
+
+Só pontos ativos (`pontos` pode vir vazio). **Nunca** devolve CNPJ, razão social, conta de recebimento
+nem campos de controle. `horarios[].diaSemana` vai de 0 (domingo) a 6 (sábado); no banco a chave é
+`dia_semana`, e o backend converte.
+
+**Erros:** `404 NOT_FOUND` enquanto a locadora não estiver cadastrada (a tela de reserva trata como
+"sem ponto"); fora isso, só `500`.
+
+### 10. `GET /api/catalogo/tipos`
+
+Lista dos tipos de bicicleta ativos.
+
+| | |
+|---|---|
+| **Quem** | Visitante |
+
+**Sucesso `200`:**
+
+```json
+{ "data": [ { "id": "uuid", "nome": "Urbana", "descricao": "Para o dia a dia na cidade",
+              "atividades": ["URBANO", "PASSEIO"], "alturaMinCm": 150, "alturaMaxCm": 195,
+              "nivelRecomendado": "INICIANTE", "precoHoraCentavos": 1000, "precoDiaCentavos": 5000,
+              "valorCaucaoCentavos": 15000 } ] }
+```
+
+**Erros:** nenhum esperado além de `500`.
+
+---
+
+## Recomendação
+
+### 11. `GET /api/recomendacao`
+
+Os tipos com unidade livre no período, ordenados pela adequação ao cliente. **Existe.**
+
+| | |
+|---|---|
+| **Quem** | CLIENTE |
+| **Limite** | 60 por minuto por **usuário** (e 300 por minuto por IP, mais folgado por causa de várias pessoas atrás do mesmo NAT); excedeu: `429` |
+
+**Parâmetros (query):**
+
+| Nome | Obrigatório | Regra |
+|---|---|---|
+| `inicio` | sim | ISO 8601; não pode estar no passado |
+| `fim` | sim | maior que `inicio`; período de 1 hora a 7 dias |
+| `atividade` | não | um valor de `atividade`; se ausente, vale a atividade do perfil do cliente |
+
+**Sucesso `200`:**
+
+```json
+{ "data": {
+    "periodo": { "inicio": "2026-11-14T12:00:00.000Z", "fim": "2026-11-14T16:00:00.000Z", "horas": 4 },
+    "resultados": [
+      { "tipoId": "uuid", "nome": "Passeio", "descricao": "Confortável para orla e passeio",
+        "pontos": 90,
+        "motivos": ["Cabe bem na sua altura de 172 cm", "Boa para passeio", "Adequada ao seu nível (iniciante)"],
+        "valorAluguelCentavos": 4800, "valorCaucaoCentavos": 15000, "unidadesLivres": 3 } ] } }
+```
+
+Ordem: mais `pontos` primeiro; empate pelo menor preço por dia. Só entram tipos ativos, com ao menos uma
+unidade livre (sem reserva ativa sobreposta) e que servem na altura do cliente (se ele não informou a
+altura, nenhum tipo sai por altura). `pontos` vai de 0 a 100 (altura 50, atividade 30, experiência 20).
+Lista vazia (`resultados: []`) **não é erro**: significa que nenhuma bicicleta está livre no período.
+
+"Unidade livre" é uma bicicleta `DISPONIVEL`, de um tipo ativo e de um ponto ativo, **sem reserva ativa
+sobreposta** ao período. Conta como ativa a reserva `CONFIRMADA`, a `EM_ANDAMENTO` e a
+`PENDENTE_PAGAMENTO` criada há menos de 15 minutos: antes de contar, a busca marca como `EXPIRADA` as
+pendentes vencidas (`expirar_reservas_vencidas()`), então ninguém precisa ter listado a reserva antes. O período é `[início, fim)`: uma reserva que termina no minuto em que
+a busca começa (ou que começa quando ela termina) não conflita. O valor segue a regra de preço de
+`src/modules/reservas` (24 h = uma diária; as horas que sobram custam o preço por hora, até uma diária).
+
+**Erros:** `400` (`details`: `inicio`, `fim`, `atividade`), `401`, `403` (não é cliente), `429`.
+
+---
+
+## Reservas
+
+### 12. `POST /api/reservas`
+
+Cria a reserva de um tipo para um período. O sistema escolhe a unidade livre.
+
+| | |
+|---|---|
+| **Quem** | CLIENTE |
+| **Limite** | 20 por hora por usuário |
+
+**Corpo:**
+
+```json
+{ "tipoId": "uuid", "inicio": "2026-11-14T09:00:00-03:00", "fim": "2026-11-14T13:00:00-03:00" }
+```
+
+Mesmas regras de período da rota 11. O valor é calculado **no servidor**, pela mesma regra de preço da
+recomendação (o cliente nunca envia valor).
+
+**Sucesso `201`:** `{ "data": <objeto reserva> }`, com `status: "PENDENTE_PAGAMENTO"` e `expiraEm`.
+
+**Erros:** `400`, `401`, `403`, `404` (tipo inexistente ou inativo), `409` (nenhuma unidade livre nesse
+período: a tela deve oferecer outro horário), `429`.
+
+### 13. `GET /api/reservas`
+
+As reservas do cliente logado, da mais recente para a mais antiga.
+
+| | |
+|---|---|
+| **Quem** | CLIENTE |
+| **Query** | `status` (opcional, um valor da enumeração) |
+
+Antes de listar, o servidor marca como `EXPIRADA` as pendentes vencidas.
+
+**Sucesso `200`:** `{ "data": [ <objeto reserva>, ... ] }`
+
+**Erros:** `400` (status inválido), `401`, `403`.
+
+### 14. `GET /api/reservas/{id}`
+
+| | |
+|---|---|
+| **Quem** | CLIENTE (só as próprias) |
+
+**Sucesso `200`:** `{ "data": { ...<objeto reserva>, "pagamento": { "status": "PENDENTE", "metodo": "PIX" } | null } }`
+
+**Erros:** `401`, `403`, `404` (não existe **ou é de outro cliente**).
+
+### 15. `POST /api/reservas/{id}/cancelar`
+
+Cancela uma reserva `PENDENTE_PAGAMENTO` ou `CONFIRMADA` que ainda não foi retirada.
+
+| | |
+|---|---|
+| **Quem** | CLIENTE (só as próprias) |
+| **Corpo** | `{}` |
+
+**Sucesso `200`:** `{ "data": <objeto reserva> }` com `status: "CANCELADA"`; a bicicleta volta a ficar livre.
+
+**Erros:** `401`, `403`, `404`, `409` (já retirada, concluída, cancelada ou expirada).
+
+> Estorno de pagamento já aprovado **não faz parte do MVP**: o cancelamento de reserva paga é tratado
+> no balcão.
+
+---
+
+## Pagamentos
+
+### 16. `POST /api/pagamentos`
+
+Cria a cobrança Pix de uma reserva. Cobra **só o aluguel**; a caução é combinada no balcão.
+
+| | |
+|---|---|
+| **Quem** | CLIENTE (dono da reserva) |
+| **Limite** | 10 por hora por usuário |
+
+**Corpo:** `{ "reservaId": "uuid", "metodo": "PIX" }` (no MVP só `PIX`).
+
+Idempotente: se a reserva já tem um Pix `PENDENTE` ainda válido, devolve o mesmo, sem criar outro.
+
+**Sucesso `201`** (ou `200` se reaproveitou o Pix existente):
+
+```json
+{ "data": { "pagamentoId": "uuid", "reservaId": "uuid", "metodo": "PIX", "status": "PENDENTE",
+            "valorCentavos": 4000,
+            "pix": { "qrCodeBase64": "iVBORw0KGgo...", "copiaECola": "0002012658...", "expiraEm": "2026-11-14T11:15:00.000Z",
+                     "pagavelEmBanco": true } } }
+```
+
+A cobrança é criada na **Stripe** (PaymentIntent com Pix), com o nome e o e-mail do cliente. `copiaECola`
+é o texto que a Stripe devolve e `qrCodeBase64` é o PNG desse texto. O Pix vale o mesmo prazo da reserva
+pendente (`expiraEm`). No sandbox da Stripe, o QR abre uma página de teste para autorizar ou expirar o
+pagamento; em produção, o cliente paga no app do banco.
+
+`pagavelEmBanco` diz se `copiaECola` é um BR Code do Banco Central (formato EMV com CRC16 que confere),
+ou seja, se qualquer banco consegue pagar. Com a chave de teste da Stripe (`sk_test_`) ele é `false`: o
+texto é fictício de propósito e a tela mostra o aviso "Pix de teste". Com a chave de produção
+(`sk_live_`) ele é `true`; se a Stripe em produção devolver um código fora do padrão, a rota responde
+`502` em vez de mostrar ao cliente um código que nenhum banco aceita.
+
+**Erros:** `400`, `401`, `403`, `404` (reserva inexistente ou de outro cliente), `409` (reserva que não
+está `PENDENTE_PAGAMENTO`, já paga, ou com menos de 1 minuto de prazo: a Stripe não aceita Pix mais
+curto), `429`, `502` (`PAGAMENTO_INDISPONIVEL`: Stripe fora do ar ou chave não configurada).
+
+### 17. `GET /api/pagamentos/{reservaId}/status`
+
+A tela chama a cada 3 segundos na tela do Pix, até a reserva ficar confirmada.
+
+| | |
+|---|---|
+| **Quem** | CLIENTE (dono da reserva) |
+
+**Sucesso `200`:** `{ "data": { "reservaId": "uuid", "statusPagamento": "APROVADO", "statusReserva": "CONFIRMADA" } }`
+
+`statusPagamento` é `null` se a reserva ainda não tem cobrança. Com um Pix pendente, o servidor pergunta
+à Stripe como ele está antes de responder: se foi pago, já confirma a reserva (funciona mesmo sem o
+webhook, como no ambiente local). Se a Stripe não responder, devolve o que o banco sabe.
+
+Pago depois que a reserva caiu (expirou ou foi cancelada com o Pix aberto): o valor é **estornado na
+hora**, inteiro, e `statusPagamento` vem `ESTORNADO`.
+
+**Erros:** `401`, `403`, `404`.
+
+### 18. `POST /api/pagamentos/webhook`
+
+Aviso da Stripe. Não é chamada pela tela.
+
+| | |
+|---|---|
+| **Quem** | Stripe (sem token de usuário; a autenticação é a **assinatura** do aviso) |
+| **Cabeçalho** | `stripe-signature` (o servidor valida com `STRIPE_WEBHOOK_SECRET`) |
+| **Eventos** | `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled` |
+
+Aprovado com a reserva ainda pendente: na mesma transação, o pagamento vira `APROVADO` e a reserva
+`CONFIRMADA`. Aprovado com a reserva já caída: estorno na Stripe e pagamento `ESTORNADO`. Recusado ou
+vencido: o pagamento pendente vira `RECUSADO` ou `EXPIRADO`. É **idempotente** (o mesmo aviso repetido não
+duplica nada, garantido pelo `mp_payment_id` único, que guarda o id do PaymentIntent).
+
+**Sucesso `200`:** `{ "data": { "recebido": true, "resultado": "confirmado" } }`. Também `200` para outros
+eventos ou cobranças desconhecidas (ignorados), para a Stripe não ficar reenviando.
+
+**Erros:** `401` (assinatura ausente ou inválida), `413`, `502` (webhook não configurado no ambiente).
+
+---
+
+## Painel da locadora
+
+Todas as rotas desta seção exigem sessão e conferem o perfil no servidor.
+
+### 19. `GET /api/admin/tipos`
+
+Todos os tipos, inclusive inativos. **Quem:** ADMIN. **Sucesso `200`:** lista como a da rota 10, com
+`"ativo": true|false` em cada item. **Erros:** `401`, `403`.
+
+### 20. `POST /api/admin/tipos`
+
+**Quem:** ADMIN.
+
+**Corpo:**
+
+```json
+{ "nome": "Urbana", "descricao": "Para o dia a dia", "atividades": ["URBANO", "PASSEIO"],
+  "alturaMinCm": 150, "alturaMaxCm": 195, "nivelRecomendado": "INICIANTE",
+  "precoHoraCentavos": 1000, "precoDiaCentavos": 5000, "valorCaucaoCentavos": 15000, "ativo": true }
+```
+
+Regras: `nome` único; `atividades` com ao menos um valor; altura entre 100 e 250, com `alturaMinCm <=
+alturaMaxCm`; preços e caução inteiros, maiores ou iguais a zero (centavos), até 2.147.483.647.
+Obrigatórios: `nome`, `atividades`, `alturaMinCm`, `alturaMaxCm`, `precoHoraCentavos` e `precoDiaCentavos`.
+Se ausentes no **POST**: `nivelRecomendado` vale `INICIANTE`, `valorCaucaoCentavos` vale `0`, `descricao`
+fica vazia e `ativo` vale `true`. Atividades repetidas viram uma só, e o nome perde os espaços repetidos.
+
+**Sucesso `201`:** o tipo criado. **Erros:** `400` (`details` por campo), `401`, `403`, `409` (nome repetido), `413`.
+
+### 21. `PUT /api/admin/tipos/{id}`
+
+Substitui os dados do tipo (mesmo corpo e mesmas regras da rota 20). Os campos obrigatórios são
+substituídos; os **opcionais que não vierem no corpo** (`descricao`, `nivelRecomendado`,
+`valorCaucaoCentavos` e `ativo`) **mantêm o valor atual**, então quem só quer mudar o preço não zera a
+caução nem reativa um tipo inativo sem querer. Para apagar a descrição, envie `"descricao": null`. Em
+`nivelRecomendado` e `valorCaucaoCentavos`, `null` e ausente têm o mesmo efeito (mantêm o valor atual),
+porque esses dois campos não aceitam vazio. Para
+tirar um tipo do catálogo, envie `"ativo": false` (não há exclusão). Um `id` que não é UUID recebe `404`. **Quem:** ADMIN. **Sucesso `200`:** o tipo atualizado.
+**Erros:** `400`, `401`, `403`, `404`, `409`, `413`.
+
+### 22. `GET /api/admin/bicicletas`
+
+**Quem:** ADMIN. **Query (opcionais):** `tipoId`, `status`.
+
+**Sucesso `200`:**
+
+```json
+{ "data": [ { "id": "uuid", "codigo": "BIC-001", "tipo": { "id": "uuid", "nome": "Urbana" },
+              "ponto": { "id": "uuid", "nome": "Ponto Litorânea" }, "numeroSerie": "SN123",
+              "tamanhoQuadro": "M", "status": "DISPONIVEL", "observacoes": null } ] }
+```
+
+**Erros:** `400`, `401`, `403`.
+
+### 23. `POST /api/admin/bicicletas`
+
+**Quem:** ADMIN.
+
+**Corpo:** `{ "tipoId": "uuid", "pontoId": "uuid", "codigo": "BIC-015", "numeroSerie": "SN999", "tamanhoQuadro": "M", "observacoes": null }`
+
+`codigo` é o número colado na bicicleta e é único: vai para maiúsculas e perde os espaços das pontas, então
+`bic-015` e `BIC-015` são o mesmo código (até 40 caracteres: letras, números, espaço e `. _ - /`). O
+`status` nasce `DISPONIVEL`. `numeroSerie`, `tamanhoQuadro` e `observacoes` são opcionais. O ponto
+precisa estar **ativo**: a recomendação ignora bicicletas de ponto inativo, e cadastrar uma nelas faria a
+unidade sumir da busca sem explicação.
+
+**Sucesso `201`:** a bicicleta criada. **Erros:** `400`, `401`, `403`, `404` (tipo ou ponto inexistente), `409` (código repetido ou ponto inativo), `413`.
+
+### 24. `PATCH /api/admin/bicicletas/{id}`
+
+Muda o `status` (por exemplo `MANUTENCAO`) e/ou as `observacoes`.
+
+**Quem:** ADMIN. **Corpo:** `{ "status": "MANUTENCAO", "observacoes": "pneu furado" }` (ao menos um campo).
+**Sucesso `200`:** a bicicleta atualizada. **Erros:** `400`, `401`, `403`, `404`, `413`.
+
+### 25. `GET /api/admin/reservas`
+
+Reservas para o painel, com o nome do cliente e a unidade escolhida.
+
+| | |
+|---|---|
+| **Quem** | OPERADOR, ADMIN |
+| **Query (opcionais)** | `status`; `data` (`AAAA-MM-DD`, no fuso de São Luís: reservas que começam nesse dia) |
+
+**Sucesso `200`:**
+
+```json
+{ "data": [ { "id": "uuid", "codigo": "BIC-7K2F9Q", "status": "CONFIRMADA",
+              "cliente": { "id": "uuid", "nome": "Maria da Silva" },
+              "tipo": { "id": "uuid", "nome": "Urbana" },
+              "bicicleta": { "id": "uuid", "codigo": "BIC-003" },
+              "periodo": { "inicio": "2026-11-14T12:00:00.000Z", "fim": "2026-11-14T16:00:00.000Z" },
+              "valorAluguelCentavos": 4000 } ] }
+```
+
+**Erros:** `400` (`details`: `status` ou `data`), `401`, `403`.
+
+A lista vem do mais cedo para o mais tarde (`inicio`) e traz no máximo 1.000 reservas. Antes de listar, o
+servidor marca como `EXPIRADA` as pendentes vencidas, então o painel nunca mostra como pendente uma reserva
+que já caiu. `data` precisa ser uma data que exista, entre 2000 e 2100. Texto vazio em `status` ou `data` vale
+como "sem esse filtro".
+
+### 26. `POST /api/operacao/reservas/{id}/retirada`
+
+Registra a retirada da bicicleta pelo cliente e passa a reserva para `EM_ANDAMENTO`.
+
+| | |
+|---|---|
+| **Quem** | OPERADOR, ADMIN |
+| **Regra** | só reserva `CONFIRMADA`, de 30 minutos antes do início até o fim; a bicicleta precisa estar `DISPONIVEL` e já ter voltado da reserva anterior |
+
+**Corpo:**
+
+```json
+{ "checklist": { "itens": [ { "nome": "freios", "ok": true }, { "nome": "pneus", "ok": true },
+                            { "nome": "corrente", "ok": true }, { "nome": "capacete", "ok": true },
+                            { "nome": "luzes", "ok": false } ],
+                 "observacoes": "farol traseiro fraco" } }
+```
+
+**Sucesso `200`:** `{ "data": { ...<objeto reserva>, "bicicleta": { "id": "uuid", "codigo": "BIC-003" } } }` com `status: "EM_ANDAMENTO"`.
+
+**Erros:** `400` (checklist inválido ou fora da janela de horário), `401`, `403`, `404`, `409` (reserva
+não está `CONFIRMADA`, a retirada já foi feita, a bicicleta está em manutenção, bloqueada ou fora da frota,
+ou ela ainda não foi devolvida pela reserva anterior, que pode estar atrasada), `413`. O id é conferido
+antes do corpo: id inválido é `404` mesmo com corpo quebrado.
+
+**Regras do checklist** (valem para a retirada e a devolução): de 1 a 20 itens, cada um com `nome` (texto
+de 1 a 40 caracteres, sem repetir) e `ok` (`true` ou `false`); `observacoes` é opcional (até 1000
+caracteres; texto vazio vira `null`). O checklist fica gravado em `movimentacao`, com o operador que
+registrou; as observações são internas da equipe.
+
+### 27. `POST /api/operacao/reservas/{id}/devolucao`
+
+Registra a devolução e conclui a reserva.
+
+| | |
+|---|---|
+| **Quem** | OPERADOR, ADMIN |
+| **Regra** | só reserva `EM_ANDAMENTO` |
+
+**Corpo:** o mesmo da retirada. **Sucesso `200`:** `{ "data": <reserva> }` com `status: "CONCLUIDA"` (vem
+também `bicicleta`, como na retirada). A devolução vale mesmo depois do fim do período (atraso).
+**Erros:** `400`, `401`, `403`, `404`, `409` (não está `EM_ANDAMENTO` ou a devolução já foi feita), `413`.
+
+---
+
+## Mudanças deste contrato
+
+Qualquer mudança de rota, campo ou erro entra aqui, na mesma PR do código, e avisa quem implementa e
+quem consome. Pontos ainda abertos para o Luis fechar com Hélio e Renan:
+
+**Registro de mudanças**
+
+- **27/11/2026, rotas 16 a 18 (#80):** o Pix passa a ser cobrado pela Stripe e o pagamento simulado sai. A rota 18
+  é o webhook da Stripe (cabeçalho `stripe-signature`, `STRIPE_WEBHOOK_SECRET`). Pix pago depois de a reserva
+  cair é estornado e o pagamento fica `ESTORNADO`. O limite de 10 por hora da rota 16 conta só cobrança nova
+  (reaproveitar o Pix pendente não conta).
+- **27/11/2026, rotas 26 e 27 (#81):** a resposta da devolução também traz `bicicleta` (`id` e `codigo`), como
+  a da retirada. O checklist passou a ter limites (de 1 a 20 itens, `nome` de 1 a 40 caracteres sem repetir,
+  `observacoes` até 1000 caracteres), e quem passa deles recebe `400`. A retirada ganhou dois `409`: bicicleta
+  que não está `DISPONIVEL` e bicicleta que ainda não voltou da reserva anterior.
+
+**Pontos em aberto**
+
+- Formato final de `horarios` do ponto (`diaSemana` de 0 a 6, começando no domingo?).
+- Se o cliente sem altura preenchida pode buscar (assumido: pode; só perde o filtro e os pontos de altura).
+- Texto exato das mensagens de erro de `409` que a tela mostra ao cliente.

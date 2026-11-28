@@ -1,0 +1,38 @@
+.dialogo {
+  width: min(92vw, 420px);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-card);
+}
+
+.dialogo::backdrop {
+  background: var(--color-overlay);
+}
+
+.conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding: var(--space-24);
+}
+
+.titulo {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.corpo {
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+}
+
+.rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-12);
+}

@@ -1,0 +1,150 @@
+:root {
+  /* Principais */
+  --color-logo: #0d7a5f;
+  --color-primary: #005f49;
+  --color-text: #13182e;
+  --color-surface: #ffffff;
+  --color-bg-lavender: #faf8ff;
+
+  /* Superfícies */
+  --color-surface-soft: #f2f3ff;
+  --color-surface-sand: #fff4a6;
+  --color-surface-lavender: #e2e7ff;
+  --color-surface-border: #eaedff;
+  --color-surface-border-strong: #dae2fd;
+
+  /* Ações e destaque */
+  --color-mint-highlight: #98f4d3;
+  --color-mint-secondary: #7cd8bb;
+  --color-mint-badge: #a8ffdf;
+  --color-link-blue: #005886;
+
+  /* Acentos */
+  --color-orange-dark: #9d4300;
+  --color-orange-vivid: #fd761a;
+
+  /* Neutros */
+  --color-text-secondary: #3e4944;
+  --color-text-support: #667a74;
+  --color-border: #bdc9c2;
+  --color-bg-dark: #283044;
+  --color-text-light: #e6f0ff;
+  --color-text-on-mint: #002117;
+
+  /* Feedback */
+  --color-danger: #c0392b;
+  --color-danger-soft: #fdecea;
+  --color-info-soft: #e6f1f8;
+  --color-info-border: #b3d4e8;
+  --color-overlay: rgba(19, 24, 46, 0.5);
+
+  /* Tipografia: famílias */
+  --font-heading: var(--font-space-grotesk), "Space Grotesk", sans-serif;
+  --font-body: var(--font-plus-jakarta-sans), "Plus Jakarta Sans", sans-serif;
+
+  /* Tipografia: escala (badges -> título de tela) */
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 15px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 32px;
+  --font-size-4xl: 44px;
+
+  /* Tipografia: pesos */
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Espaçamento: usar sempre um destes valores, nunca um número solto */
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+  --shadow-card: 0 12px 32px -16px rgba(19, 24, 46, 0.25);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg-lavender);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  /* Com viewport-fit=cover, o aparelho deitado deixa o notch por cima do conteúdo nas telas
+     que não usam a área segura (login, cadastro e página inicial). */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading);
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+input {
+  font-family: inherit;
+}
+
+/* Acabamento: foco visível para quem usa teclado, respeito a quem pede menos movimento e
+   campos com 16px no celular (abaixo disso o iOS dá zoom ao focar). */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
