@@ -15,11 +15,16 @@ retiradas e devoluções.
 
 ## Status do projeto
 
-Em desenvolvimento. Já existem o projeto Next.js (TypeScript, ESLint e módulos do back-end em
-`src/modules`), o cadastro e o login de clientes e as migrations do banco. O banco e o código ainda
-refletem o modelo anterior (várias locadoras) e serão simplificados conforme o plano em
-[docs/mudanca-de-escopo.md](docs/mudanca-de-escopo.md). O modelo de dados novo está descrito em
-[docs/modelo-de-dados.md](docs/modelo-de-dados.md).
+Pronto para a entrega da disciplina (novembro de 2026), para uma única locadora. Estão no código
+e na `dev`: cadastro, login e perfis; catálogo, recomendação e busca; reservas sem sobreposição; Pix
+pela Stripe com webhook assinado; retirada e devolução com checklist; painel de reservas da locadora; e
+as telas do cliente, do balcão e do administrador. O sistema inteiro é orientado a objetos (ver
+[docs/orientacao-a-objetos.md](docs/orientacao-a-objetos.md) e o
+[diagrama de classes](docs/diagrama-de-classes.pdf)). Verificação final: 1618 testes unitários, 15
+suítes do banco (185 testes), fluxo completo pelas rotas reais (57 verificações) e teste de estresse
+(13 cenários). O que ainda depende da equipe (produção no Neon e na Vercel, chaves da Stripe) e as
+pendências conhecidas estão em [docs/andamento-do-projeto.md](docs/andamento-do-projeto.md). O modelo de
+dados está em [docs/modelo-de-dados.md](docs/modelo-de-dados.md).
 
 ## Objetivo geral
 
@@ -137,10 +142,13 @@ por row-level security.
 ## Próximos passos
 
 - Confirmar com a locadora o número de pontos, os dados da empresa e os critérios da recomendação.
-- Aplicar a migration que simplifica o banco para uma locadora (plano em
-  [docs/mudanca-de-escopo.md](docs/mudanca-de-escopo.md)).
-- Implementar catálogo, busca com recomendação e reservas.
-- Pagamento: Pix pela Stripe (rotas 16 a 18). Para o deploy, ativar o Pix na conta da Stripe e cadastrar `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` na Vercel.
+- Produção: aplicar as migrations `0004` a `0012` no branch `production` do Neon, usar o papel
+  `app_login` na `DATABASE_URL` da Vercel e cadastrar `SESSION_SECRET`, `HEALTH_DB_SECRET`,
+  `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET`. Ativar o Pix na conta da Stripe e apontar o webhook
+  para `/api/pagamentos/webhook`.
+- Pendências conhecidas: expirar reservas não pagas sem depender de chamada à API (#73), horário do
+  balcão fixo em `agenda.ts` (#82), cobrança do atraso na devolução.
+- Depois, se houver tempo: notificações (WhatsApp, e-mail e push), assinaturas e créditos, mais de um ponto.
 
 ## Desenvolvimento
 

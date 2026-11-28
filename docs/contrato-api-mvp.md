@@ -11,8 +11,7 @@ código: o contrato só muda com os dois lados de acordo.
 > confirmação chega pelo webhook (rota 18) e também pela consulta de status (rota 17). O Mercado Pago
 > saiu do plano.
 
-> **Estado:** rotas marcadas como *existe* já estão no código; as marcadas como *novo* serão feitas na
-> semana do MVP. Quem faz cada uma está na tabela do [resumo](#resumo-das-rotas).
+> **Estado (28/11/2026):** as 27 rotas deste contrato já estão no código. Quem faz cada uma está na tabela do [resumo](#resumo-das-rotas).
 
 ## Convenções
 
@@ -110,16 +109,16 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 6 | `POST /api/conta/altura` | CLIENTE | existe (PR do Renan) | Renan | Luis |
 | 7 | `POST /api/conta/termos` | CLIENTE | existe (PR do Renan) | Renan | Luis |
 | 8 | `POST /api/conta/desativar` | Logado | existe (PR do Renan) | Renan | Luis |
-| 9 | `GET /api/empresa` | Visitante | novo | Hélio | Renan |
+| 9 | `GET /api/empresa` | Visitante | existe | Hélio | Renan |
 | 10 | `GET /api/catalogo/tipos` | Visitante | existe | Hélio | Renan |
 | 11 | `GET /api/recomendacao` | CLIENTE | existe | Hélio | Renan |
 | 12 | `POST /api/reservas` | CLIENTE | existe | Luis | Renan |
 | 13 | `GET /api/reservas` | CLIENTE | existe | Luis | Renan |
 | 14 | `GET /api/reservas/{id}` | CLIENTE | existe | Luis | Renan |
 | 15 | `POST /api/reservas/{id}/cancelar` | CLIENTE | existe | Luis | Renan |
-| 16 | `POST /api/pagamentos` | CLIENTE | novo | Hélio | Renan |
-| 17 | `GET /api/pagamentos/{reservaId}/status` | CLIENTE | novo | Hélio | Renan |
-| 18 | `POST /api/pagamentos/webhook` | Stripe | novo | Hélio | Stripe |
+| 16 | `POST /api/pagamentos` | CLIENTE | existe | Hélio | Renan |
+| 17 | `GET /api/pagamentos/{reservaId}/status` | CLIENTE | existe | Hélio | Renan |
+| 18 | `POST /api/pagamentos/webhook` | Stripe | existe | Hélio | Stripe |
 | 19 | `GET /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
 | 20 | `POST /api/admin/tipos` | ADMIN | existe | Hélio | Hélio |
 | 21 | `PUT /api/admin/tipos/{id}` | ADMIN | existe | Hélio | Hélio |
@@ -127,8 +126,8 @@ O número da bicicleta (`codigo` da unidade) só aparece para a equipe, nas rota
 | 23 | `POST /api/admin/bicicletas` | ADMIN | existe | Hélio | Hélio |
 | 24 | `PATCH /api/admin/bicicletas/{id}` | ADMIN | existe | Hélio | Hélio |
 | 25 | `GET /api/admin/reservas` | OPERADOR, ADMIN | existe | Luis | Luis |
-| 26 | `POST /api/operacao/reservas/{id}/retirada` | OPERADOR, ADMIN | novo | Hélio | Luis |
-| 27 | `POST /api/operacao/reservas/{id}/devolucao` | OPERADOR, ADMIN | novo | Hélio | Luis |
+| 26 | `POST /api/operacao/reservas/{id}/retirada` | OPERADOR, ADMIN | existe | Hélio | Luis |
+| 27 | `POST /api/operacao/reservas/{id}/devolucao` | OPERADOR, ADMIN | existe | Hélio | Luis |
 
 ---
 
@@ -274,7 +273,7 @@ Marca a conta como inativa (não apaga). O token anterior passa a ser recusado n
 ### 9. `GET /api/empresa`
 
 Dados públicos da locadora e do ponto de retirada, para a página inicial, o resumo da reserva e a tela
-de sucesso. **Novo.**
+de sucesso.
 
 | | |
 |---|---|
@@ -301,7 +300,7 @@ nem campos de controle. `horarios[].diaSemana` vai de 0 (domingo) a 6 (sábado);
 
 ### 10. `GET /api/catalogo/tipos`
 
-Lista dos tipos de bicicleta ativos. **Novo.**
+Lista dos tipos de bicicleta ativos.
 
 | | |
 |---|---|
@@ -371,7 +370,7 @@ a busca começa (ou que começa quando ela termina) não conflita. O valor segue
 
 ### 12. `POST /api/reservas`
 
-Cria a reserva de um tipo para um período. O sistema escolhe a unidade livre. **Novo.**
+Cria a reserva de um tipo para um período. O sistema escolhe a unidade livre.
 
 | | |
 |---|---|
@@ -394,7 +393,7 @@ período: a tela deve oferecer outro horário), `429`.
 
 ### 13. `GET /api/reservas`
 
-As reservas do cliente logado, da mais recente para a mais antiga. **Novo.**
+As reservas do cliente logado, da mais recente para a mais antiga.
 
 | | |
 |---|---|
@@ -419,7 +418,7 @@ Antes de listar, o servidor marca como `EXPIRADA` as pendentes vencidas.
 
 ### 15. `POST /api/reservas/{id}/cancelar`
 
-Cancela uma reserva `PENDENTE_PAGAMENTO` ou `CONFIRMADA` que ainda não foi retirada. **Novo.**
+Cancela uma reserva `PENDENTE_PAGAMENTO` ou `CONFIRMADA` que ainda não foi retirada.
 
 | | |
 |---|---|
@@ -439,7 +438,7 @@ Cancela uma reserva `PENDENTE_PAGAMENTO` ou `CONFIRMADA` que ainda não foi reti
 
 ### 16. `POST /api/pagamentos`
 
-Cria a cobrança Pix de uma reserva. **Novo.** Cobra **só o aluguel**; a caução é combinada no balcão.
+Cria a cobrança Pix de uma reserva. Cobra **só o aluguel**; a caução é combinada no balcão.
 
 | | |
 |---|---|
@@ -476,7 +475,7 @@ curto), `429`, `502` (`PAGAMENTO_INDISPONIVEL`: Stripe fora do ar ou chave não 
 
 ### 17. `GET /api/pagamentos/{reservaId}/status`
 
-A tela chama a cada 3 segundos na tela do Pix, até a reserva ficar confirmada. **Novo.**
+A tela chama a cada 3 segundos na tela do Pix, até a reserva ficar confirmada.
 
 | | |
 |---|---|
@@ -495,7 +494,7 @@ hora**, inteiro, e `statusPagamento` vem `ESTORNADO`.
 
 ### 18. `POST /api/pagamentos/webhook`
 
-Aviso da Stripe. **Novo.** Não é chamada pela tela.
+Aviso da Stripe. Não é chamada pela tela.
 
 | | |
 |---|---|

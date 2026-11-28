@@ -1,6 +1,6 @@
 # Revisão de segurança do MVP (T47)
 
-Revisão do código que está na `dev` em 12/11/2026, feita para a tarefa T47. Cada achado tem
+Revisão do código que estava na `dev` em 12/11/2026, feita para a tarefa T47 (atualizada em 28/11/2026, no fim do arquivo). Cada achado tem
 gravidade, situação e o que fazer. Os achados de risco alto que dependem só de código foram
 corrigidos no mesmo PR; os demais ficam com responsável e prazo.
 
@@ -16,7 +16,7 @@ corrigidos no mesmo PR; os demais ficam com responsável e prazo.
 | CORS | **OK.** Não há CORS: app e API são da mesma origem e nenhuma regra libera `Access-Control-Allow-Origin`. Um teste garante que ninguém libera por engano |
 | Headers de segurança | **Achado 1, corrigido neste PR** |
 | RLS testada com o papel do app | **Achado 2, pendente** |
-| Webhook do Mercado Pago | **Não revisado:** a rota ainda não existe na `dev` (ver "Fora desta revisão") |
+| Webhook da Stripe | **Revisado depois**, ver "Atualização de 28/11/2026" |
 
 ## Achados
 
@@ -30,12 +30,24 @@ corrigidos no mesmo PR; os demais ficam com responsável e prazo.
 
 ## Fora desta revisão
 
-- **Webhook do Mercado Pago (rota 18) e pagamentos:** não existem na `dev`. Quando o PR chegar, conferir:
-  assinatura `x-signature` com `MP_WEBHOOK_SECRET` (401 se faltar ou errar), comparação em tempo
-  constante, limite de tamanho do corpo (413), consulta do pagamento na API do Mercado Pago em vez de
-  confiar no corpo, idempotência por `mp_payment_id`, e nenhum dado do pagamento nos logs.
-- **Rotas de reservas (PR #45) e de operação (retirada e devolução):** o PR #45 ainda está aberto e as
-  rotas de operação e `GET /api/admin/reservas` não existem. Conferir `exigirPerfil` (CLIENTE nas
-  reservas; OPERADOR e ADMIN na operação), o 404 para reserva de outro cliente e o valor calculado só
-  no servidor.
 - **Banco de produção:** nada foi executado em `production`.
+
+## Atualização de 28/11/2026
+
+As rotas que estavam fora desta revisão (reservas, pagamentos com webhook, operação e painel) já estão na
+`dev`. O que foi conferido, em um PostgreSQL descartável com o papel `app_login` (sem `BYPASSRLS`), pelos
+`route.ts` reais e por um teste de estresse contra o servidor de produção local:
+
+| Item | Resultado |
+|---|---|
+| Webhook da Stripe (rota 18) | **OK.** Assinatura inválida: 401; corpo acima do limite: 413; 20 avisos assinados simultâneos do mesmo pagamento: 1 confirmado e 19 ignorados (idempotência pelo id do PaymentIntent, guardado em `mp_payment_id`); pagamento que chega depois de a reserva cair é estornado |
+| Reservas, pagamentos e operação | **OK.** Sessão 401, perfil 403, reserva de outro cliente 404 (ler, pagar, cancelar e ver o status); o valor sai só do servidor |
+| RLS com o papel do app (achado 2) | **OK nos testes** (`isolamento_rls`, 12 casos, e o fluxo completo com `app_login`). **Continua pendente:** conferir que a `DATABASE_URL` da Vercel e a do Neon `production` usam o `app_login` (issue #23) |
+| Tokens forjados | **OK.** Token vazio, lixo, `alg none`, perfil trocado no corpo e assinatura de outro corpo: sempre 401 |
+| Força bruta | **OK.** O login bloqueia a partir da 11ª tentativa errada (429 com `Retry-After`); depois o dono entra de outro IP |
+| Entradas maliciosas | **OK.** 26 corpos e ids quebrados: nunca 500 |
+| Corridas | **OK.** 9 reservas ao mesmo tempo para 1 bicicleta livre: 1 criada e 8 recusadas com 409; 25 pedidos de Pix ao mesmo tempo na mesma reserva: 1 só pagamento |
+
+**Ponto de atenção novo:** fora da Vercel, o limite de login por IP confia no `X-Forwarded-For` enviado pelo
+cliente; trocando o cabeçalho, o atacante escapa do limite por IP. Na Vercel o IP vem de outro cabeçalho e o
+limite por e-mail (100 em 15 minutos) segura o ataque. Não há ação no MVP.
