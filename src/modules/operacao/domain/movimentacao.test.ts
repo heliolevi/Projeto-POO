@@ -41,6 +41,9 @@ describe("Checklist.deCorpo (corpo das rotas 26 e 27)", () => {
     assert.throws(() => Checklist.deCorpo(corpo({ observacoes: "x".repeat(1001) })), ValidationError);
     const muitos = Array.from({ length: MAXIMO_DE_ITENS + 1 }, (_, i) => ({ nome: `item ${i}`, ok: true }));
     assert.throws(() => Checklist.deCorpo({ checklist: { itens: muitos } }), ValidationError);
+    const vinteEUm = Array.from({ length: 21 }, (_, i) => ({ nome: `item ${i}`, ok: true }));
+    assert.throws(() => Checklist.deCorpo({ checklist: { itens: vinteEUm } }), ValidationError, "21 itens passam do limite de 20");
+    assert.equal(MAXIMO_DE_ITENS, 20);
   });
 
   test("aceita exatamente os limites: 20 itens, nome de 40 e observações de 1000 caracteres", () => {

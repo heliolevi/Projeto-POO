@@ -5,8 +5,8 @@
  * outros módulos ou pelos Route Handlers em src/app/api.
  * Camadas internas: domain → application → infrastructure / http.
  */
-export { abrirOcorrencia } from "./domain/abrir-ocorrencia";
-export { Atraso, TOLERANCIA_DE_ATRASO_MS } from "./domain/atraso";
+export { FabricaDeOcorrencia } from "./domain/fabrica-de-ocorrencia";
+export { Atraso, TOLERANCIA_DE_ATRASO_MS, type CalculoDeAtraso, type DadosAtraso } from "./domain/atraso";
 export { Dano } from "./domain/dano";
 export { Furto } from "./domain/furto";
 export {

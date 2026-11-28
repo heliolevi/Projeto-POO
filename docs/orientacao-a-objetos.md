@@ -19,7 +19,7 @@ da API pede. Por isso rotas, JSON das respostas, migrations e telas não mudaram
 | `recomendacao` | `RecomendacaoService`, `CriterioDeRecomendacao` (interface), `CriterioAltura`, `CriterioAtividade`, `CriterioExperiencia`, `BuscaDeRecomendacoes`, `RepositorioDeDisponibilidade`, `ControladorDeRecomendacao` |
 | `reservas` | `Reserva`, `RegrasDeReserva` (status, transições, prazo), `ValidadorDeNovaReserva`, `GeradorDeCodigoDeReserva`, `ReservaService`, `CriadorDeReserva`, `ConsultaDeReservas`, `CancelamentoDeReserva`, `MontadorDeReserva`, `RepositorioDeReservas`, `OperacoesDeReservasNoBanco`, `ControladorDeReservas`, `FiltroDoPainel`, `ReservaDoPainel`, `PainelDeReservas`, `RepositorioDoPainel`, `ControladorDoPainel` |
 | `pagamentos` | `Pagamento` (abstrata), `PagamentoPix`, `PagamentoCartao`, `FabricaDePagamento`, `CodigoPix` (objeto de valor), `PagamentoService`, `PagarReservaService`, `IntervaloDeConsulta`, `GatewayPix` (interface), `GatewayStripe` (fetch e chave injetados), `LeitorDeAvisoDaStripe` (webhook assinado), `TraducaoDaStripe`, `QrCodePng`, `OperacoesDePagamentoNoBanco`, `RepositorioDePagamentosNoBanco`, `ControladorDePagamentos` |
-| `operacao` | `Movimentacao`, `Checklist`, `ItemDoChecklist`, `OperacaoService`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `Arquivo` |
+| `operacao` | `Movimentacao`, `Checklist`, `ItemDoChecklist`, `OperacaoService`, `Ocorrencia` (abstrata), `Dano`, `Atraso`, `Furto`, `FabricaDeOcorrencia`, `Arquivo`, `RepositorioDeOperacao`, `OperacoesNoBanco`, `ControladorDeOperacao` |
 | `notificacoes` | `Notificacao`, `EnviadorDeNotificacao` (interface), `RoteadorDeEnvio` |
 | `administracao` | `AuditoriaLog` |
 | `shared/empresa` (telas) | `EmpresaDaLocadora`, `PontoDeRetirada`, `Telefone` (objeto de valor), `GradeDeHorarios`, `HorarioDoDia`, `LeitorDeObjeto`, `BuscadorDeEmpresa`, `ResultadoDaEmpresa` (abstrata), `EmpresaCarregada`, `EmpresaSemCadastro`, `EmpresaIndisponivel` |
@@ -94,7 +94,7 @@ validar o código não mexe no pagamento, e `pix.pagavelEmBanco` na resposta é 
 - `EnviadorDeNotificacao.enviar()`: o `RoteadorDeEnvio` escolhe o enviador pelo canal (web push, WhatsApp
   ou e-mail), e a `Notificacao` só conhece a interface.
 - Fábricas escolhem a subclasse certa: `FabricaDeUsuario.criar(linha)`, `FabricaDePagamento.criar(metodo, dados)` e
-  `abrirOcorrencia(tipo, dados)`.
+  `FabricaDeOcorrencia.abrir(tipo, dados)`.
 
 ### Abstração e interfaces
 
@@ -127,7 +127,7 @@ O diagrama é o ponto de partida. Estes são os pontos em que o código decidiu 
 | `Reserva.cancelar(motivo)`, `confirmar()` ... | Recebem `agora`; `cancelar` não recebe nem guarda motivo | O domínio não lê o relógio, para toda regra de tempo ser testável. O motivo e a data do cancelamento não têm onde ser gravados (o banco grava `cancelada_em` com a própria hora), então o objeto não os carrega. |
 | `Reserva.calcularValor()` | `calcularValor(precos)` | O preço vem do tipo, que a reserva não guarda. |
 | `Pagamento.gerarPix()` e `cobrarCartao(token)` | Estão nas filhas, não na abstrata | Só o Pix gera Pix e só o cartão cobra cartão; a abstrata tem `gerar()`. |
-| `Ocorrencia.abrir()` | A fábrica `abrirOcorrencia(tipo, dados)` | Uma ocorrência já nasce aberta. |
+| `Ocorrencia.abrir()` | A fábrica `FabricaDeOcorrencia.abrir(tipo, dados)` | Uma ocorrência já nasce aberta. |
 | `Ocorrencia.cobrarCliente(valor): Pagamento` | Devolve a divisão `{ daCaucao, adicional }` | Criar o `Pagamento` é do módulo de pagamentos; a operação só diz quanto sai da caução e quanto passa dela. |
 | `Notificacao.enviar()` | `enviar(enviador, agora)` | O canal de envio entra como dependência (a interface). |
 | `AuditoriaLog.registrar(...)` | Método estático que cria o registro | Cada registro é imutável depois de criado. |
@@ -233,6 +233,6 @@ construtor (injeção de dependência):
 
 ### O que ainda não foi convertido
 
-Estes grupos ainda têm funções soltas e entram nas próximas fases: o módulo `operacao`
-(casos de uso, repositórios e handlers; `contas`, `catalogo`, `recomendacao`, `reservas` e `pagamentos` já foram convertidos), a lógica das telas em `src/shared/*` (busca, agenda, início,
+Os módulos `contas`, `catalogo`, `recomendacao`, `reservas`, `pagamentos` e `operacao` já foram convertidos. Ainda têm funções soltas:
+a lógica das telas em `src/shared/*` (busca, agenda, início,
 perfil, conta, operação, admin, markdown e landing) e as rotas `route.ts`, que passam a só chamar classes.

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { ConflictError } from "../../../shared/http/errors.ts";
 import { Dinheiro } from "../../../shared/dominio/dinheiro.ts";
-import { abrirOcorrencia } from "./abrir-ocorrencia.ts";
+import { FabricaDeOcorrencia } from "./fabrica-de-ocorrencia.ts";
 import { Atraso, TOLERANCIA_DE_ATRASO_MS } from "./atraso.ts";
 import { Dano } from "./dano.ts";
 import { Furto } from "./furto.ts";
@@ -226,6 +226,34 @@ describe("Atraso", () => {
     assert.equal(o.fimPrevisto.getUTCFullYear(), 2026);
   });
 
+  test("a calculadora é injetada: o atraso usa a que recebe, e a do app quando não recebe", () => {
+    const chamadas: unknown[][] = [];
+    const calculadora = {
+      horasDaDuracao: (ms: number) => {
+        chamadas.push(["horas", ms]);
+        return 7;
+      },
+      valorPorHoras: (horas: number, precos: typeof PRECOS) => {
+        chamadas.push(["valor", horas, precos]);
+        return 1234;
+      },
+    };
+    const o = new Atraso({ ...base(), fimPrevisto: FIM, devolvidoEm: depois(60), precos: PRECOS, calculadora });
+    assert.equal(o.valorSugerido().centavos, 1234);
+    assert.deepEqual(chamadas, [["horas", 60 * MIN], ["valor", 7, PRECOS]]);
+    assert.equal(atraso(60).valorSugerido().centavos, 1000, "sem injeção, vale a CalculadoraDeAluguel.padrao");
+  });
+
+  test("dentro da tolerância a calculadora nem é consultada", () => {
+    const calculadora = {
+      horasDaDuracao: (): number => assert.fail("não devia calcular"),
+      valorPorHoras: (): number => assert.fail("não devia calcular"),
+    };
+    const o = new Atraso({ ...base(), fimPrevisto: FIM, devolvidoEm: depois(15), precos: PRECOS, calculadora });
+    assert.equal(o.valorSugerido().ehZero(), true);
+    assert.deepEqual(Object.keys(o), []);
+  });
+
   test("recusa datas inválidas", () => {
     assert.throws(
       () => new Atraso({ ...base(), fimPrevisto: new Date("lixo"), devolvidoEm: FIM, precos: PRECOS }),
@@ -234,25 +262,29 @@ describe("Atraso", () => {
   });
 });
 
-describe("abrirOcorrencia (fábrica)", () => {
+describe("FabricaDeOcorrencia (fábrica)", () => {
+  test("só tem métodos estáticos: criar uma instância lança erro", () => {
+    assert.throws(() => new (FabricaDeOcorrencia as unknown as new () => unknown)(), /só tem métodos estáticos/);
+  });
+
   test("escolhe a subclasse pelo tipo", () => {
-    assert.ok(abrirOcorrencia("DANO", { ...base(), custoEstimado: R(10) }) instanceof Dano);
-    assert.ok(abrirOcorrencia("FURTO", { ...base(), caucao: R(200) }) instanceof Furto);
+    assert.ok(FabricaDeOcorrencia.abrir("DANO", { ...base(), custoEstimado: R(10) }) instanceof Dano);
+    assert.ok(FabricaDeOcorrencia.abrir("FURTO", { ...base(), caucao: R(200) }) instanceof Furto);
     assert.ok(
-      abrirOcorrencia("ATRASO", { ...base(), fimPrevisto: FIM, devolvidoEm: depois(60), precos: PRECOS }) instanceof Atraso,
+      FabricaDeOcorrencia.abrir("ATRASO", { ...base(), fimPrevisto: FIM, devolvidoEm: depois(60), precos: PRECOS }) instanceof Atraso,
     );
   });
 
   test("a ocorrência já nasce aberta", () => {
-    assert.equal(abrirOcorrencia("DANO", { ...base(), custoEstimado: R(10) }).status, "ABERTA");
+    assert.equal(FabricaDeOcorrencia.abrir("DANO", { ...base(), custoEstimado: R(10) }).status, "ABERTA");
   });
 
   test("ACIDENTE e OUTRO ainda não têm regra: 409, não cobra sem regra", () => {
-    assert.throws(() => abrirOcorrencia("ACIDENTE", base()), OcorrenciaInvalida);
-    assert.throws(() => abrirOcorrencia("OUTRO", base()), OcorrenciaInvalida);
+    assert.throws(() => FabricaDeOcorrencia.abrir("ACIDENTE", base()), OcorrenciaInvalida);
+    assert.throws(() => FabricaDeOcorrencia.abrir("OUTRO", base()), OcorrenciaInvalida);
   });
 
   test("tipo desconhecido é recusado", () => {
-    assert.throws(() => (abrirOcorrencia as (t: string, d: unknown) => unknown)("ROUBO", base()), OcorrenciaInvalida);
+    assert.throws(() => (FabricaDeOcorrencia.abrir as (t: string, d: unknown) => unknown)("ROUBO", base()), OcorrenciaInvalida);
   });
 });
