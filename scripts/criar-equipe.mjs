@@ -186,11 +186,11 @@ async function main() {
     perguntador.fechar();
   }
 
-  // reaproveita a função de hash do app, para o login aceitar a senha
-  const { gerarHashSenha } = await import(
+  // reaproveita o hash (ScryptDeSenha) do app, para o login aceitar a senha
+  const { ScryptDeSenha } = await import(
     pathToFileURL(join(raiz, 'src', 'modules', 'contas', 'infrastructure', 'senha.ts')).href
   );
-  const hash = await gerarHashSenha(senha);
+  const hash = await ScryptDeSenha.padrao.gerarHash(senha);
 
   const client = new pg.Client({ connectionString: url });
   await client.connect();
